@@ -8,8 +8,19 @@ import { NotFoundException } from '@nestjs/common';
 export class CustomersService {
   constructor(private prisma: PrismaService) {}
 
-  async list(): Promise<any> {
-    return this.prisma.customer.findMany();
+  async list(params?: {
+    skip?: number; //how many records to skip (useful for pages)
+    take?: number; //how many records to return
+    orderBy?: string;
+    order?: 'asc' | 'desc';
+  }): Promise<Customer[]> {
+    const { skip, take, orderBy, order } = params || {};
+
+    return this.prisma.customer.findMany({
+      skip,
+      take,
+      orderBy: orderBy ? { [orderBy]: order || 'asc' } : undefined,
+    });
   }
 
   async get(id: number): Promise<Customer> {

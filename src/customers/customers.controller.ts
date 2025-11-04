@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
 import { CreateCustomerDto } from './create-customer.dto';
 import { CustomersService } from './customers.service';
 
@@ -7,8 +7,18 @@ export class CustomersController {
   constructor(private customersService: CustomersService) {}
 
   @Get()
-  list() {
-    return this.customersService.list();
+  list(
+    @Query('skip') skip?: string,
+    @Query('take') take?: string,
+    @Query('orderBy') orderBy?: string,
+    @Query('order') order?: 'asc' | 'desc',
+  ) {
+    return this.customersService.list({
+      skip: skip ? Number(skip) : undefined,
+      take: take ? Number(take) : undefined,
+      orderBy,
+      order,
+    });
   }
 
   @Get(':id')
