@@ -1,98 +1,108 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Billing Service — MVP (NestJS + Prisma + PostgreSQL)
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+Ce projet est le **backend de la plateforme d’abonnements biling-platform**.  
+Il gère les **clients**, les **abonnements**, et la **facturation** via une API REST construite avec **NestJS**, **Prisma**, et **PostgreSQL** (conteneurisé avec Docker).
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+---
 
-## Description
+## Démarrage rapide
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+### 🧩 Prérequis
+- Node.js ≥ 18
+- npm ≥ 9
+- Docker & Docker Compose
+- Prisma CLI (`npx prisma` fonctionne sans installation globale)
 
-## Project setup
+---
+
+### 1. Lancer la base de données
+
+Depuis la racine du projet (`biling-platform/`) :
 
 ```bash
-$ npm install
+docker compose up -d
 ```
+Ce conteneur PostgreSQL tourne sur localhost:5432
 
-## Compile and run the project
+Identifiants par défaut : admin / admin, base billingdb
+
+### 2. Installer et démarrer le backend
+Depuis le dossier biling-platform/backend/billing-service/ :
 
 ```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+npm install
+npx prisma migrate dev --name init
+npm run start:dev
 ```
 
-## Run tests
+### 3. Vérifier que tout fonnctionne
+
+Santé du serveur
+```bash
+curl http://localhost:3000/healthz
+```
+
+Réponse attendue :
+```bash
+{ "status": "ok" }
+```
+
+Créer un client :
+```bash
+curl -X POST http://localhost:3000/customers \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Alice","email":"alice@example.com"}'
+```
+
+Lister les clients :
 
 ```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+curl http://localhost:3000/customers
 ```
 
-## Deployment
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+## Structure du projet
 
 ```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+billing-service/
+├── src/
+│   ├── app.controller.ts       # Contrôleur principal
+│   ├── customers.controller.ts # Routes clients
+│   ├── prisma.service.ts       # Service de connexion DB
+│   └── main.ts                 # Point d’entrée NestJS
+│
+├── prisma/
+│   └── schema.prisma           # Modèle de données
+│
+├── docs/
+│   ├── setup/local.md          # Setup local détaillé
+│   ├── api/README.md           # Endpoints disponibles
+│   ├── runbook/troubleshooting.md # Dépannage
+│   └── adr/001-stack.md        # Choix techniques
+│
+├── package.json
+├── tsconfig.json
+└── README.md                   # Ce fichier
+
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+## Documentation associée
 
-## Resources
+| Type | Fichier |
+|------|----------|
+| 🧭 Setup local | [`docs/setup/local.md`](docs/setup/local.md) |
+| 📡 API Endpoints | [`docs/api/README.md`](docs/api/README.md) |
+| 🧰 Dépannage (Runbook) | [`docs/runbook/troubleshooting.md`](docs/runbook/troubleshooting.md) |
+| 🧩 Décision technique (ADR) | [`docs/adr/001-stack.md`](docs/adr/001-stack.md) |
 
-Check out a few resources that may come in handy when working with NestJS:
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
 
-## Support
+## Stack technique
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+| Composant | Usage |
+|------------|-------|
+| **NestJS** | Framework backend |
+| **Prisma** | ORM typé |
+| **PostgreSQL** | Base de données |
+| **Docker Compose** | Environnement local |
+| **TypeScript** | Langage |
