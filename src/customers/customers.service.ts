@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma.service';
 import { ConflictException } from '@nestjs/common';
 import { Customer, Prisma } from '@prisma/client';
 import { NotFoundException } from '@nestjs/common';
+import { UpdateCustomerDto } from './update-customer.dto';
 
 type PaginatedCustomers = {
   data: Customer[];
@@ -75,6 +76,35 @@ export class CustomersService {
         e.code === 'P2002'
       ) {
         throw new ConflictException('Email already exists');
+      }
+      throw e;
+    }
+  }
+
+  async update(id: number, data: UpdateCustomerDto): Promise<Customer> {
+    try {
+      return await this.prisma.customer.update({
+        where: { id },
+        data,
+      });
+    } catch (e) {
+      if (e instanceof Prisma.PrismaClientKnownRequestError) {
+        if (e.code === 'P2002')
+          throw new ConflictException('Email already exists');
+        if (e.code === 'P2025')
+          throw new NotFoundException(`Customer ${id} not found`);
+      }
+      throw e;
+    }
+  }
+
+  async delete(id: number): Promise<Customer> {
+    try {
+      return await this.prisma.customer.delete({ where: { id } });
+    } catch (e) {
+      if (e instanceof Prisma.PrismaClientKnownRequestError) {
+        if (e.code === 'P2025')
+          throw new NotFoundException(`Customer ${id} not found`);
       }
       throw e;
     }
