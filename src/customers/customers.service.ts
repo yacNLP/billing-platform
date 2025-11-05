@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { ConflictException } from '@nestjs/common';
 import { Customer, Prisma } from '@prisma/client';
@@ -16,6 +16,8 @@ type PaginatedCustomers = {
 
 @Injectable()
 export class CustomersService {
+  private readonly logger = new Logger(CustomersService.name);
+
   constructor(private prisma: PrismaService) {}
 
   async list(params?: {
@@ -68,13 +70,18 @@ export class CustomersService {
 
   async create(data: { name: string; email: string }): Promise<Customer> {
     try {
-      return await this.prisma.customer.create({ data }); // <-- await
+      const customer = await this.prisma.customer.create({ data });
+      this.logger.log(
+        `Created customer with id ${customer.id} and email ${customer.email}`,
+      );
+      return customer;
     } catch (e) {
       //handdle double email error
       if (
         e instanceof Prisma.PrismaClientKnownRequestError &&
         e.code === 'P2002'
       ) {
+        this.logger.warn(`duplicate email=${data.email}`);
         throw new ConflictException('Email already exists');
       }
       throw e;
@@ -83,24 +90,31 @@ export class CustomersService {
 
   async update(id: number, data: UpdateCustomerDto): Promise<Customer> {
     try {
-      return await this.prisma.customer.update({
+      const customer = await this.prisma.customer.update({
         where: { id },
         data,
       });
+      this.logger.log(`updated id=${id}`);
+      return customer;
     } catch (e) {
       if (e instanceof Prisma.PrismaClientKnownRequestError) {
-        if (e.code === 'P2002')
+        if (e.code === 'P2002') {
+          this.logger.warn(`duplicate email=${data.email}`);
           throw new ConflictException('Email already exists');
-        if (e.code === 'P2025')
+        }
+        if (e.code === 'P2025') {
+          this.logger.warn(`Customer ${id} not found`);
           throw new NotFoundException(`Customer ${id} not found`);
+        }
       }
       throw e;
     }
   }
 
-  async delete(id: number): Promise<Customer> {
+  async delete(id: number): Promise<void> {
     try {
-      return await this.prisma.customer.delete({ where: { id } });
+      await this.prisma.customer.delete({ where: { id } });
+      this.logger.log(`deleted id=${id}`);
     } catch (e) {
       if (e instanceof Prisma.PrismaClientKnownRequestError) {
         if (e.code === 'P2025')
