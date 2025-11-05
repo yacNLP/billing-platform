@@ -10,6 +10,7 @@ type PaginatedCustomers = {
   pageSize: number;
   total: number;
   hasNext: boolean;
+  search?: string;
 };
 
 @Injectable()
@@ -21,20 +22,33 @@ export class CustomersService {
     pageSize?: number;
     orderBy?: string;
     order?: 'asc' | 'desc';
+    search?: string;
   }): Promise<PaginatedCustomers> {
     const page = params?.page ?? 1; //current page (default 1)
     const pageSize = params?.pageSize ?? 10; //items per page (default 10)
     const skip = (page - 1) * pageSize; // items to skip
 
+    // handle search query
+    const where: Prisma.CustomerWhereInput | undefined = params?.search
+      ? {
+          OR: [
+            { name: { contains: params.search, mode: 'insensitive' } },
+            { email: { contains: params.search, mode: 'insensitive' } },
+          ],
+        }
+      : undefined;
+
     // Count total customers (for pagination)
-    const total = await this.prisma.customer.count();
+    const total = await this.prisma.customer.count({ where });
+    const orderOption = params?.orderBy
+      ? { [params.orderBy]: params.order || 'asc' }
+      : undefined;
 
     const data = await this.prisma.customer.findMany({
+      where,
       skip,
       take: pageSize,
-      orderBy: params?.orderBy
-        ? { [params.orderBy]: params.order || 'asc' }
-        : undefined,
+      orderBy: orderOption,
     });
 
     const hasNext = skip + data.length < total; // check if another page exists

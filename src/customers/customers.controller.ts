@@ -12,12 +12,14 @@ export class CustomersController {
     @Query('pageSize') pageSize?: string,
     @Query('orderBy') orderBy?: string,
     @Query('order') order?: 'asc' | 'desc',
+    @Query('search') search?: string,
   ) {
     return this.customersService.list({
       page: page ? Number(page) : undefined,
       pageSize: pageSize ? Number(pageSize) : undefined,
       orderBy,
       order,
+      search,
     });
   }
 
