@@ -13,14 +13,19 @@ export class CustomersService {
     take?: number; //how many records to return
     orderBy?: string;
     order?: 'asc' | 'desc';
-  }): Promise<Customer[]> {
+  }): Promise<{ data: Customer[]; total: number }> {
     const { skip, take, orderBy, order } = params || {};
 
-    return this.prisma.customer.findMany({
+    // Count total customers (for pagination)
+    const total = await this.prisma.customer.count();
+
+    const data = await this.prisma.customer.findMany({
       skip,
       take,
       orderBy: orderBy ? { [orderBy]: order || 'asc' } : undefined,
     });
+
+    return { data, total };
   }
 
   async get(id: number): Promise<Customer> {
