@@ -14,7 +14,9 @@ import { CreateCustomerDto } from './create-customer.dto';
 import { CustomersService } from './customers.service';
 import { UpdateCustomerDto } from './update-customer.dto';
 import { ListCustomersQuery } from './list-customers.query';
+import { ApiTags } from '@nestjs/swagger';
 
+@ApiTags('customers')
 @Controller('customers')
 export class CustomersController {
   constructor(private customersService: CustomersService) {}
