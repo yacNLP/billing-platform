@@ -13,26 +13,15 @@ import {
 import { CreateCustomerDto } from './create-customer.dto';
 import { CustomersService } from './customers.service';
 import { UpdateCustomerDto } from './update-customer.dto';
+import { ListCustomersQuery } from './list-customers.query';
 
 @Controller('customers')
 export class CustomersController {
   constructor(private customersService: CustomersService) {}
 
   @Get()
-  list(
-    @Query('page') page?: string,
-    @Query('pageSize') pageSize?: string,
-    @Query('orderBy') orderBy?: string,
-    @Query('order') order?: 'asc' | 'desc',
-    @Query('search') search?: string,
-  ) {
-    return this.customersService.list({
-      page: page ? Number(page) : undefined,
-      pageSize: pageSize ? Number(pageSize) : undefined,
-      orderBy,
-      order,
-      search,
-    });
+  list(@Query() q: ListCustomersQuery) {
+    return this.customersService.list(q);
   }
 
   @Get(':id')
