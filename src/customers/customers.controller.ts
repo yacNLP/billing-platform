@@ -8,14 +8,14 @@ export class CustomersController {
 
   @Get()
   list(
-    @Query('skip') skip?: string,
-    @Query('take') take?: string,
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
     @Query('orderBy') orderBy?: string,
     @Query('order') order?: 'asc' | 'desc',
   ) {
     return this.customersService.list({
-      skip: skip ? Number(skip) : undefined,
-      take: take ? Number(take) : undefined,
+      page: page ? Number(page) : undefined,
+      pageSize: pageSize ? Number(pageSize) : undefined,
       orderBy,
       order,
     });
