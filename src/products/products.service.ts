@@ -83,7 +83,7 @@ export class ProductsService {
   }
 
   async remove(id: number) {
-    await this.findOne(id); // vérifie existence
+    await this.findOne(id);
     await this.prisma.product.delete({ where: { id } });
     return { deleted: true };
   }
