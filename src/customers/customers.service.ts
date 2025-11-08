@@ -3,7 +3,7 @@ import { PrismaService } from '../prisma.service';
 import { ConflictException } from '@nestjs/common';
 import { Customer, Prisma } from '@prisma/client';
 import { NotFoundException } from '@nestjs/common';
-import { UpdateCustomerDto } from './update-customer.dto';
+import { UpdateCustomerDto } from './dto/update-customer.dto';
 
 type PaginatedCustomers = {
   data: Customer[];

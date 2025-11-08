@@ -10,9 +10,9 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
-import { CreateCustomerDto } from './create-customer.dto';
+import { CreateCustomerDto } from './dto/create-customer.dto';
 import { CustomersService } from './customers.service';
-import { UpdateCustomerDto } from './update-customer.dto';
+import { UpdateCustomerDto } from './dto/update-customer.dto';
 import { ListCustomersQuery } from './list-customers.query';
 import { ApiTags } from '@nestjs/swagger';
 
