@@ -41,6 +41,7 @@ describe('Products e2e', () => {
 
     app = moduleRef.createNestApplication();
 
+    // global validation like in prod
     app.useGlobalPipes(
       new ValidationPipe({
         whitelist: true,
@@ -52,6 +53,7 @@ describe('Products e2e', () => {
     await app.init();
     server = app.getHttpServer() as Server;
 
+    // clean table to avoid collisions across runs
     const prisma = app.get<PrismaService>(PrismaService);
     await prisma.product.deleteMany();
   });
@@ -61,6 +63,7 @@ describe('Products e2e', () => {
   });
 
   it('POST /products -> create', async () => {
+    // nominal creation
     const res = await request(server)
       .post('/products')
       .send({
@@ -81,6 +84,7 @@ describe('Products e2e', () => {
   });
 
   it('GET /products -> list with pagination & filters', async () => {
+    // list should support paging, sorting and filters
     const res = await request(server)
       .get('/products')
       .query({
@@ -104,6 +108,7 @@ describe('Products e2e', () => {
   });
 
   it('GET /products/:id -> one', async () => {
+    // fetch by id should return the created product
     const res = await request(server).get(`/products/${createdId}`).expect(200);
     const body = res.body as ProductDto;
     expect(body.id).toBe(createdId);
@@ -111,6 +116,7 @@ describe('Products e2e', () => {
   });
 
   it('PATCH /products/:id -> update', async () => {
+    // update should modify selected fields only
     const res = await request(server)
       .patch(`/products/${createdId}`)
       .send({ priceCents: 1500, stock: 9 })
@@ -122,14 +128,48 @@ describe('Products e2e', () => {
   });
 
   it('Validation error on bad sku', async () => {
+    // invalid sku format should be rejected with 400
     await request(server)
       .post('/products')
       .send({ name: 'X', sku: 'bad sku with space', priceCents: 100 })
       .expect(400);
   });
 
+  it('409 on duplicate SKU (create)', async () => {
+    // create once
+    await request(server)
+      .post('/products')
+      .send({ name: 'Dup A', sku: 'DUP-001', priceCents: 100, stock: 1 })
+      .expect(201);
+    // create again with same sku -> conflict
+    await request(server)
+      .post('/products')
+      .send({ name: 'Dup B', sku: 'DUP-001', priceCents: 200, stock: 2 })
+      .expect(409);
+  });
+
+  it('404 on GET non-existent product', async () => {
+    // explicit not found (id that does not exist)
+    await request(server).get('/products/999999').expect(404);
+  });
+
+  it('404 on PATCH non-existent product', async () => {
+    // update on a missing id -> not found
+    await request(server)
+      .patch('/products/999999')
+      .send({ priceCents: 123 })
+      .expect(404);
+  });
+
+  it('404 on DELETE non-existent product', async () => {
+    // delete on a missing id -> not found
+    await request(server).delete('/products/999999').expect(404);
+  });
+
   it('DELETE /products/:id -> remove', async () => {
+    // delete previously created product
     await request(server).delete(`/products/${createdId}`).expect(200);
+    // now it should be gone
     await request(server).get(`/products/${createdId}`).expect(404);
   });
 });
