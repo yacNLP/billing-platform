@@ -2,6 +2,7 @@
 import {
   ConflictException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
@@ -12,13 +13,18 @@ import { Prisma, Product } from '@prisma/client';
 
 @Injectable()
 export class ProductsService {
+  private readonly logger = new Logger(ProductsService.name);
   constructor(private prisma: PrismaService) {}
 
   // creation with unique sku handling (409)
   async create(dto: CreateProductDto): Promise<Product> {
+    this.logger.log(`create product sku=${dto.sku}`);
     try {
-      return await this.prisma.product.create({ data: dto });
+      const created = await this.prisma.product.create({ data: dto });
+      this.logger.debug(`created product id=${created.id}`);
+      return created;
     } catch (err) {
+      this.logger.error(`create failed for sku=${dto.sku}: ${err?.message}`);
       if (
         err instanceof Prisma.PrismaClientKnownRequestError &&
         err.code === 'P2002'
@@ -42,6 +48,10 @@ export class ProductsService {
       maxPriceCents,
       isActive,
     } = q;
+
+    this.logger.debug(
+      `list products page=${page} size=${pageSize} q=${query ?? ''} sort=${sortBy}:${order} price=[${minPriceCents ?? ''},${maxPriceCents ?? ''}] active=${isActive ?? ''}`,
+    );
 
     const where: Prisma.ProductWhereInput = {};
 
@@ -88,21 +98,32 @@ export class ProductsService {
     ]);
 
     const totalPages = Math.ceil(total / pageSize) || 1;
+    this.logger.debug(
+      `list products -> total=${total} returned=${data.length}`,
+    );
     return { data, total, page, pageSize, totalPages };
   }
 
   // read one or 404
   async findOne(id: number): Promise<Product> {
+    this.logger.debug(`get product id=${id}`);
     const item = await this.prisma.product.findUnique({ where: { id } });
-    if (!item) throw new NotFoundException('Product not found');
+    if (!item) {
+      this.logger.warn(`product not found id=${id}`);
+      throw new NotFoundException('Product not found');
+    }
     return item;
   }
 
   // update with not-found and duplicate-sku handling
   async update(id: number, dto: UpdateProductDto): Promise<Product> {
+    this.logger.log(`update product id=${id} sku=${dto.sku ?? '<unchanged>'}`);
     try {
-      return await this.prisma.product.update({ where: { id }, data: dto });
+      const updated = await this.prisma.product.update({ where: { id }, data: dto });
+      this.logger.debug(`updated product id=${updated.id}`);
+      return updated;
     } catch (err) {
+      this.logger.error(`update failed id=${id}: ${err?.message}`);
       if (err instanceof Prisma.PrismaClientKnownRequestError) {
         // record not found
         if (err.code === 'P2025')
@@ -117,10 +138,13 @@ export class ProductsService {
 
   // delete with not-found handling
   async remove(id: number) {
+    this.logger.log(`delete product id=${id}`);
     try {
       await this.prisma.product.delete({ where: { id } });
+      this.logger.debug(`deleted product id=${id}`);
       return { deleted: true };
     } catch (err) {
+      this.logger.error(`delete failed id=${id}: ${err?.message}`);
       if (
         err instanceof Prisma.PrismaClientKnownRequestError &&
         err.code === 'P2025'
