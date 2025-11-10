@@ -1,3 +1,10 @@
+enum BillingInterval {
+  DAY
+  WEEK
+  MONTH
+  YEAR
+}
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -31,4 +38,36 @@ model Product {
 
   @@index([name])
   @@index([isActive])
+  plans Plan[]
+}
+
+model Plan {
+  id             Int              @id @default(autoincrement())
+  code           String           @unique // human-readable unique code (e.g. PRO_MONTHLY)
+  name           String           // display name
+  description    String?
+  productId      Int              // FK to Product
+  product        Product          @relation(fields: [productId], references: [id])
+
+  // Pricing
+  amount         Int              // amount in minor units (cents)
+  currency       String           @db.VarChar(3) // ISO code (e.g. EUR, USD)
+
+  // Billing cadence
+  interval       BillingInterval  // month, year, etc.
+  intervalCount  Int              @default(1) // e.g. every 1 month, every 12 months
+
+  // Trial
+  trialDays      Int              @default(0) // 0 = no trial
+
+  // Lifecycle
+  active         Boolean          @default(true) // plan can be toggled off
+  metadata       Json?
+
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  deletedAt      DateTime?
+
+  @@index([productId])
+  @@index([active])
 }
