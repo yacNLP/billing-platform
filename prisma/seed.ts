@@ -1,4 +1,3 @@
-// prisma/seed.ts
 import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
@@ -57,6 +56,56 @@ async function main() {
     skipDuplicates: true,
   });
   console.log('Seeded products');
+
+  // seed plans
+  const product = await prisma.product.findFirst();
+  if (!product) {
+    console.warn('No product found to attach plans. Skipping plans seed.');
+    return;
+  }
+
+  await prisma.plan.createMany({
+    data: [
+      {
+        code: 'BASIC_MONTHLY',
+        name: 'Basic Monthly',
+        description: 'Basic plan billed monthly',
+        productId: product.id,
+        amount: 4900,
+        currency: 'EUR',
+        interval: 'MONTH',
+        intervalCount: 1,
+        trialDays: 0,
+        active: true,
+      },
+      {
+        code: 'PRO_MONTHLY',
+        name: 'Pro Monthly',
+        description: 'Pro plan billed monthly',
+        productId: product.id,
+        amount: 9900,
+        currency: 'EUR',
+        interval: 'MONTH',
+        intervalCount: 1,
+        trialDays: 14,
+        active: true,
+      },
+      {
+        code: 'PRO_YEARLY',
+        name: 'Pro Yearly',
+        description: 'Pro plan billed yearly',
+        productId: product.id,
+        amount: 99000,
+        currency: 'EUR',
+        interval: 'YEAR',
+        intervalCount: 1,
+        trialDays: 30,
+        active: true,
+      },
+    ],
+    skipDuplicates: true,
+  });
+  console.log('Seeded plans');
 }
 
 main()
