@@ -50,12 +50,17 @@ export class PlansService {
         product: { connect: { id: dto.productId } },
       };
       return await this.prisma.plan.create({ data });
-    } catch (e: unknown) {
-      throw new BadRequestException(`create failed: ${errorMessage(e)}`);
+    } catch (e: any) {
+      if (e.code === 'P2002') {
+        throw new BadRequestException('Code must be unique');
+      }
+      if (e.code === 'P2003') {
+        throw new BadRequestException('Invalid foreign key reference');
+      }
+      throw new BadRequestException(`Operation failed: ${errorMessage(e)}`);
     }
   }
 
-  
   async findOne(id: number): Promise<Plan> {
     const plan = await this.prisma.plan.findFirst({
       where: { id, deletedAt: null },
@@ -63,7 +68,6 @@ export class PlansService {
     if (!plan) throw new NotFoundException(`Plan with id=${id} not found`);
     return plan;
   }
-
 
   async findAll(query: QueryPlanDto): Promise<{
     data: Plan[];
@@ -117,9 +121,16 @@ export class PlansService {
     };
   }
 
-
   async update(id: number, dto: UpdatePlanDto): Promise<Plan> {
     const existing: Plan = await this.findOne(id);
+
+    // Validate productId
+    if (dto.productId && dto.productId !== existing.productId) {
+      const ok = await this.prisma.product.findUnique({
+        where: { id: dto.productId },
+      });
+      if (!ok) throw new BadRequestException('Invalid productId');
+    }
 
     try {
       const data: Prisma.PlanUpdateInput = {
@@ -139,8 +150,14 @@ export class PlansService {
         where: { id: existing.id },
         data,
       });
-    } catch (e: unknown) {
-      throw new BadRequestException(`update failed: ${errorMessage(e)}`);
+    } catch (e: any) {
+      if (e.code === 'P2002') {
+        throw new BadRequestException('Code must be unique');
+      }
+      if (e.code === 'P2003') {
+        throw new BadRequestException('Invalid foreign key reference');
+      }
+      throw new BadRequestException(`Operation failed: ${errorMessage(e)}`);
     }
   }
 
