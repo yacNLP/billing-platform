@@ -10,6 +10,7 @@ import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { PaginationDto } from '../common/dto/pagination.dto';
 import { Prisma, Product } from '@prisma/client';
+import { errorMessage } from '../common/error.util';
 
 @Injectable()
 export class ProductsService {
@@ -23,8 +24,10 @@ export class ProductsService {
       const created = await this.prisma.product.create({ data: dto });
       this.logger.debug(`created product id=${created.id}`);
       return created;
-    } catch (err) {
-      this.logger.error(`create failed for sku=${dto.sku}: ${err?.message}`);
+    } catch (err: unknown) {
+      this.logger.error(
+        `create failed for sku=${dto.sku}: ${errorMessage(err)}`,
+      );
       if (
         err instanceof Prisma.PrismaClientKnownRequestError &&
         err.code === 'P2002'
@@ -119,11 +122,14 @@ export class ProductsService {
   async update(id: number, dto: UpdateProductDto): Promise<Product> {
     this.logger.log(`update product id=${id} sku=${dto.sku ?? '<unchanged>'}`);
     try {
-      const updated = await this.prisma.product.update({ where: { id }, data: dto });
+      const updated = await this.prisma.product.update({
+        where: { id },
+        data: dto,
+      });
       this.logger.debug(`updated product id=${updated.id}`);
       return updated;
-    } catch (err) {
-      this.logger.error(`update failed id=${id}: ${err?.message}`);
+    } catch (err: unknown) {
+      this.logger.error(`update failed id=${id}: ${errorMessage(err)}`);
       if (err instanceof Prisma.PrismaClientKnownRequestError) {
         // record not found
         if (err.code === 'P2025')
@@ -143,8 +149,8 @@ export class ProductsService {
       await this.prisma.product.delete({ where: { id } });
       this.logger.debug(`deleted product id=${id}`);
       return { deleted: true };
-    } catch (err) {
-      this.logger.error(`delete failed id=${id}: ${err?.message}`);
+    } catch (err: unknown) {
+      this.logger.error(`delete failed id=${id}: ${errorMessage(err)}`);
       if (
         err instanceof Prisma.PrismaClientKnownRequestError &&
         err.code === 'P2025'
