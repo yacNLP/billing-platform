@@ -10,7 +10,7 @@ import {
 import { Transform, TransformFnParams, Type } from 'class-transformer';
 import { trim } from '../../common/transformers/transformers';
 
-export class QueryPlanDto {
+export class ListPlansQuery {
   @IsOptional()
   @IsString()
   @Transform((p: TransformFnParams) => trim(p))

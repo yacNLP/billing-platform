@@ -1,10 +1,12 @@
+// test/e2e/plans.e2e-spec.ts
+
 import request from 'supertest';
 import { INestApplication } from '@nestjs/common';
 import { createE2eApp, TestApp } from '../utils/e2e-app';
 import { Server } from 'http';
 
-type BillingInterval = 'MONTH' | 'YEAR' | 'WEEK' | 'DAY'; // adjust if your enum differs
-type CurrencyCode = 'EUR' | 'USD' | 'DZD'; // adjust to your schema if needed
+type BillingInterval = 'MONTH' | 'YEAR' | 'WEEK' | 'DAY';
+type CurrencyCode = 'EUR' | 'USD' | 'DZD';
 
 interface PlanResponse {
   id: number;
@@ -115,9 +117,9 @@ describe('Plans e2e', () => {
       productId: 1,
     };
 
-    const res = await request(server).post('/plans').send(payload).expect(400);
+    const res = await request(server).post('/plans').send(payload).expect(409);
 
-    expect(res.body.message).toContain('Code must be unique');
+    expect(res.body.message).toContain('Code already exists');
   });
 
   it('GET /plans should return paginated list including created plan', async () => {
@@ -186,7 +188,7 @@ describe('Plans e2e', () => {
     expect(updated.amount).toBe(2000);
   });
 
-  it('PATCH /plans/:id should fail on invalid productId', async () => {
+  it('PATCH /plans/:id should fail when trying to change productId', async () => {
     const created = await createTestPlan(server, { code: 'UPDATE_PRODUCT' });
 
     const res = await request(server)
@@ -194,7 +196,7 @@ describe('Plans e2e', () => {
       .send({ productId: 9999 })
       .expect(400);
 
-    expect(res.body.message).toContain('Invalid productId');
+    expect(res.body.message).toContain('productId cannot be changed');
   });
 
   it('PATCH /plans/:id should return 404 when plan does not exist', async () => {
@@ -206,14 +208,15 @@ describe('Plans e2e', () => {
     expect(res.body.message).toContain('Plan with id=9999 not found');
   });
 
-  it('DELETE /plans/:id should soft-delete plan and return message', async () => {
+  it('DELETE /plans/:id should soft-delete plan', async () => {
     const created = await createTestPlan(server, { code: 'DELETE_ME' });
 
     const deleteRes = await request(server)
       .delete(`/plans/${created.id}`)
-      .expect(200);
+      .expect(204);
 
-    expect(deleteRes.body).toEqual({ message: 'plan deleted' });
+    // 204 → pas de contenu, Nest renvoie généralement {}
+    expect(deleteRes.body).toEqual({});
 
     // Should not be retrievable anymore
     await request(server).get(`/plans/${created.id}`).expect(404);

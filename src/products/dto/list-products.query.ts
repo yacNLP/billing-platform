@@ -8,7 +8,7 @@ import {
   Min,
 } from 'class-validator';
 
-export class PaginationDto {
+export class ListProductsQuery {
   @IsOptional()
   @Type(() => Number)
   @IsInt()

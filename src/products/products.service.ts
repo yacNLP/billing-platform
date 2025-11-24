@@ -7,7 +7,7 @@ import {
 import { PrismaService } from '../prisma.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
-import { PaginationDto } from '../common/dto/pagination.dto';
+import { ListProductsQuery } from './dto/list-products.query';
 import { Prisma, Product } from '@prisma/client';
 import { errorMessage } from '../common/error.util';
 import { Paginated } from 'src/common/dto/paginated.type';
@@ -40,7 +40,7 @@ export class ProductsService {
   }
 
   // list with query filters, sorting and pagination
-  async findAll(q: PaginationDto): Promise<Paginated<Product>> {
+  async findAll(q: ListProductsQuery): Promise<Paginated<Product>> {
     const {
       page = 1,
       pageSize = 20,

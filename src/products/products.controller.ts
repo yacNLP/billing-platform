@@ -13,7 +13,7 @@ import {
 import { ProductsService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
-import { PaginationDto } from '../common/dto/pagination.dto';
+import { ListProductsQuery } from './dto/list-products.query';
 import { ApiTags } from '@nestjs/swagger';
 
 @ApiTags('products')
@@ -27,7 +27,7 @@ export class ProductsController {
   }
 
   @Get()
-  findAll(@Query() q: PaginationDto) {
+  findAll(@Query() q: ListProductsQuery) {
     return this.service.findAll(q);
   }
 
