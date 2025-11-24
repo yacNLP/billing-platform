@@ -13,7 +13,7 @@ import {
 import { CreateCustomerDto } from './dto/create-customer.dto';
 import { CustomersService } from './customers.service';
 import { UpdateCustomerDto } from './dto/update-customer.dto';
-import { ListCustomersQuery } from './list-customers.query';
+import { ListCustomersQuery } from './dto/list-customers.query';
 import { ApiTags } from '@nestjs/swagger';
 
 @ApiTags('customers')
