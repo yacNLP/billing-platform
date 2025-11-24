@@ -1,10 +1,14 @@
-import { Injectable, Logger } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
-import { ConflictException } from '@nestjs/common';
 import { Customer, Prisma } from '@prisma/client';
-import { NotFoundException } from '@nestjs/common';
 import { UpdateCustomerDto } from './dto/update-customer.dto';
-import { Paginated } from 'src/common/dto/paginated.type';
+import { Paginated } from '../common/dto/paginated.type';
+import { errorMessage } from '../common/error.util';
 
 @Injectable()
 export class CustomersService {
@@ -19,8 +23,8 @@ export class CustomersService {
     order?: 'asc' | 'desc';
     search?: string;
   }): Promise<Paginated<Customer>> {
-    const page = params?.page ?? 1; //current page (default 1)
-    const pageSize = params?.pageSize ?? 10; //items per page (default 10)
+    const page = params?.page ?? 1; // current page (default 1)
+    const pageSize = params?.pageSize ?? 10; // items per page (default 10)
     const skip = (page - 1) * pageSize; // items to skip
 
     // handle search query
@@ -35,6 +39,7 @@ export class CustomersService {
 
     // Count total customers (for pagination)
     const total = await this.prisma.customer.count({ where });
+
     const orderOption = params?.sortBy
       ? { [params.sortBy]: params.order || 'asc' }
       : undefined;
@@ -46,14 +51,14 @@ export class CustomersService {
       orderBy: orderOption,
     });
 
-    //const hasNext = skip + data.length < total; // check if another page exists
-    const totalPages = Math.ceil(total / pageSize)
+    const totalPages = Math.ceil(total / pageSize);
+
     return { data, page, pageSize, total, totalPages };
   }
 
   async get(id: number): Promise<Customer> {
     const customer = await this.prisma.customer.findUnique({ where: { id } });
-    // handle not found customer error
+
     if (!customer) {
       throw new NotFoundException(`Customer with id ${id} not found`);
     }
@@ -64,11 +69,10 @@ export class CustomersService {
     try {
       const customer = await this.prisma.customer.create({ data });
       this.logger.log(
-        `Created customer with id ${customer.id} and email ${customer.email}`,
+        `Created customer with id=${customer.id} and email=${customer.email}`,
       );
       return customer;
-    } catch (e) {
-      //handdle double email error
+    } catch (e: unknown) {
       if (
         e instanceof Prisma.PrismaClientKnownRequestError &&
         e.code === 'P2002'
@@ -76,6 +80,10 @@ export class CustomersService {
         this.logger.warn(`duplicate email=${data.email}`);
         throw new ConflictException('Email already exists');
       }
+
+      this.logger.error(
+        `create customer failed email=${data.email}: ${errorMessage(e)}`,
+      );
       throw e;
     }
   }
@@ -86,9 +94,9 @@ export class CustomersService {
         where: { id },
         data,
       });
-      this.logger.log(`updated id=${id}`);
+      this.logger.log(`updated customer id=${id}`);
       return customer;
-    } catch (e) {
+    } catch (e: unknown) {
       if (e instanceof Prisma.PrismaClientKnownRequestError) {
         if (e.code === 'P2002') {
           this.logger.warn(`duplicate email=${data.email}`);
@@ -99,6 +107,8 @@ export class CustomersService {
           throw new NotFoundException(`Customer ${id} not found`);
         }
       }
+
+      this.logger.error(`update customer failed id=${id}: ${errorMessage(e)}`);
       throw e;
     }
   }
@@ -106,12 +116,17 @@ export class CustomersService {
   async delete(id: number): Promise<void> {
     try {
       await this.prisma.customer.delete({ where: { id } });
-      this.logger.log(`deleted id=${id}`);
-    } catch (e) {
-      if (e instanceof Prisma.PrismaClientKnownRequestError) {
-        if (e.code === 'P2025')
-          throw new NotFoundException(`Customer ${id} not found`);
+      this.logger.log(`deleted customer id=${id}`);
+    } catch (e: unknown) {
+      if (
+        e instanceof Prisma.PrismaClientKnownRequestError &&
+        e.code === 'P2025'
+      ) {
+        this.logger.warn(`Customer ${id} not found`);
+        throw new NotFoundException(`Customer ${id} not found`);
       }
+
+      this.logger.error(`delete customer failed id=${id}: ${errorMessage(e)}`);
       throw e;
     }
   }
