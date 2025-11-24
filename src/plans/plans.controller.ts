@@ -13,7 +13,7 @@ import {
 import { PlansService } from './plans.service';
 import { CreatePlanDto } from './dto/create-plan.dto';
 import { UpdatePlanDto } from './dto/update-plan.dto';
-import { ListPlansQuery } from './dto/list-plans-query';
+import { ListPlansQuery } from './dto/list-plans.query';
 import { ApiTags } from '@nestjs/swagger';
 
 @ApiTags('plans')
