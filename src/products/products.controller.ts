@@ -8,6 +8,7 @@ import {
   Delete,
   ParseIntPipe,
   Query,
+  HttpCode,
 } from '@nestjs/common';
 import { ProductsService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
@@ -41,6 +42,7 @@ export class ProductsController {
   }
 
   @Delete(':id')
+  @HttpCode(204)
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.service.remove(id);
   }

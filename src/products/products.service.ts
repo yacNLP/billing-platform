@@ -1,4 +1,3 @@
-// src/products/products.service.ts
 import {
   ConflictException,
   Injectable,
@@ -11,6 +10,7 @@ import { UpdateProductDto } from './dto/update-product.dto';
 import { PaginationDto } from '../common/dto/pagination.dto';
 import { Prisma, Product } from '@prisma/client';
 import { errorMessage } from '../common/error.util';
+import { Paginated } from 'src/common/dto/paginated.type';
 
 @Injectable()
 export class ProductsService {
@@ -40,7 +40,7 @@ export class ProductsService {
   }
 
   // list with query filters, sorting and pagination
-  async findAll(q: PaginationDto) {
+  async findAll(q: PaginationDto): Promise<Paginated<Product>> {
     const {
       page = 1,
       pageSize = 20,
@@ -100,7 +100,7 @@ export class ProductsService {
       }),
     ]);
 
-    const totalPages = Math.ceil(total / pageSize) || 1;
+    const totalPages = Math.ceil(total / pageSize);
     this.logger.debug(
       `list products -> total=${total} returned=${data.length}`,
     );
@@ -143,20 +143,28 @@ export class ProductsService {
   }
 
   // delete with not-found handling
-  async remove(id: number) {
+  async remove(id: number): Promise<void> {
     this.logger.log(`delete product id=${id}`);
     try {
       await this.prisma.product.delete({ where: { id } });
       this.logger.debug(`deleted product id=${id}`);
-      return { deleted: true };
     } catch (err: unknown) {
       this.logger.error(`delete failed id=${id}: ${errorMessage(err)}`);
-      if (
-        err instanceof Prisma.PrismaClientKnownRequestError &&
-        err.code === 'P2025'
-      ) {
-        throw new NotFoundException('Product not found');
+
+      if (err instanceof Prisma.PrismaClientKnownRequestError) {
+        if (err.code === 'P2025') {
+          // record not found
+          throw new NotFoundException('Product not found');
+        }
+
+        if (err.code === 'P2003') {
+          // foreign key constraint (plans exist)
+          throw new ConflictException(
+            'Product cannot be deleted because it has associated plans',
+          );
+        }
       }
+
       throw err;
     }
   }

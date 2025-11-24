@@ -4,14 +4,7 @@ import { ConflictException } from '@nestjs/common';
 import { Customer, Prisma } from '@prisma/client';
 import { NotFoundException } from '@nestjs/common';
 import { UpdateCustomerDto } from './dto/update-customer.dto';
-
-type PaginatedCustomers = {
-  data: Customer[];
-  page: number;
-  pageSize: number;
-  total: number;
-  totalPages: number;
-};
+import { Paginated } from 'src/common/dto/paginated.type';
 
 @Injectable()
 export class CustomersService {
@@ -25,7 +18,7 @@ export class CustomersService {
     sortBy?: string;
     order?: 'asc' | 'desc';
     search?: string;
-  }): Promise<PaginatedCustomers> {
+  }): Promise<Paginated<Customer>> {
     const page = params?.page ?? 1; //current page (default 1)
     const pageSize = params?.pageSize ?? 10; //items per page (default 10)
     const skip = (page - 1) * pageSize; // items to skip

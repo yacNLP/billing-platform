@@ -178,9 +178,7 @@ describe('Products e2e', () => {
 
     const deleteRes = await request(server)
       .delete(`/products/${created.id}`)
-      .expect(200);
-
-    expect(deleteRes.body).toEqual({ deleted: true });
+      .expect(204);
   });
 
   it('DELETE /products/:id should return 404 on unknown id', async () => {
