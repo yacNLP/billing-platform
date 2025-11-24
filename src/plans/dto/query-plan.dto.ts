@@ -27,7 +27,7 @@ export class QueryPlanDto {
   currency?: string; // filter by currency
 
   @IsOptional()
-  @IsIn(['id,', 'code', 'name', 'amount', 'createdAt'])
+  @IsIn(['id', 'code', 'name', 'amount', 'createdAt'])
   sort?: string; // safe sort fields
 
   @IsOptional()
@@ -38,11 +38,11 @@ export class QueryPlanDto {
   @Type((): NumberConstructor => Number)
   @IsInt()
   @Min(1)
-  page?: number;
+  page?: number = 1;
 
   @IsOptional()
   @Type((): NumberConstructor => Number)
   @IsInt()
   @Min(1)
-  pageSize?: number;
+  pageSize?: number = 20;
 }
