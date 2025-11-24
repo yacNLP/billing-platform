@@ -27,8 +27,8 @@ export class CustomersController {
   }
 
   @Get(':id')
-  get(@Param('id') id: string) {
-    return this.customersService.get(Number(id));
+  get(@Param('id', ParseIntPipe) id: number) {
+    return this.customersService.get(id);
   }
 
   @Post()

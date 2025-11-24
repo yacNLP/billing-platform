@@ -460,7 +460,7 @@ Le listing `/customers` supporte déjà :
 
 - **Tri**
   - `sortBy` : champ autorisé (`id`, `name`, `email`, `createdAt`)
-  - `sortOrder` : `asc` ou `desc`
+  - `order` : `asc` ou `desc`
 
 - **Recherche textuelle**
   - `search` : filtre sur `name` ou `email` (contient la chaîne)
@@ -468,7 +468,7 @@ Le listing `/customers` supporte déjà :
 Exemples :
 - `GET /customers?page=1&pageSize=20`
 - `GET /customers?search=alice`
-- `GET /customers?sortBy=createdAt&sortOrder=desc`
+- `GET /customers?sortBy=createdAt&order=desc`
 
 
 
@@ -483,7 +483,7 @@ Exemples :
 - `pageSize` (optionnel, défaut : 10 ou 20)
 - `search` (optionnel) — filtre sur `name` ou `email`
 - `sortBy` (optionnel) — champs autorisés : `id`, `name`, `email`, `createdAt`
-- `sortOrder` (optionnel) — `asc` ou `desc`
+- `order` (optionnel) — `asc` ou `desc`
 - autres filtres possibles (extensions futures)
 
 **Réponse 200 :**  

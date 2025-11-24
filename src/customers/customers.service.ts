@@ -10,8 +10,7 @@ type PaginatedCustomers = {
   page: number;
   pageSize: number;
   total: number;
-  hasNext: boolean;
-  search?: string;
+  totalPages: number;
 };
 
 @Injectable()
@@ -23,7 +22,7 @@ export class CustomersService {
   async list(params?: {
     page?: number;
     pageSize?: number;
-    orderBy?: string;
+    sortBy?: string;
     order?: 'asc' | 'desc';
     search?: string;
   }): Promise<PaginatedCustomers> {
@@ -43,8 +42,8 @@ export class CustomersService {
 
     // Count total customers (for pagination)
     const total = await this.prisma.customer.count({ where });
-    const orderOption = params?.orderBy
-      ? { [params.orderBy]: params.order || 'asc' }
+    const orderOption = params?.sortBy
+      ? { [params.sortBy]: params.order || 'asc' }
       : undefined;
 
     const data = await this.prisma.customer.findMany({
@@ -54,9 +53,9 @@ export class CustomersService {
       orderBy: orderOption,
     });
 
-    const hasNext = skip + data.length < total; // check if another page exists
-
-    return { data, page, pageSize, total, hasNext };
+    //const hasNext = skip + data.length < total; // check if another page exists
+    const totalPages = Math.ceil(total / pageSize)
+    return { data, page, pageSize, total, totalPages };
   }
 
   async get(id: number): Promise<Customer> {
