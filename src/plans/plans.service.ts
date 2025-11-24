@@ -9,7 +9,7 @@ import { PrismaService } from '../prisma.service';
 import { Prisma, type Plan, type Product, type $Enums } from '@prisma/client';
 import { CreatePlanDto } from './dto/create-plan.dto';
 import { UpdatePlanDto } from './dto/update-plan.dto';
-import { QueryPlanDto } from './dto/list-plans-query';
+import { ListPlansQuery } from './dto/list-plans-query';
 import { errorMessage } from '../common/error.util';
 import { Paginated } from '../common/dto/paginated.type';
 
@@ -82,7 +82,7 @@ export class PlansService {
     return plan;
   }
 
-  async findAll(query: QueryPlanDto): Promise<Paginated<Plan>> {
+  async findAll(query: ListPlansQuery): Promise<Paginated<Plan>> {
     const page = query.page ?? 1;
     const pageSize = query.pageSize ?? 20;
 
