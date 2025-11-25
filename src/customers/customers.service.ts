@@ -9,14 +9,14 @@ import { Customer, Prisma } from '@prisma/client';
 import { UpdateCustomerDto } from './dto/update-customer.dto';
 import { Paginated } from '../common/dto/paginated.type';
 import { errorMessage } from '../common/error.util';
-import { ListCustomersQuery } from './dto/list-customers.query';
+import { CustomersQueryDto } from './dto/customers-query.dto';
 @Injectable()
 export class CustomersService {
   private readonly logger = new Logger(CustomersService.name);
 
   constructor(private prisma: PrismaService) {}
 
-  async list(params: ListCustomersQuery): Promise<Paginated<Customer>> {
+  async list(params: CustomersQueryDto): Promise<Paginated<Customer>> {
     const { page = 1, pageSize = 10, sortBy, order, search } = params;
 
     const skip = (page - 1) * pageSize;

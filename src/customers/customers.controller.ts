@@ -13,7 +13,7 @@ import {
 import { CreateCustomerDto } from './dto/create-customer.dto';
 import { CustomersService } from './customers.service';
 import { UpdateCustomerDto } from './dto/update-customer.dto';
-import { ListCustomersQuery } from './dto/list-customers.query';
+import { CustomersQueryDto } from './dto/customers-query.dto';
 import { ApiTags } from '@nestjs/swagger';
 
 @ApiTags('customers')
@@ -22,7 +22,7 @@ export class CustomersController {
   constructor(private customersService: CustomersService) {}
 
   @Get()
-  list(@Query() q: ListCustomersQuery) {
+  list(@Query() q: CustomersQueryDto) {
     return this.customersService.list(q);
   }
 

@@ -13,7 +13,7 @@ import {
 import { PlansService } from './plans.service';
 import { CreatePlanDto } from './dto/create-plan.dto';
 import { UpdatePlanDto } from './dto/update-plan.dto';
-import { ListPlansQuery } from './dto/list-plans.query';
+import { PlansQueryDto } from './dto/plans-query.dto';
 import { ApiTags } from '@nestjs/swagger';
 
 @ApiTags('plans')
@@ -27,7 +27,7 @@ export class PlansController {
   }
 
   @Get()
-  async findAll(@Query() query: ListPlansQuery) {
+  async findAll(@Query() query: PlansQueryDto) {
     return this.plansService.findAll(query);
   }
 

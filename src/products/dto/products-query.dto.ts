@@ -8,7 +8,7 @@ import {
   Min,
 } from 'class-validator';
 
-export class ListProductsQuery {
+export class ProductsQueryDto {
   @IsOptional()
   @Type(() => Number)
   @IsInt()

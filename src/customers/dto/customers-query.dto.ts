@@ -1,8 +1,8 @@
 import { Type } from 'class-transformer';
 import { IsInt, Min, IsIn, IsOptional, IsString } from 'class-validator';
 
-// ListCustomersQuery class to validate query parameters
-export class ListCustomersQuery {
+// CustomersQueryDto class to validate query parameters
+export class CustomersQueryDto {
   @Type(() => Number)
   @IsInt()
   @Min(1)

@@ -478,7 +478,7 @@ Exemples :
 
 **GET /customers**
 
-**Query params (ListCustomersQuery)**
+**Query params (CustomersQueryDto)**
 - `page` (optionnel, défaut : 1)
 - `pageSize` (optionnel, défaut : 10 ou 20)
 - `search` (optionnel) — filtre sur `name` ou `email`
@@ -586,7 +586,7 @@ model Product {
 
 **GET /products**
 
-**Query params (ListProductsQuery)** :
+**Query params (ProductsQueryDto)** :
 
  **Pagination** ()
 - `page` — défaut : `1`
@@ -702,7 +702,7 @@ model Plan {
 ```
 ---
 
-### Query params — GET /plans (ListPlansQuery)
+### Query params — GET /plans (PlansQueryDto)
 
 
 **Pagination**
@@ -726,7 +726,6 @@ model Plan {
 
 **GET /plans**
 
-ListPlansQuery
 
 Retourne une liste **paginée**, filtrée et triée, contenant uniquement les plans **non soft-deleted**.
 
