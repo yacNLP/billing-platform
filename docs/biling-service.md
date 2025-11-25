@@ -431,7 +431,7 @@ model Customer {
 
 Les réponses utilisent un DTO de base :
 ```
-interface CustomerDto {
+interface Customer {
   id: number;
   name: string;
   email: string;
@@ -442,7 +442,7 @@ interface CustomerDto {
 Et pour les listes paginées :
 
 ```
-interface Paginated<T> {
+interface Paginated<Customer> {
   data: T[];
   total: number;
   page: number;
@@ -478,7 +478,7 @@ Exemples :
 
 **GET /customers**
 
-**Query params :**
+**Query params (ListCustomersQuery)**
 - `page` (optionnel, défaut : 1)
 - `pageSize` (optionnel, défaut : 10 ou 20)
 - `search` (optionnel) — filtre sur `name` ou `email`
@@ -579,7 +579,16 @@ model Product {
 
 ### Query params — GET /products
 
- **Pagination** (hérité du PaginationDto)
+
+---
+
+### Détail des endpoints
+
+**GET /products**
+
+**Query params (ListProductsQuery)** :
+
+ **Pagination** ()
 - `page` — défaut : `1`
 - `pageSize` — défaut : `20`
 
@@ -597,18 +606,14 @@ model Product {
  **Filtre état**
 - `isActive` ∈ `true` / `false`
 
----
-
-### Détail des endpoints
-
-**GET /products**
-
-Retourne une liste **paginée + filtrée + triée**.
 
 **Réponse :**
 ```ts
 Paginated<Product>
 ```
+
+---
+
 
 **GET /products/:id** : Retourne un produit par son ID.
 
@@ -697,7 +702,8 @@ model Plan {
 ```
 ---
 
-### Query params — GET /plans
+### Query params — GET /plans (ListPlansQuery)
+
 
 **Pagination**
 - `page` — défaut : 1
@@ -720,18 +726,15 @@ model Plan {
 
 **GET /plans**
 
+ListPlansQuery
+
 Retourne une liste **paginée**, filtrée et triée, contenant uniquement les plans **non soft-deleted**.
 
 **Réponse :**
 ```ts
-interface PlanListResponse {
-  data: Plan[];
-  total: number;
-  page: number;
-  pageSize: number;
-  totalPages: number;
-}
+Paginated<Plan>
 ```
+
 ---
 
 **GET /plans/:id**
