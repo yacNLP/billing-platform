@@ -17,26 +17,22 @@ export class CustomersService {
   constructor(private prisma: PrismaService) {}
 
   async list(params: ListCustomersQuery): Promise<Paginated<Customer>> {
-    const page = params?.page ?? 1; // current page (default 1)
-    const pageSize = params?.pageSize ?? 10; // items per page (default 10)
-    const skip = (page - 1) * pageSize; // items to skip
+    const { page = 1, pageSize = 10, sortBy, order, search } = params;
 
-    // handle search query
-    const where: Prisma.CustomerWhereInput | undefined = params?.search
+    const skip = (page - 1) * pageSize;
+
+    const where: Prisma.CustomerWhereInput | undefined = search
       ? {
           OR: [
-            { name: { contains: params.search, mode: 'insensitive' } },
-            { email: { contains: params.search, mode: 'insensitive' } },
+            { name: { contains: search, mode: 'insensitive' } },
+            { email: { contains: search, mode: 'insensitive' } },
           ],
         }
       : undefined;
 
-    // Count total customers (for pagination)
     const total = await this.prisma.customer.count({ where });
 
-    const orderOption = params?.sortBy
-      ? { [params.sortBy]: params.order || 'asc' }
-      : undefined;
+    const orderOption = sortBy ? { [sortBy]: order ?? 'asc' } : undefined;
 
     const data = await this.prisma.customer.findMany({
       where,
