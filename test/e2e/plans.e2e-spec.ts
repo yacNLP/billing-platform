@@ -55,10 +55,7 @@ async function createTestProduct(server: Server): Promise<ProductResponse> {
     isActive: true,
   };
 
-  const res = await request(server)
-    .post('/products')
-    .send(payload)
-    .expect(201);
+  const res = await request(server).post('/products').send(payload).expect(201);
 
   return res.body as ProductResponse;
 }
@@ -88,10 +85,7 @@ async function createTestPlan(
     ...overrides,
   };
 
-  const res = await request(server)
-    .post('/plans')
-    .send(payload)
-    .expect(201);
+  const res = await request(server).post('/plans').send(payload).expect(201);
 
   return res.body as PlanResponse;
 }
@@ -133,10 +127,7 @@ describe('Plans e2e', () => {
       productId: 999999,
     };
 
-    const res = await request(server)
-      .post('/plans')
-      .send(payload)
-      .expect(400);
+    const res = await request(server).post('/plans').send(payload).expect(400);
 
     expect(res.body.message).toBeDefined();
   });
@@ -150,10 +141,7 @@ describe('Plans e2e', () => {
       name: 'Duplicate Code',
     };
 
-    const res = await request(server)
-      .post('/plans')
-      .send(payload)
-      .expect(400);
+    const res = await request(server).post('/plans').send(payload).expect(400);
 
     expect(res.body.message).toBeDefined();
   });
@@ -162,7 +150,11 @@ describe('Plans e2e', () => {
     const product = await createTestProduct(server);
     const created = await createTestPlan(server, product.id);
 
-    const res = await request(server).get('/plans').expect(200);
+    const res = await request(server)
+      .get('/plans')
+      .query({ search: created.code })
+      .expect(200);
+
     const payload: PaginatedPlans = res.body;
 
     expect(payload.data.some((p) => p.id === created.id)).toBe(true);
@@ -188,9 +180,7 @@ describe('Plans e2e', () => {
     const product = await createTestProduct(server);
     const created = await createTestPlan(server, product.id);
 
-    const res = await request(server)
-      .get(`/plans/${created.id}`)
-      .expect(200);
+    const res = await request(server).get(`/plans/${created.id}`).expect(200);
 
     expect(res.body.id).toBe(created.id);
     expect(res.body.code).toBe(created.code);
@@ -237,13 +227,9 @@ describe('Plans e2e', () => {
     const product = await createTestProduct(server);
     const created = await createTestPlan(server, product.id);
 
-    await request(server)
-      .delete(`/plans/${created.id}`)
-      .expect(204);
+    await request(server).delete(`/plans/${created.id}`).expect(204);
 
-    await request(server)
-      .get(`/plans/${created.id}`)
-      .expect(404);
+    await request(server).get(`/plans/${created.id}`).expect(404);
 
     const listRes = await request(server).get('/plans').expect(200);
     const payload: PaginatedPlans = listRes.body;
