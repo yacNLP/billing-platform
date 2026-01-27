@@ -1,5 +1,3 @@
-// test/e2e/products.e2e-spec.ts
-
 import request from 'supertest';
 import { INestApplication } from '@nestjs/common';
 import { createE2eApp, TestApp } from '../utils/e2e-app';
@@ -26,6 +24,33 @@ interface PaginatedProducts {
   totalPages: number;
 }
 
+/**
+ * Helper: create a unique product for a test.
+ * Ensures no SKU collision between tests.
+ */
+async function createTestProduct(
+  server: Server,
+  overrides: Partial<ProductResponse> = {},
+): Promise<ProductResponse> {
+  const uid = Date.now();
+
+  const payload = {
+    name: 'Test Product',
+    sku: `SKU_${uid}`,
+    priceCents: 1000,
+    stock: 10,
+    isActive: true,
+    ...overrides,
+  };
+
+  const res = await request(server)
+    .post('/products')
+    .send(payload)
+    .expect(201);
+
+  return res.body as ProductResponse;
+}
+
 describe('Products e2e', () => {
   let app: INestApplication;
   let server: Server;
@@ -40,34 +65,33 @@ describe('Products e2e', () => {
     await app.close();
   });
 
-  it('GET /products should return paginated list with seeded products', async () => {
-    const res = await request(server).get('/products').expect(200);
+  it('GET /products should return paginated list', async () => {
+    await createTestProduct(server);
 
+    const res = await request(server).get('/products').expect(200);
     const payload: PaginatedProducts = res.body;
 
     expect(Array.isArray(payload.data)).toBe(true);
-    expect(payload.total).toBeGreaterThanOrEqual(2);
-
-    const std = payload.data.find((p) => p.sku === 'STD-001');
-    const prm = payload.data.find((p) => p.sku === 'PRM-001');
-
-    expect(std).toBeTruthy();
-    expect(prm).toBeTruthy();
+    expect(payload.total).toBeGreaterThanOrEqual(1);
   });
 
-  it('GET /products?q=STD should filter by text search', async () => {
+  it('GET /products?q=SKU should filter by text search', async () => {
+    const created = await createTestProduct(server);
+
     const res = await request(server)
       .get('/products')
-      .query({ q: 'STD' })
+      .query({ q: created.sku })
       .expect(200);
 
     const payload: PaginatedProducts = res.body;
 
-    expect(Array.isArray(payload.data)).toBe(true);
-    expect(payload.data.some((p) => p.sku === 'STD-001')).toBe(true);
+    expect(payload.data.some((p) => p.sku === created.sku)).toBe(true);
   });
 
   it('GET /products with price range filter should respect min/max', async () => {
+    await createTestProduct(server, { priceCents: 500 });
+    await createTestProduct(server, { priceCents: 2000 });
+
     const res = await request(server)
       .get('/products')
       .query({ minPriceCents: 1000 })
@@ -75,7 +99,6 @@ describe('Products e2e', () => {
 
     const payload: PaginatedProducts = res.body;
 
-    // All returned products must be >= 1000
     for (const p of payload.data) {
       expect(p.priceCents).toBeGreaterThanOrEqual(1000);
     }
@@ -87,38 +110,23 @@ describe('Products e2e', () => {
       .query({ sortBy: 'priceCents', order: 'asc' as SortOrder })
       .expect(200);
 
-    const payload: PaginatedProducts = res.body;
-
-    expect(Array.isArray(payload.data)).toBe(true);
-    // we don't assert strict ordering here, just ensure API supports sort params
+    expect(Array.isArray(res.body.data)).toBe(true);
   });
 
   it('POST /products should create a new product', async () => {
-    const payload = {
-      name: 'Test Product',
-      sku: 'TST-001',
-      priceCents: 500,
-      stock: 10,
-      isActive: true,
-    };
-
-    const res = await request(server)
-      .post('/products')
-      .send(payload)
-      .expect(201);
-
-    const created: ProductResponse = res.body;
+    const created = await createTestProduct(server);
 
     expect(created.id).toBeDefined();
-    expect(created.sku).toBe('TST-001');
-    expect(created.name).toBe('Test Product');
-    expect(created.priceCents).toBe(500);
+    expect(created.sku).toContain('SKU_');
+    expect(created.priceCents).toBe(1000);
   });
 
   it('POST /products should fail on duplicate sku', async () => {
+    const created = await createTestProduct(server);
+
     const payload = {
       name: 'Duplicate SKU',
-      sku: 'STD-001', // already seeded
+      sku: created.sku,
       priceCents: 1234,
       stock: 5,
       isActive: true,
@@ -127,61 +135,51 @@ describe('Products e2e', () => {
     const res = await request(server)
       .post('/products')
       .send(payload)
-      .expect(409); // ConflictException from service
+      .expect(409);
 
     expect(res.body.message).toBeDefined();
   });
 
   it('GET /products/:id should return one product', async () => {
-    // First seeded product should be id=1 after truncate + restart identity
-    const res = await request(server).get('/products/1').expect(200);
+    const created = await createTestProduct(server);
 
-    const product: ProductResponse = res.body;
+    const res = await request(server)
+      .get(`/products/${created.id}`)
+      .expect(200);
 
-    expect(product.id).toBe(1);
-    expect(product.sku).toBe('STD-001');
+    expect(res.body.id).toBe(created.id);
+    expect(res.body.sku).toBe(created.sku);
   });
 
   it('GET /products/:id should return 404 for unknown id', async () => {
-    await request(server).get('/products/9999').expect(404);
+    await request(server).get('/products/999999').expect(404);
   });
 
   it('PATCH /products/:id should update product', async () => {
-    const payload = { name: 'Standard Updated' };
+    const created = await createTestProduct(server);
 
     const res = await request(server)
-      .patch('/products/1')
-      .send(payload)
+      .patch(`/products/${created.id}`)
+      .send({ name: 'Updated Name' })
       .expect(200);
 
-    const updated: ProductResponse = res.body;
-
-    expect(updated.id).toBe(1);
-    expect(updated.name).toBe('Standard Updated');
+    expect(res.body.id).toBe(created.id);
+    expect(res.body.name).toBe('Updated Name');
   });
 
   it('DELETE /products/:id should delete product', async () => {
-    const payload = {
-      name: 'To Delete',
-      sku: 'DEL-001',
-      priceCents: 100,
-      stock: 1,
-      isActive: true,
-    };
+    const created = await createTestProduct(server);
 
-    const createdRes = await request(server)
-      .post('/products')
-      .send(payload)
-      .expect(201);
-
-    const created: ProductResponse = createdRes.body;
-
-    const deleteRes = await request(server)
+    await request(server)
       .delete(`/products/${created.id}`)
       .expect(204);
+
+    await request(server)
+      .get(`/products/${created.id}`)
+      .expect(404);
   });
 
   it('DELETE /products/:id should return 404 on unknown id', async () => {
-    await request(server).delete('/products/9999').expect(404);
+    await request(server).delete('/products/999999').expect(404);
   });
 });

@@ -2,17 +2,22 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-//Minimal fixtures for e2e tests
+/**
+ * Minimal, idempotent fixtures for e2e tests.
+ * Can be safely executed multiple times.
+ */
 export async function seedTestData() {
-  // 1) One customer
-  await prisma.customer.create({
-    data: {
+  // 1) Customer (idempotent)
+  await prisma.customer.upsert({
+    where: { email: 'billing@acme.com' },
+    update: {},
+    create: {
       name: 'ACME Corp',
       email: 'billing@acme.com',
     },
   });
 
-  // 2) Two products with unique sku
+  // 2) Products (idempotent via unique sku)
   await prisma.product.createMany({
     data: [
       {
@@ -32,17 +37,6 @@ export async function seedTestData() {
     ],
     skipDuplicates: true,
   });
-}
-
-//Clean all business tables between tests.
-export async function truncateAll() {
-  await prisma.$executeRawUnsafe(`
-    TRUNCATE TABLE
-      "Plan",
-      "Product",
-      "Customer"
-    RESTART IDENTITY CASCADE;
-  `);
 }
 
 export async function disconnectPrisma() {
