@@ -61,7 +61,7 @@ describe('Customers e2e', () => {
     await createTestCustomer(server);
 
     const res = await request(server).get('/customers').expect(200);
-    const payload: PaginatedCustomers = res.body;
+    const payload = res.body as PaginatedCustomers;
 
     expect(Array.isArray(payload.data)).toBe(true);
     expect(payload.total).toBeDefined();
@@ -74,9 +74,9 @@ describe('Customers e2e', () => {
     const res = await request(server)
       .get(`/customers/${created.id}`)
       .expect(200);
-
-    expect(res.body.id).toBe(created.id);
-    expect(res.body.email).toBe(created.email);
+    const customer = res.body as CustomerResponse;
+    expect(customer.id).toBe(created.id);
+    expect(customer.email).toBe(created.email);
   });
 
   it('GET /customers/:id should return 404 for unknown id', async () => {
@@ -102,8 +102,8 @@ describe('Customers e2e', () => {
       .post('/customers')
       .send(payload)
       .expect(409);
-
-    expect(res.body.message).toBeDefined();
+    const error = res.body as { message?: string };
+    expect(error.message).toBeDefined();
   });
 
   it('PATCH /customers/:id should update customer', async () => {
@@ -113,9 +113,9 @@ describe('Customers e2e', () => {
       .patch(`/customers/${created.id}`)
       .send({ name: 'Updated Name' })
       .expect(200);
-
-    expect(res.body.id).toBe(created.id);
-    expect(res.body.name).toBe('Updated Name');
+    const updated = res.body as CustomerResponse;
+    expect(updated.id).toBe(created.id);
+    expect(updated.name).toBe('Updated Name');
   });
 
   it('PATCH /customers/:id should return 404 on unknown id', async () => {
@@ -128,13 +128,9 @@ describe('Customers e2e', () => {
   it('DELETE /customers/:id should delete customer', async () => {
     const created = await createTestCustomer(server);
 
-    await request(server)
-      .delete(`/customers/${created.id}`)
-      .expect(204);
+    await request(server).delete(`/customers/${created.id}`).expect(204);
 
-    await request(server)
-      .get(`/customers/${created.id}`)
-      .expect(404);
+    await request(server).get(`/customers/${created.id}`).expect(404);
   });
 
   it('DELETE /customers/:id should return 404 on unknown id', async () => {

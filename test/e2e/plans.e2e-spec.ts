@@ -128,8 +128,8 @@ describe('Plans e2e', () => {
     };
 
     const res = await request(server).post('/plans').send(payload).expect(400);
-
-    expect(res.body.message).toBeDefined();
+    const error = res.body as { message: string };
+    expect(error.message).toBeDefined();
   });
 
   it('POST /plans should fail when code is not unique', async () => {
@@ -143,7 +143,8 @@ describe('Plans e2e', () => {
 
     const res = await request(server).post('/plans').send(payload).expect(400);
 
-    expect(res.body.message).toBeDefined();
+    const error = res.body as { message: string };
+    expect(error.message).toBeDefined();
   });
 
   it('GET /plans should return paginated list including created plan', async () => {
@@ -155,7 +156,7 @@ describe('Plans e2e', () => {
       .query({ search: created.code })
       .expect(200);
 
-    const payload: PaginatedPlans = res.body;
+    const payload = res.body as PaginatedPlans;
 
     expect(payload.data.some((p) => p.id === created.id)).toBe(true);
   });
@@ -171,7 +172,7 @@ describe('Plans e2e', () => {
       .query({ search: 'Searchable' })
       .expect(200);
 
-    const payload: PaginatedPlans = res.body;
+    const payload = res.body as PaginatedPlans;
 
     expect(payload.data.some((p) => p.id === created.id)).toBe(true);
   });
@@ -181,9 +182,9 @@ describe('Plans e2e', () => {
     const created = await createTestPlan(server, product.id);
 
     const res = await request(server).get(`/plans/${created.id}`).expect(200);
-
-    expect(res.body.id).toBe(created.id);
-    expect(res.body.code).toBe(created.code);
+    const payload = res.body as PlanResponse;
+    expect(payload.id).toBe(created.id);
+    expect(payload.code).toBe(created.code);
   });
 
   it('GET /plans/:id should return 404 for unknown id', async () => {
@@ -199,9 +200,10 @@ describe('Plans e2e', () => {
       .send({ name: 'Updated Name', amount: 2000 })
       .expect(200);
 
-    expect(res.body.id).toBe(created.id);
-    expect(res.body.name).toBe('Updated Name');
-    expect(res.body.amount).toBe(2000);
+    const payload = res.body as PlanResponse;
+    expect(payload.id).toBe(created.id);
+    expect(payload.name).toBe('Updated Name');
+    expect(payload.amount).toBe(2000);
   });
 
   it('PATCH /plans/:id should fail when trying to change productId', async () => {
@@ -212,8 +214,8 @@ describe('Plans e2e', () => {
       .patch(`/plans/${created.id}`)
       .send({ productId: 999999 })
       .expect(400);
-
-    expect(res.body.message).toBeDefined();
+    const error = res.body as { message: string };
+    expect(error.message).toBeDefined();
   });
 
   it('PATCH /plans/:id should return 404 when plan does not exist', async () => {
@@ -232,7 +234,7 @@ describe('Plans e2e', () => {
     await request(server).get(`/plans/${created.id}`).expect(404);
 
     const listRes = await request(server).get('/plans').expect(200);
-    const payload: PaginatedPlans = listRes.body;
+    const payload = listRes.body as PaginatedPlans;
 
     expect(payload.data.some((p) => p.id === created.id)).toBe(false);
   });

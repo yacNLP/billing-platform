@@ -6,7 +6,7 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
-import { Prisma, type Plan, type Product, type $Enums } from '@prisma/client';
+import { Prisma, type Plan, type Product } from '@prisma/client';
 import { CreatePlanDto } from './dto/create-plan.dto';
 import { UpdatePlanDto } from './dto/update-plan.dto';
 import { PlansQueryDto } from './dto/plans-query.dto';
@@ -47,7 +47,7 @@ export class PlansService {
         description: dto.description,
         amount: dto.amount,
         currency: dto.currency,
-        interval: dto.interval as $Enums.BillingInterval,
+        interval: dto.interval,
         intervalCount: dto.intervalCount,
         trialDays: dto.trialDays,
         active: dto.active ?? true,
@@ -146,7 +146,7 @@ export class PlansService {
         description: dto.description,
         amount: dto.amount,
         currency: dto.currency,
-        interval: dto.interval as $Enums.BillingInterval | undefined,
+        interval: dto.interval,
         intervalCount: dto.intervalCount,
         trialDays: dto.trialDays,
         active: dto.active,

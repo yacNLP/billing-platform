@@ -43,10 +43,7 @@ async function createTestProduct(
     ...overrides,
   };
 
-  const res = await request(server)
-    .post('/products')
-    .send(payload)
-    .expect(201);
+  const res = await request(server).post('/products').send(payload).expect(201);
 
   return res.body as ProductResponse;
 }
@@ -69,7 +66,7 @@ describe('Products e2e', () => {
     await createTestProduct(server);
 
     const res = await request(server).get('/products').expect(200);
-    const payload: PaginatedProducts = res.body;
+    const payload = res.body as PaginatedProducts;
 
     expect(Array.isArray(payload.data)).toBe(true);
     expect(payload.total).toBeGreaterThanOrEqual(1);
@@ -83,7 +80,7 @@ describe('Products e2e', () => {
       .query({ q: created.sku })
       .expect(200);
 
-    const payload: PaginatedProducts = res.body;
+    const payload = res.body as PaginatedProducts;
 
     expect(payload.data.some((p) => p.sku === created.sku)).toBe(true);
   });
@@ -97,7 +94,7 @@ describe('Products e2e', () => {
       .query({ minPriceCents: 1000 })
       .expect(200);
 
-    const payload: PaginatedProducts = res.body;
+    const payload = res.body as PaginatedProducts;
 
     for (const p of payload.data) {
       expect(p.priceCents).toBeGreaterThanOrEqual(1000);
@@ -109,8 +106,8 @@ describe('Products e2e', () => {
       .get('/products')
       .query({ sortBy: 'priceCents', order: 'asc' as SortOrder })
       .expect(200);
-
-    expect(Array.isArray(res.body.data)).toBe(true);
+    const payload = res.body as PaginatedProducts;
+    expect(Array.isArray(payload.data)).toBe(true);
   });
 
   it('POST /products should create a new product', async () => {
@@ -137,7 +134,8 @@ describe('Products e2e', () => {
       .send(payload)
       .expect(409);
 
-    expect(res.body.message).toBeDefined();
+    const body = res.body as { message: string };
+    expect(body.message).toBeDefined();
   });
 
   it('GET /products/:id should return one product', async () => {
@@ -147,8 +145,9 @@ describe('Products e2e', () => {
       .get(`/products/${created.id}`)
       .expect(200);
 
-    expect(res.body.id).toBe(created.id);
-    expect(res.body.sku).toBe(created.sku);
+    const payload = res.body as ProductResponse;
+    expect(payload.id).toBe(created.id);
+    expect(payload.sku).toBe(created.sku);
   });
 
   it('GET /products/:id should return 404 for unknown id', async () => {
@@ -162,21 +161,17 @@ describe('Products e2e', () => {
       .patch(`/products/${created.id}`)
       .send({ name: 'Updated Name' })
       .expect(200);
-
-    expect(res.body.id).toBe(created.id);
-    expect(res.body.name).toBe('Updated Name');
+    const updated = res.body as ProductResponse;
+    expect(updated.id).toBe(created.id);
+    expect(updated.name).toBe('Updated Name');
   });
 
   it('DELETE /products/:id should delete product', async () => {
     const created = await createTestProduct(server);
 
-    await request(server)
-      .delete(`/products/${created.id}`)
-      .expect(204);
+    await request(server).delete(`/products/${created.id}`).expect(204);
 
-    await request(server)
-      .get(`/products/${created.id}`)
-      .expect(404);
+    await request(server).get(`/products/${created.id}`).expect(404);
   });
 
   it('DELETE /products/:id should return 404 on unknown id', async () => {
