@@ -1,9 +1,12 @@
 # Node
 node_modules/
-dist/
-.env
+**/dist/
 
-# Prisma
+# Env
+.env
+.env.test
+
+# Prisma (only if sqlite is used locally)
 prisma/dev.db
 
 # Logs
