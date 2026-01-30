@@ -1,108 +1,96 @@
-# Billing Service — MVP (NestJS + Prisma + PostgreSQL)
+# Billing Service — Backend MVP
 
-Ce projet est le **backend de la plateforme d’abonnements biling-platform**.  
-Il gère les **clients**, les **abonnements**, et la **facturation** via une API REST construite avec **NestJS**, **Prisma**, et **PostgreSQL** (conteneurisé avec Docker).
+This repository contains the **Billing Service backend** for the *biling-platform* project.
+
+It provides a REST API to manage:
+- customers
+- products
+- billing plans
 
 ---
 
-## Démarrage rapide
+## Tech Stack
 
-### 🧩 Prérequis
+- **NestJS** — backend framework
+- **Prisma** — ORM
+- **PostgreSQL** — database
+- **Docker & Docker Compose** — local infrastructure
+- **TypeScript**
+
+---
+
+## Prerequisites
+
+- Docker & Docker Compose
 - Node.js ≥ 18
 - npm ≥ 9
-- Docker & Docker Compose
-- Prisma CLI (`npx prisma` fonctionne sans installation globale)
 
 ---
 
-### 1. Lancer la base de données
+## Environment Variables
 
-Depuis la racine du projet (`biling-platform/`) :
+The project uses **two environments**:
+
+- `.env` — development (Docker runtime)
+- `.env.test` — e2e tests
+
+Both files must exist before running the application.
+
+---
+
+## Start the Application (Recommended: Docker)
+
+From the project root:
 
 ```bash
-docker compose up -d
+docker compose up --build
 ```
-Ce conteneur PostgreSQL tourne sur localhost:5432
 
-Identifiants par défaut : admin / admin, base billingdb
+This starts:
+- PostgreSQL (dev)
+- PostgreSQL (test)
+- Billing API
 
-### 2. Installer et démarrer le backend
-Depuis le dossier biling-platform/backend/billing-service/ :
+API will be available at:
 
-```bash
+```
+http://localhost:3000
+http://localhost:3000/docs
+```
+
+---
+
+## Database Migrations
+
+Apply existing migrations:
+migrate deploy is non-interactive and safe for Docker, tests, and CI.
+
+```
+npx prisma migrate deploy
+```
+
+When modifying the Prisma schema (local development only)
+
+```
+npx prisma migrate dev
+```
+
+----
+
+## Running the Application Without Docker (Optional)
+```
 npm install
-npx prisma migrate dev --name init
+npx prisma generate
+npx prisma migrate dev
 npm run start:dev
-```
-
-### 3. Vérifier que tout fonnctionne
-
-Santé du serveur
-```bash
-curl http://localhost:3000/healthz
-```
-
-Réponse attendue :
-```bash
-{ "status": "ok" }
-```
-
-Créer un client :
-```bash
-curl -X POST http://localhost:3000/customers \
-  -H "Content-Type: application/json" \
-  -d '{"name":"Alice","email":"alice@example.com"}'
-```
-
-Lister les clients :
-
-```bash
-curl http://localhost:3000/customers
-```
-
-
-## Structure du projet
-
-```bash
-billing-service/
-├── src/
-│   ├── app.controller.ts       # Contrôleur principal
-│   ├── customers.controller.ts # Routes clients
-│   ├── prisma.service.ts       # Service de connexion DB
-│   └── main.ts                 # Point d’entrée NestJS
-│
-├── prisma/
-│   └── schema.prisma           # Modèle de données
-│
-├── docs/
-│   ├── setup/local.md          # Setup local détaillé
-│   ├── api/README.md           # Endpoints disponibles
-│   ├── runbook/troubleshooting.md # Dépannage
-│   └── adr/001-stack.md        # Choix techniques
-│
-├── package.json
-├── tsconfig.json
-└── README.md                   # Ce fichier
 
 ```
 
-## Documentation associée
+## Running End-to-End Tests
+The e2e tests use a dedicated test database.
 
-| Type | Fichier |
-|------|----------|
-| 🧭 Setup local | [`docs/setup/local.md`](docs/setup/local.md) |
-| 📡 API Endpoints | [`docs/api/README.md`](docs/api/README.md) |
-| 🧰 Dépannage (Runbook) | [`docs/runbook/troubleshooting.md`](docs/runbook/troubleshooting.md) |
-| 🧩 Décision technique (ADR) | [`docs/adr/001-stack.md`](docs/adr/001-stack.md) |
-
-
-
-## Stack technique
-
-| Composant | Usage |
-|------------|-------|
-| **NestJS** | Framework backend |
-| **Prisma** | ORM typé |
-| **PostgreSQL** | Base de données |
-| **Docker Compose** | Environnement local |
-| **TypeScript** | Langage |
+```
+docker compose up -d postgres-test
+npm run db:test:deploy
+npm run test:e2e
+```
