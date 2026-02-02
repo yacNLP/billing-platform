@@ -6,12 +6,17 @@ services:
       context: ./backend/billing-service
     container_name: billing-api
     env_file:
-      - ./backend/billing-service/.env
+      - ./backend/billing-service/.env.docker
     ports:
       - "3000:3000"
     depends_on:
       postgres:
         condition: service_started
+    command: >
+      sh -c "
+      npx prisma migrate deploy &&
+      node dist/src/main.js
+      "
     restart: unless-stopped
 
   postgres:
