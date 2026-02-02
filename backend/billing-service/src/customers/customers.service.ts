@@ -13,6 +13,7 @@ import { CustomersQueryDto } from './dto/customers-query.dto';
 @Injectable()
 export class CustomersService {
   private readonly logger = new Logger(CustomersService.name);
+  private readonly tenantId = 1;
 
   constructor(private prisma: PrismaService) {}
 
@@ -21,14 +22,15 @@ export class CustomersService {
 
     const skip = (page - 1) * pageSize;
 
-    const where: Prisma.CustomerWhereInput | undefined = search
-      ? {
-          OR: [
-            { name: { contains: search, mode: 'insensitive' } },
-            { email: { contains: search, mode: 'insensitive' } },
-          ],
-        }
-      : undefined;
+    const where: Prisma.CustomerWhereInput = {
+      tenantId: this.tenantId,
+      ...(search && {
+        OR: [
+          { name: { contains: search, mode: 'insensitive' } },
+          { email: { contains: search, mode: 'insensitive' } },
+        ],
+      }),
+    };
 
     const total = await this.prisma.customer.count({ where });
 
@@ -47,7 +49,9 @@ export class CustomersService {
   }
 
   async get(id: number): Promise<Customer> {
-    const customer = await this.prisma.customer.findUnique({ where: { id } });
+    const customer = await this.prisma.customer.findFirst({
+      where: { id, tenantId: this.tenantId },
+    });
 
     if (!customer) {
       throw new NotFoundException(`Customer with id ${id} not found`);
@@ -57,7 +61,12 @@ export class CustomersService {
 
   async create(data: { name: string; email: string }): Promise<Customer> {
     try {
-      const customer = await this.prisma.customer.create({ data });
+      const customer = await this.prisma.customer.create({
+        data: {
+          ...data,
+          tenantId: this.tenantId,
+        },
+      });
       this.logger.log(
         `Created customer with id=${customer.id} and email=${customer.email}`,
       );
@@ -81,7 +90,10 @@ export class CustomersService {
   async update(id: number, data: UpdateCustomerDto): Promise<Customer> {
     try {
       const customer = await this.prisma.customer.update({
-        where: { id },
+        where: {
+          id,
+          tenantId: this.tenantId,
+        },
         data,
       });
       this.logger.log(`updated customer id=${id}`);
@@ -105,7 +117,12 @@ export class CustomersService {
 
   async delete(id: number): Promise<void> {
     try {
-      await this.prisma.customer.delete({ where: { id } });
+      await this.prisma.customer.delete({
+        where: {
+          id,
+          tenantId: this.tenantId,
+        },
+      });
       this.logger.log(`deleted customer id=${id}`);
     } catch (e: unknown) {
       if (

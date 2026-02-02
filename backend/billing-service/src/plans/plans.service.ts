@@ -31,12 +31,13 @@ function isPlanSortKey(v: unknown): v is PlanSortKey {
 
 @Injectable()
 export class PlansService {
+  private readonly tenantId = 1;
   constructor(private readonly prisma: PrismaService) {}
 
   async create(dto: CreatePlanDto): Promise<Plan> {
     // validate productId exists
     const product: Product | null = await this.prisma.product.findUnique({
-      where: { id: dto.productId },
+      where: { id: dto.productId, tenantId: this.tenantId },
     });
     if (!product) throw new BadRequestException('Invalid productId');
 
@@ -51,6 +52,7 @@ export class PlansService {
         intervalCount: dto.intervalCount,
         trialDays: dto.trialDays,
         active: dto.active ?? true,
+        tenant: { connect: { id: this.tenantId } },
         product: { connect: { id: dto.productId } },
       };
 
@@ -72,7 +74,7 @@ export class PlansService {
 
   async findOne(id: number): Promise<Plan> {
     const plan = await this.prisma.plan.findFirst({
-      where: { id, deletedAt: null },
+      where: { id, tenantId: this.tenantId, deletedAt: null },
     });
 
     if (!plan) {
@@ -93,6 +95,7 @@ export class PlansService {
       query.order && query.order === 'desc' ? 'desc' : 'asc';
 
     const where: Prisma.PlanWhereInput = {
+      tenantId: this.tenantId,
       deletedAt: null,
       ...(query.active ? { active: query.active === 'true' } : {}),
       ...(query.currency ? { currency: query.currency } : {}),
@@ -154,7 +157,7 @@ export class PlansService {
       };
 
       return await this.prisma.plan.update({
-        where: { id: existing.id },
+        where: { id: existing.id, tenantId: this.tenantId },
         data,
       });
     } catch (e: unknown) {
@@ -174,7 +177,7 @@ export class PlansService {
     const existing: Plan = await this.findOne(id);
 
     await this.prisma.plan.update({
-      where: { id: existing.id },
+      where: { id: existing.id, tenantId: this.tenantId },
       data: {
         deletedAt: new Date(),
         active: false,

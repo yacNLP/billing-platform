@@ -15,13 +15,19 @@ import { Paginated } from 'src/common/dto/paginated.type';
 @Injectable()
 export class ProductsService {
   private readonly logger = new Logger(ProductsService.name);
+  private readonly tenantId = 1;
   constructor(private prisma: PrismaService) {}
 
   // creation with unique sku handling (409)
   async create(dto: CreateProductDto): Promise<Product> {
     this.logger.log(`create product sku=${dto.sku}`);
     try {
-      const created = await this.prisma.product.create({ data: dto });
+      const created = await this.prisma.product.create({
+        data: {
+          ...dto,
+          tenantId: this.tenantId,
+        },
+      });
       this.logger.debug(`created product id=${created.id}`);
       return created;
     } catch (err: unknown) {
@@ -56,7 +62,9 @@ export class ProductsService {
       `list products page=${page} size=${pageSize} q=${query ?? ''} sort=${sortBy}:${order} price=[${minPriceCents ?? ''},${maxPriceCents ?? ''}] active=${isActive ?? ''}`,
     );
 
-    const where: Prisma.ProductWhereInput = {};
+    const where: Prisma.ProductWhereInput = {
+      tenantId: this.tenantId,
+    };
 
     // text search on name and sku
     if (query) {
@@ -110,7 +118,9 @@ export class ProductsService {
   // read one or 404
   async findOne(id: number): Promise<Product> {
     this.logger.debug(`get product id=${id}`);
-    const item = await this.prisma.product.findUnique({ where: { id } });
+    const item = await this.prisma.product.findUnique({
+      where: { id, tenantId: this.tenantId },
+    });
     if (!item) {
       this.logger.warn(`product not found id=${id}`);
       throw new NotFoundException('Product not found');
@@ -123,7 +133,7 @@ export class ProductsService {
     this.logger.log(`update product id=${id} sku=${dto.sku ?? '<unchanged>'}`);
     try {
       const updated = await this.prisma.product.update({
-        where: { id },
+        where: { id, tenantId: this.tenantId },
         data: dto,
       });
       this.logger.debug(`updated product id=${updated.id}`);
@@ -146,7 +156,9 @@ export class ProductsService {
   async remove(id: number): Promise<void> {
     this.logger.log(`delete product id=${id}`);
     try {
-      await this.prisma.product.delete({ where: { id } });
+      await this.prisma.product.delete({
+        where: { id, tenantId: this.tenantId },
+      });
       this.logger.debug(`deleted product id=${id}`);
     } catch (err: unknown) {
       this.logger.error(`delete failed id=${id}: ${errorMessage(err)}`);
