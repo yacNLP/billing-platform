@@ -1,20 +1,37 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+
 import { PrismaClient } from '@prisma/client';
+
 const prisma = new PrismaClient();
 
 async function main() {
-  // seed customers
+  // 1. seed tenant (entreprise)
+  let tenant = await prisma.tenant.findFirst({
+    where: { name: 'ACME' },
+  });
+
+  if (!tenant) {
+    tenant = await prisma.tenant.create({
+      data: { name: 'ACME' },
+    });
+  }
+
+  console.log('Seeded tenant');
+  // 2. seed customers
   await prisma.customer.createMany({
     data: [
-      { name: 'ACME Corp', email: 'billing@acme.com' },
-      { name: 'Alice', email: 'alice@example.com' },
-      { name: 'Bob', email: 'bob@example.com' },
-      { name: 'Charlie', email: 'charlie@example.com' },
+      { name: 'ACME Corp', email: 'billing@acme.com', tenantId: tenant.id },
+      { name: 'Alice', email: 'alice@example.com', tenantId: tenant.id },
+      { name: 'Bob', email: 'bob@example.com', tenantId: tenant.id },
+      { name: 'Charlie', email: 'charlie@example.com', tenantId: tenant.id },
     ],
     skipDuplicates: true,
   });
   console.log('Seeded customers');
 
-  // seed products
+  // 3. seed products
   await prisma.product.createMany({
     data: [
       {
@@ -23,6 +40,7 @@ async function main() {
         priceCents: 590,
         stock: 120,
         lowStockThreshold: 10,
+        tenantId: tenant.id,
       },
       {
         name: 'Thé Noir Earl Grey',
@@ -30,6 +48,7 @@ async function main() {
         priceCents: 690,
         stock: 80,
         lowStockThreshold: 8,
+        tenantId: tenant.id,
       },
       {
         name: 'Infusion Verveine',
@@ -37,6 +56,7 @@ async function main() {
         priceCents: 550,
         stock: 50,
         lowStockThreshold: 5,
+        tenantId: tenant.id,
       },
       {
         name: 'Oolong Nature',
@@ -44,6 +64,7 @@ async function main() {
         priceCents: 890,
         stock: 30,
         lowStockThreshold: 5,
+        tenantId: tenant.id,
       },
       {
         name: 'Matcha Cérémonial',
@@ -51,14 +72,18 @@ async function main() {
         priceCents: 1590,
         stock: 12,
         lowStockThreshold: 3,
+        tenantId: tenant.id,
       },
     ],
     skipDuplicates: true,
   });
   console.log('Seeded products');
 
-  // seed plans
-  const product = await prisma.product.findFirst();
+  // 4. seed plans
+  const product = await prisma.product.findFirst({
+    where: { tenantId: tenant.id },
+  });
+
   if (!product) {
     console.warn('No product found to attach plans. Skipping plans seed.');
     return;
@@ -77,6 +102,7 @@ async function main() {
         intervalCount: 1,
         trialDays: 0,
         active: true,
+        tenantId: tenant.id,
       },
       {
         code: 'PRO_MONTHLY',
@@ -89,6 +115,7 @@ async function main() {
         intervalCount: 1,
         trialDays: 14,
         active: true,
+        tenantId: tenant.id,
       },
       {
         code: 'PRO_YEARLY',
@@ -101,6 +128,7 @@ async function main() {
         intervalCount: 1,
         trialDays: 30,
         active: true,
+        tenantId: tenant.id,
       },
     ],
     skipDuplicates: true,
