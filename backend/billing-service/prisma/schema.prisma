@@ -18,15 +18,23 @@ datasource db {
 model Customer {
   id        Int      @id @default(autoincrement())
   name      String
-  email     String   @unique
+  email     String
+
+  tenantId  Int
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt 
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantId, email])
+  @@index([tenantId])
 }
+
 
 model Product {
   id                Int      @id @default(autoincrement())
   name              String
-  sku               String   @unique
+  sku               String
   description       String?  @db.Text
   priceCents        Int
   currency          String   @default("EUR")
@@ -34,41 +42,74 @@ model Product {
   isActive          Boolean  @default(true)
   stock             Int      @default(0)
   lowStockThreshold Int      @default(0)
+
+  tenantId          Int
+  tenant            Tenant   @relation(fields: [tenantId], references: [id])
+
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
+  plans             Plan[]
+
+  @@unique([tenantId, sku])
+  @@index([tenantId])
   @@index([name])
   @@index([isActive])
-  plans Plan[]
 }
+
 
 model Plan {
   id             Int              @id @default(autoincrement())
-  code           String           @unique // human-readable unique code (e.g. PRO_MONTHLY)
-  name           String           // display name
+  code           String
+  name           String
   description    String?
-  productId      Int              // FK to Product
+
+  productId      Int
   product        Product          @relation(fields: [productId], references: [id])
 
-  // Pricing
-  amount         Int              // amount in minor units (cents)
-  currency       String           @db.VarChar(3) // ISO code (e.g. EUR, USD)
+  tenantId       Int
+  tenant         Tenant           @relation(fields: [tenantId], references: [id])
 
-  // Billing cadence
-  interval       BillingInterval  // month, year, etc.
-  intervalCount  Int              @default(1) // e.g. every 1 month, every 12 months
+  amount         Int
+  currency       String           @db.VarChar(3)
 
-  // Trial
-  trialDays      Int              @default(0) // 0 = no trial
+  interval       BillingInterval
+  intervalCount  Int              @default(1)
+  trialDays      Int              @default(0)
 
-  // Lifecycle
-  active         Boolean          @default(true) // plan can be toggled off
+  active         Boolean          @default(true)
   metadata       Json?
 
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
   deletedAt      DateTime?
 
+  @@unique([tenantId, code])
+  @@index([tenantId])
   @@index([productId])
   @@index([active])
+}
+
+
+model Tenant {
+  id        Int      @id @default(autoincrement())
+  name      String
+  createdAt DateTime @default(now())
+
+  users     User[]
+  customers Customer[]
+  products  Product[]
+  plans     Plan[]
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  password  String
+  role      String   @default("USER")
+
+  tenantId  Int
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+
+  createdAt DateTime @default(now())
 }
