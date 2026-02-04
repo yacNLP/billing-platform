@@ -3,9 +3,10 @@ import { AppController } from './app.controller';
 import { ProductsModule } from './products/products.module';
 import { CustomersModule } from './customers/customers.module';
 import { PlansModule } from './plans/plans.module';
+import { TenantModule } from './common/tenant/tenant.module';
 
 @Module({
-  imports: [CustomersModule, ProductsModule, PlansModule],
+  imports: [TenantModule, CustomersModule, ProductsModule, PlansModule],
   controllers: [AppController],
 })
 export class AppModule {}
