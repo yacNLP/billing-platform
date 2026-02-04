@@ -1,7 +1,13 @@
-import request from 'supertest';
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-return */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
+
 import { INestApplication } from '@nestjs/common';
 import { createE2eApp, TestApp } from '../utils/e2e-app';
 import { Server } from 'http';
+import { E2EClient } from '../utils/e2e-client';
 
 interface CustomerResponse {
   id: number;
@@ -24,7 +30,7 @@ interface PaginatedCustomers {
  * Ensures no email collision between tests.
  */
 async function createTestCustomer(
-  server: Server,
+  client: E2EClient,
   overrides: Partial<CustomerResponse> = {},
 ): Promise<CustomerResponse> {
   const uid = Date.now();
@@ -35,10 +41,7 @@ async function createTestCustomer(
     ...overrides,
   };
 
-  const res = await request(server)
-    .post('/customers')
-    .send(payload)
-    .expect(201);
+  const res = await client.post('/customers').send(payload).expect(201);
 
   return res.body as CustomerResponse;
 }
@@ -46,11 +49,13 @@ async function createTestCustomer(
 describe('Customers e2e', () => {
   let app: INestApplication;
   let server: Server;
+  let e2eClient: E2EClient;
 
   beforeAll(async () => {
     const testApp: TestApp = await createE2eApp();
     app = testApp.app;
     server = testApp.server;
+    e2eClient = new E2EClient(server);
   });
 
   afterAll(async () => {
@@ -58,9 +63,9 @@ describe('Customers e2e', () => {
   });
 
   it('GET /customers should return paginated list', async () => {
-    await createTestCustomer(server);
+    await createTestCustomer(e2eClient);
 
-    const res = await request(server).get('/customers').expect(200);
+    const res = await e2eClient.get('/customers').expect(200);
     const payload = res.body as PaginatedCustomers;
 
     expect(Array.isArray(payload.data)).toBe(true);
@@ -69,47 +74,42 @@ describe('Customers e2e', () => {
   });
 
   it('GET /customers/:id should return a single customer', async () => {
-    const created = await createTestCustomer(server);
+    const created = await createTestCustomer(e2eClient);
 
-    const res = await request(server)
-      .get(`/customers/${created.id}`)
-      .expect(200);
+    const res = await e2eClient.get(`/customers/${created.id}`).expect(200);
     const customer = res.body as CustomerResponse;
     expect(customer.id).toBe(created.id);
     expect(customer.email).toBe(created.email);
   });
 
   it('GET /customers/:id should return 404 for unknown id', async () => {
-    await request(server).get('/customers/999999').expect(404);
+    await e2eClient.get('/customers/999999').expect(404);
   });
 
   it('POST /customers should create a new customer', async () => {
-    const created = await createTestCustomer(server);
+    const created = await createTestCustomer(e2eClient);
 
     expect(created.id).toBeDefined();
     expect(created.email).toContain('@example.com');
   });
 
   it('POST /customers should fail on duplicate email', async () => {
-    const created = await createTestCustomer(server);
+    const created = await createTestCustomer(e2eClient);
 
     const payload = {
       name: 'Duplicate',
       email: created.email,
     };
 
-    const res = await request(server)
-      .post('/customers')
-      .send(payload)
-      .expect(409);
+    const res = await e2eClient.post('/customers').send(payload).expect(409);
     const error = res.body as { message?: string };
     expect(error.message).toBeDefined();
   });
 
   it('PATCH /customers/:id should update customer', async () => {
-    const created = await createTestCustomer(server);
+    const created = await createTestCustomer(e2eClient);
 
-    const res = await request(server)
+    const res = await e2eClient
       .patch(`/customers/${created.id}`)
       .send({ name: 'Updated Name' })
       .expect(200);
@@ -119,21 +119,21 @@ describe('Customers e2e', () => {
   });
 
   it('PATCH /customers/:id should return 404 on unknown id', async () => {
-    await request(server)
+    await e2eClient
       .patch('/customers/999999')
       .send({ name: 'Ghost' })
       .expect(404);
   });
 
   it('DELETE /customers/:id should delete customer', async () => {
-    const created = await createTestCustomer(server);
+    const created = await createTestCustomer(e2eClient);
 
-    await request(server).delete(`/customers/${created.id}`).expect(204);
+    await e2eClient.delete(`/customers/${created.id}`).expect(204);
 
-    await request(server).get(`/customers/${created.id}`).expect(404);
+    await e2eClient.get(`/customers/${created.id}`).expect(404);
   });
 
   it('DELETE /customers/:id should return 404 on unknown id', async () => {
-    await request(server).delete('/customers/999999').expect(404);
+    await e2eClient.delete('/customers/999999').expect(404);
   });
 });
