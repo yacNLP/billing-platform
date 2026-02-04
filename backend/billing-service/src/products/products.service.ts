@@ -11,21 +11,25 @@ import { ProductsQueryDto } from './dto/products-query.dto';
 import { Prisma, Product } from '@prisma/client';
 import { errorMessage } from '../common/error.util';
 import { Paginated } from 'src/common/dto/paginated.type';
+import { TenantContext } from 'src/common/tenant/tenant.context';
 
 @Injectable()
 export class ProductsService {
   private readonly logger = new Logger(ProductsService.name);
-  private readonly tenantId = 1;
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private readonly tenantContext: TenantContext,
+  ) {}
 
   // creation with unique sku handling (409)
   async create(dto: CreateProductDto): Promise<Product> {
+    const tenantId = this.tenantContext.getTenantId();
     this.logger.log(`create product sku=${dto.sku}`);
     try {
       const created = await this.prisma.product.create({
         data: {
           ...dto,
-          tenantId: this.tenantId,
+          tenantId,
         },
       });
       this.logger.debug(`created product id=${created.id}`);
@@ -47,6 +51,7 @@ export class ProductsService {
 
   // list with query filters, sorting and pagination
   async findAll(q: ProductsQueryDto): Promise<Paginated<Product>> {
+    const tenantId = this.tenantContext.getTenantId();
     const {
       page = 1,
       pageSize = 20,
@@ -63,7 +68,7 @@ export class ProductsService {
     );
 
     const where: Prisma.ProductWhereInput = {
-      tenantId: this.tenantId,
+      tenantId,
     };
 
     // text search on name and sku
@@ -117,9 +122,10 @@ export class ProductsService {
 
   // read one or 404
   async findOne(id: number): Promise<Product> {
+    const tenantId = this.tenantContext.getTenantId();
     this.logger.debug(`get product id=${id}`);
-    const item = await this.prisma.product.findUnique({
-      where: { id, tenantId: this.tenantId },
+    const item = await this.prisma.product.findFirst({
+      where: { id, tenantId },
     });
     if (!item) {
       this.logger.warn(`product not found id=${id}`);
@@ -130,10 +136,11 @@ export class ProductsService {
 
   // update with not-found and duplicate-sku handling
   async update(id: number, dto: UpdateProductDto): Promise<Product> {
+    const tenantId = this.tenantContext.getTenantId();
     this.logger.log(`update product id=${id} sku=${dto.sku ?? '<unchanged>'}`);
     try {
       const updated = await this.prisma.product.update({
-        where: { id, tenantId: this.tenantId },
+        where: { id, tenantId },
         data: dto,
       });
       this.logger.debug(`updated product id=${updated.id}`);
@@ -154,10 +161,11 @@ export class ProductsService {
 
   // delete with not-found handling
   async remove(id: number): Promise<void> {
+    const tenantId = this.tenantContext.getTenantId();
     this.logger.log(`delete product id=${id}`);
     try {
       await this.prisma.product.delete({
-        where: { id, tenantId: this.tenantId },
+        where: { id, tenantId },
       });
       this.logger.debug(`deleted product id=${id}`);
     } catch (err: unknown) {

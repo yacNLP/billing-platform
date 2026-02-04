@@ -10,20 +10,24 @@ import { UpdateCustomerDto } from './dto/update-customer.dto';
 import { Paginated } from '../common/dto/paginated.type';
 import { errorMessage } from '../common/error.util';
 import { CustomersQueryDto } from './dto/customers-query.dto';
+import { TenantContext } from 'src/common/tenant/tenant.context';
 @Injectable()
 export class CustomersService {
   private readonly logger = new Logger(CustomersService.name);
-  private readonly tenantId = 1;
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private readonly tenantContext: TenantContext,
+  ) {}
 
   async list(params: CustomersQueryDto): Promise<Paginated<Customer>> {
+    const tenantId = this.tenantContext.getTenantId();
     const { page = 1, pageSize = 10, sortBy, order, search } = params;
 
     const skip = (page - 1) * pageSize;
 
     const where: Prisma.CustomerWhereInput = {
-      tenantId: this.tenantId,
+      tenantId,
       ...(search && {
         OR: [
           { name: { contains: search, mode: 'insensitive' } },
@@ -49,8 +53,9 @@ export class CustomersService {
   }
 
   async get(id: number): Promise<Customer> {
+    const tenantId = this.tenantContext.getTenantId();
     const customer = await this.prisma.customer.findFirst({
-      where: { id, tenantId: this.tenantId },
+      where: { id, tenantId },
     });
 
     if (!customer) {
@@ -60,11 +65,12 @@ export class CustomersService {
   }
 
   async create(data: { name: string; email: string }): Promise<Customer> {
+    const tenantId = this.tenantContext.getTenantId();
     try {
       const customer = await this.prisma.customer.create({
         data: {
           ...data,
-          tenantId: this.tenantId,
+          tenantId,
         },
       });
       this.logger.log(
@@ -88,11 +94,12 @@ export class CustomersService {
   }
 
   async update(id: number, data: UpdateCustomerDto): Promise<Customer> {
+    const tenantId = this.tenantContext.getTenantId();
     try {
       const customer = await this.prisma.customer.update({
         where: {
           id,
-          tenantId: this.tenantId,
+          tenantId,
         },
         data,
       });
@@ -116,11 +123,12 @@ export class CustomersService {
   }
 
   async delete(id: number): Promise<void> {
+    const tenantId = this.tenantContext.getTenantId();
     try {
       await this.prisma.customer.delete({
         where: {
           id,
-          tenantId: this.tenantId,
+          tenantId,
         },
       });
       this.logger.log(`deleted customer id=${id}`);

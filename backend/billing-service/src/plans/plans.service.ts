@@ -12,6 +12,7 @@ import { UpdatePlanDto } from './dto/update-plan.dto';
 import { PlansQueryDto } from './dto/plans-query.dto';
 import { errorMessage } from '../common/error.util';
 import { Paginated } from '../common/dto/paginated.type';
+import { TenantContext } from 'src/common/tenant/tenant.context';
 
 // Whitelist for sorting
 type PlanSortKey = 'id' | 'code' | 'name' | 'amount' | 'createdAt';
@@ -31,13 +32,16 @@ function isPlanSortKey(v: unknown): v is PlanSortKey {
 
 @Injectable()
 export class PlansService {
-  private readonly tenantId = 1;
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly tenantContext: TenantContext,
+  ) {}
 
   async create(dto: CreatePlanDto): Promise<Plan> {
+    const tenantId = this.tenantContext.getTenantId();
     // validate productId exists
-    const product: Product | null = await this.prisma.product.findUnique({
-      where: { id: dto.productId, tenantId: this.tenantId },
+    const product: Product | null = await this.prisma.product.findFirst({
+      where: { id: dto.productId, tenantId },
     });
     if (!product) throw new BadRequestException('Invalid productId');
 
@@ -52,7 +56,7 @@ export class PlansService {
         intervalCount: dto.intervalCount,
         trialDays: dto.trialDays,
         active: dto.active ?? true,
-        tenant: { connect: { id: this.tenantId } },
+        tenant: { connect: { id: tenantId } },
         product: { connect: { id: dto.productId } },
       };
 
@@ -73,8 +77,9 @@ export class PlansService {
   }
 
   async findOne(id: number): Promise<Plan> {
+    const tenantId = this.tenantContext.getTenantId();
     const plan = await this.prisma.plan.findFirst({
-      where: { id, tenantId: this.tenantId, deletedAt: null },
+      where: { id, tenantId, deletedAt: null },
     });
 
     if (!plan) {
@@ -85,6 +90,7 @@ export class PlansService {
   }
 
   async findAll(query: PlansQueryDto): Promise<Paginated<Plan>> {
+    const tenantId = this.tenantContext.getTenantId();
     const page = query.page ?? 1;
     const pageSize = query.pageSize ?? 20;
 
@@ -95,7 +101,7 @@ export class PlansService {
       query.order && query.order === 'desc' ? 'desc' : 'asc';
 
     const where: Prisma.PlanWhereInput = {
-      tenantId: this.tenantId,
+      tenantId,
       deletedAt: null,
       ...(query.active ? { active: query.active === 'true' } : {}),
       ...(query.currency ? { currency: query.currency } : {}),
@@ -135,6 +141,7 @@ export class PlansService {
   }
 
   async update(id: number, dto: UpdatePlanDto): Promise<Plan> {
+    const tenantId = this.tenantContext.getTenantId();
     const existing: Plan = await this.findOne(id);
 
     // productId is immutable (rule in doc)
@@ -157,7 +164,7 @@ export class PlansService {
       };
 
       return await this.prisma.plan.update({
-        where: { id: existing.id, tenantId: this.tenantId },
+        where: { id: existing.id, tenantId },
         data,
       });
     } catch (e: unknown) {
@@ -174,10 +181,11 @@ export class PlansService {
   }
 
   async remove(id: number): Promise<void> {
+    const tenantId = this.tenantContext.getTenantId();
     const existing: Plan = await this.findOne(id);
 
     await this.prisma.plan.update({
-      where: { id: existing.id, tenantId: this.tenantId },
+      where: { id: existing.id, tenantId },
       data: {
         deletedAt: new Date(),
         active: false,
