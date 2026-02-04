@@ -1,7 +1,10 @@
-import request from 'supertest';
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { INestApplication } from '@nestjs/common';
 import { createE2eApp, TestApp } from '../utils/e2e-app';
 import { Server } from 'http';
+import { E2EClient } from '../utils/e2e-client';
 
 type BillingInterval = 'MONTH' | 'YEAR' | 'WEEK' | 'DAY';
 type CurrencyCode = 'EUR' | 'USD' | 'DZD';
@@ -44,7 +47,7 @@ interface PaginatedPlans {
  * Helper: create a product for plan tests.
  * No dependency on seed or fixed IDs.
  */
-async function createTestProduct(server: Server): Promise<ProductResponse> {
+async function createTestProduct(client: E2EClient): Promise<ProductResponse> {
   const uid = Date.now();
 
   const payload = {
@@ -55,7 +58,7 @@ async function createTestProduct(server: Server): Promise<ProductResponse> {
     isActive: true,
   };
 
-  const res = await request(server).post('/products').send(payload).expect(201);
+  const res = await client.post('/products').send(payload).expect(201);
 
   return res.body as ProductResponse;
 }
@@ -65,7 +68,7 @@ async function createTestProduct(server: Server): Promise<ProductResponse> {
  * Fully isolated and unique.
  */
 async function createTestPlan(
-  server: Server,
+  client: E2EClient,
   productId: number,
   overrides: Partial<Record<keyof PlanResponse, any>> = {},
 ): Promise<PlanResponse> {
@@ -85,7 +88,7 @@ async function createTestPlan(
     ...overrides,
   };
 
-  const res = await request(server).post('/plans').send(payload).expect(201);
+  const res = await client.post('/plans').send(payload).expect(201);
 
   return res.body as PlanResponse;
 }
@@ -93,11 +96,13 @@ async function createTestPlan(
 describe('Plans e2e', () => {
   let app: INestApplication;
   let server: Server;
+  let e2eClient: E2EClient;
 
   beforeAll(async () => {
     const testApp: TestApp = await createE2eApp();
     app = testApp.app;
     server = testApp.server;
+    e2eClient = new E2EClient(server);
   });
 
   afterAll(async () => {
@@ -105,8 +110,8 @@ describe('Plans e2e', () => {
   });
 
   it('POST /plans should create a plan when productId is valid', async () => {
-    const product = await createTestProduct(server);
-    const plan = await createTestPlan(server, product.id);
+    const product = await createTestProduct(e2eClient);
+    const plan = await createTestPlan(e2eClient, product.id);
 
     expect(plan.id).toBeDefined();
     expect(plan.productId).toBe(product.id);
@@ -127,31 +132,31 @@ describe('Plans e2e', () => {
       productId: 999999,
     };
 
-    const res = await request(server).post('/plans').send(payload).expect(400);
+    const res = await e2eClient.post('/plans').send(payload).expect(400);
     const error = res.body as { message: string };
     expect(error.message).toBeDefined();
   });
 
   it('POST /plans should fail when code is not unique', async () => {
-    const product = await createTestProduct(server);
-    const created = await createTestPlan(server, product.id);
+    const product = await createTestProduct(e2eClient);
+    const created = await createTestPlan(e2eClient, product.id);
 
     const payload = {
       ...created,
       name: 'Duplicate Code',
     };
 
-    const res = await request(server).post('/plans').send(payload).expect(400);
+    const res = await e2eClient.post('/plans').send(payload).expect(400);
 
     const error = res.body as { message: string };
     expect(error.message).toBeDefined();
   });
 
   it('GET /plans should return paginated list including created plan', async () => {
-    const product = await createTestProduct(server);
-    const created = await createTestPlan(server, product.id);
+    const product = await createTestProduct(e2eClient);
+    const created = await createTestPlan(e2eClient, product.id);
 
-    const res = await request(server)
+    const res = await e2eClient
       .get('/plans')
       .query({ search: created.code })
       .expect(200);
@@ -162,12 +167,12 @@ describe('Plans e2e', () => {
   });
 
   it('GET /plans should support search filter', async () => {
-    const product = await createTestProduct(server);
-    const created = await createTestPlan(server, product.id, {
+    const product = await createTestProduct(e2eClient);
+    const created = await createTestPlan(e2eClient, product.id, {
       name: 'Searchable Plan',
     });
 
-    const res = await request(server)
+    const res = await e2eClient
       .get('/plans')
       .query({ search: 'Searchable' })
       .expect(200);
@@ -178,24 +183,24 @@ describe('Plans e2e', () => {
   });
 
   it('GET /plans/:id should return a single plan', async () => {
-    const product = await createTestProduct(server);
-    const created = await createTestPlan(server, product.id);
+    const product = await createTestProduct(e2eClient);
+    const created = await createTestPlan(e2eClient, product.id);
 
-    const res = await request(server).get(`/plans/${created.id}`).expect(200);
+    const res = await e2eClient.get(`/plans/${created.id}`).expect(200);
     const payload = res.body as PlanResponse;
     expect(payload.id).toBe(created.id);
     expect(payload.code).toBe(created.code);
   });
 
   it('GET /plans/:id should return 404 for unknown id', async () => {
-    await request(server).get('/plans/999999').expect(404);
+    await e2eClient.get('/plans/999999').expect(404);
   });
 
   it('PATCH /plans/:id should update basic fields', async () => {
-    const product = await createTestProduct(server);
-    const created = await createTestPlan(server, product.id);
+    const product = await createTestProduct(e2eClient);
+    const created = await createTestPlan(e2eClient, product.id);
 
-    const res = await request(server)
+    const res = await e2eClient
       .patch(`/plans/${created.id}`)
       .send({ name: 'Updated Name', amount: 2000 })
       .expect(200);
@@ -207,10 +212,10 @@ describe('Plans e2e', () => {
   });
 
   it('PATCH /plans/:id should fail when trying to change productId', async () => {
-    const product = await createTestProduct(server);
-    const created = await createTestPlan(server, product.id);
+    const product = await createTestProduct(e2eClient);
+    const created = await createTestPlan(e2eClient, product.id);
 
-    const res = await request(server)
+    const res = await e2eClient
       .patch(`/plans/${created.id}`)
       .send({ productId: 999999 })
       .expect(400);
@@ -219,27 +224,24 @@ describe('Plans e2e', () => {
   });
 
   it('PATCH /plans/:id should return 404 when plan does not exist', async () => {
-    await request(server)
-      .patch('/plans/999999')
-      .send({ name: 'Ghost' })
-      .expect(404);
+    await e2eClient.patch('/plans/999999').send({ name: 'Ghost' }).expect(404);
   });
 
   it('DELETE /plans/:id should soft-delete plan', async () => {
-    const product = await createTestProduct(server);
-    const created = await createTestPlan(server, product.id);
+    const product = await createTestProduct(e2eClient);
+    const created = await createTestPlan(e2eClient, product.id);
 
-    await request(server).delete(`/plans/${created.id}`).expect(204);
+    await e2eClient.delete(`/plans/${created.id}`).expect(204);
 
-    await request(server).get(`/plans/${created.id}`).expect(404);
+    await e2eClient.get(`/plans/${created.id}`).expect(404);
 
-    const listRes = await request(server).get('/plans').expect(200);
+    const listRes = await e2eClient.get('/plans').expect(200);
     const payload = listRes.body as PaginatedPlans;
 
     expect(payload.data.some((p) => p.id === created.id)).toBe(false);
   });
 
   it('DELETE /plans/:id should return 404 when plan does not exist', async () => {
-    await request(server).delete('/plans/999999').expect(404);
+    await e2eClient.delete('/plans/999999').expect(404);
   });
 });
