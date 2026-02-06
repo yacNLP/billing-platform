@@ -1,11 +1,15 @@
 import { Injectable, Scope } from '@nestjs/common';
 import { REQUEST } from '@nestjs/core';
 import { Inject } from '@nestjs/common';
-import type { TenantRequest } from './tenant.middleware';
+import { Request } from 'express';
+
+interface TenantAwareRequest extends Request {
+  tenantId?: number;
+}
 
 @Injectable({ scope: Scope.REQUEST })
 export class TenantContext {
-  constructor(@Inject(REQUEST) private readonly request: TenantRequest) {}
+  constructor(@Inject(REQUEST) private readonly request: TenantAwareRequest) {}
 
   getTenantId(): number {
     if (!this.request.tenantId) {
