@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import bcrypt from 'bcrypt';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Role } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
@@ -34,7 +34,7 @@ async function main() {
       data: {
         email: adminEmail,
         password: hashedPassword,
-        role: 'ADMIN',
+        role: Role.ADMIN,
         tenantId: tenant.id,
       },
     });
