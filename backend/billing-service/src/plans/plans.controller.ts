@@ -15,12 +15,15 @@ import { CreatePlanDto } from './dto/create-plan.dto';
 import { UpdatePlanDto } from './dto/update-plan.dto';
 import { PlansQueryDto } from './dto/plans-query.dto';
 import { ApiTags } from '@nestjs/swagger';
+import { Roles } from 'src/auth/roles.decorator';
+import { Role } from 'src/auth/role.enum';
 
 @ApiTags('plans')
 @Controller('plans')
 export class PlansController {
   constructor(private readonly plansService: PlansService) {}
 
+  @Roles(Role.ADMIN)
   @Post()
   async create(@Body() dto: CreatePlanDto) {
     return this.plansService.create(dto);
@@ -36,6 +39,7 @@ export class PlansController {
     return this.plansService.findOne(id);
   }
 
+  @Roles(Role.ADMIN)
   @Patch(':id')
   async update(
     @Param('id', ParseIntPipe) id: number,
@@ -44,6 +48,7 @@ export class PlansController {
     return this.plansService.update(id, dto);
   }
 
+  @Roles(Role.ADMIN)
   @Delete(':id')
   @HttpCode(204)
   async remove(@Param('id', ParseIntPipe) id: number) {
