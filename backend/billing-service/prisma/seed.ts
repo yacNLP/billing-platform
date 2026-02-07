@@ -1,9 +1,6 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import bcrypt from 'bcrypt';
-import { PrismaClient, Role } from '@prisma/client';
-
+import { PrismaClient } from '@prisma/client';
+import { Role } from '@prisma/client';
 const prisma = new PrismaClient();
 
 async function main() {
@@ -20,7 +17,7 @@ async function main() {
 
   console.log('Seeded tenant');
 
-  // 1.5 seed admin user
+  // seed admin user
   const adminEmail = 'admin@acme.com';
 
   let adminUser = await prisma.user.findUnique({
@@ -40,6 +37,28 @@ async function main() {
     });
 
     console.log('Seeded admin user');
+  }
+
+  // seed normal user
+  const userEmail = 'user@acme.com';
+
+  let normalUser = await prisma.user.findUnique({
+    where: { email: userEmail },
+  });
+
+  if (!normalUser) {
+    const hashedPassword = await bcrypt.hash('password123', 10);
+
+    normalUser = await prisma.user.create({
+      data: {
+        email: userEmail,
+        password: hashedPassword,
+        role: Role.USER,
+        tenantId: tenant.id,
+      },
+    });
+
+    console.log('Seeded normal user');
   }
 
   // 2. seed customers

@@ -15,6 +15,8 @@ import { CustomersService } from './customers.service';
 import { UpdateCustomerDto } from './dto/update-customer.dto';
 import { CustomersQueryDto } from './dto/customers-query.dto';
 import { ApiTags } from '@nestjs/swagger';
+import { Roles } from 'src/auth/roles.decorator';
+import { Role } from 'src/auth/role.enum';
 
 @ApiTags('customers')
 @Controller('customers')
@@ -31,11 +33,13 @@ export class CustomersController {
     return this.customersService.get(id);
   }
 
+  @Roles(Role.ADMIN)
   @Post()
   create(@Body() body: CreateCustomerDto) {
     return this.customersService.create(body);
   }
 
+  @Roles(Role.ADMIN)
   @Patch(':id')
   update(
     @Param('id', ParseIntPipe) id: number,
@@ -43,7 +47,7 @@ export class CustomersController {
   ) {
     return this.customersService.update(id, body);
   }
-
+  @Roles(Role.ADMIN)
   @Delete(':id')
   @HttpCode(204) // No content
   remove(@Param('id', ParseIntPipe) id: number) {

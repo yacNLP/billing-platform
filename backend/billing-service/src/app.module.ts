@@ -10,6 +10,7 @@ import { AuthModule } from './auth/auth.module';
 
 import { JwtAuthGuard } from './auth/jwt.guard';
 import { TenantGuard } from './common/tenant/tenant.guard';
+import { RolesGuard } from './auth/roles.guard';
 
 @Module({
   imports: [
@@ -28,6 +29,10 @@ import { TenantGuard } from './common/tenant/tenant.guard';
     {
       provide: APP_GUARD,
       useClass: TenantGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: RolesGuard,
     },
   ],
 })
