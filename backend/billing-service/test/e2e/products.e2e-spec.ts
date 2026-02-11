@@ -1,11 +1,8 @@
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-
 import { INestApplication } from '@nestjs/common';
 import { createE2eApp, TestApp } from '../utils/e2e-app';
 import { Server } from 'http';
 import { E2EClient } from '../utils/e2e-client';
+import { loginAsAdmin, loginAsUser } from '../utils/e2e-auth';
 
 type SortOrder = 'asc' | 'desc';
 
@@ -28,10 +25,6 @@ interface PaginatedProducts {
   totalPages: number;
 }
 
-/**
- * Helper: create a unique product for a test.
- * Ensures no SKU collision between tests.
- */
 async function createTestProduct(
   client: E2EClient,
   overrides: Partial<ProductResponse> = {},
@@ -47,135 +40,175 @@ async function createTestProduct(
     ...overrides,
   };
 
-  const res = await client.post('/products').send(payload).expect(201);
-
+  const res = await client.post('/products', payload).expect(201);
   return res.body as ProductResponse;
 }
 
 describe('Products e2e', () => {
   let app: INestApplication;
   let server: Server;
-  let e2eClient: E2EClient;
+  let adminClient: E2EClient;
+  let userClient: E2EClient;
 
   beforeAll(async () => {
     const testApp: TestApp = await createE2eApp();
     app = testApp.app;
     server = testApp.server;
-    e2eClient = new E2EClient(server);
+
+    adminClient = new E2EClient(server);
+    userClient = new E2EClient(server);
+
+    await loginAsAdmin(adminClient);
+    await loginAsUser(userClient);
   });
 
   afterAll(async () => {
     await app.close();
   });
 
-  it('GET /products should return paginated list', async () => {
-    await createTestProduct(e2eClient);
+  describe('rbac', () => {
+    it('user cannot create product', async () => {
+      await userClient
+        .post('/products', {
+          name: 'x',
+          sku: `x_${Date.now()}`,
+          priceCents: 100,
+          stock: 1,
+          isActive: true,
+        })
+        .expect(403);
+    });
 
-    const res = await e2eClient.get('/products').expect(200);
-    const payload = res.body as PaginatedProducts;
+    it('user cannot update product', async () => {
+      const created = await createTestProduct(adminClient);
 
-    expect(Array.isArray(payload.data)).toBe(true);
-    expect(payload.total).toBeGreaterThanOrEqual(1);
+      await userClient
+        .patch(`/products/${created.id}`, { name: 'nope' })
+        .expect(403);
+    });
+
+    it('user cannot delete product', async () => {
+      const created = await createTestProduct(adminClient);
+
+      await userClient.delete(`/products/${created.id}`).expect(403);
+    });
+
+    it('user can read products', async () => {
+      await createTestProduct(adminClient);
+
+      await userClient.get('/products').expect(200);
+    });
   });
 
-  it('GET /products?q=SKU should filter by text search', async () => {
-    const created = await createTestProduct(e2eClient);
+  describe('products crud', () => {
+    it('get /products should return paginated list', async () => {
+      await createTestProduct(adminClient);
 
-    const res = await e2eClient
-      .get('/products')
-      .query({ q: created.sku })
-      .expect(200);
+      const res = await userClient.get('/products').expect(200);
+      const payload = res.body as PaginatedProducts;
 
-    const payload = res.body as PaginatedProducts;
+      expect(Array.isArray(payload.data)).toBe(true);
+      expect(payload.total).toBeGreaterThanOrEqual(1);
+    });
 
-    expect(payload.data.some((p) => p.sku === created.sku)).toBe(true);
-  });
+    it('get /products should filter by text search', async () => {
+      const created = await createTestProduct(adminClient);
 
-  it('GET /products with price range filter should respect min/max', async () => {
-    await createTestProduct(e2eClient, { priceCents: 500 });
-    await createTestProduct(e2eClient, { priceCents: 2000 });
+      const res = await userClient
+        .get('/products')
+        .query({ q: created.sku })
+        .expect(200);
 
-    const res = await e2eClient
-      .get('/products')
-      .query({ minPriceCents: 1000 })
-      .expect(200);
+      const payload = res.body as PaginatedProducts;
 
-    const payload = res.body as PaginatedProducts;
+      expect(payload.data.some((p) => p.sku === created.sku)).toBe(true);
+    });
 
-    for (const p of payload.data) {
-      expect(p.priceCents).toBeGreaterThanOrEqual(1000);
-    }
-  });
+    it('get /products should respect price range filter', async () => {
+      await createTestProduct(adminClient, { priceCents: 500 });
+      await createTestProduct(adminClient, { priceCents: 2000 });
 
-  it('GET /products with sort parameters should not crash', async () => {
-    const res = await e2eClient
-      .get('/products')
-      .query({ sortBy: 'priceCents', order: 'asc' as SortOrder })
-      .expect(200);
-    const payload = res.body as PaginatedProducts;
-    expect(Array.isArray(payload.data)).toBe(true);
-  });
+      const res = await userClient
+        .get('/products')
+        .query({ minPriceCents: 1000 })
+        .expect(200);
 
-  it('POST /products should create a new product', async () => {
-    const created = await createTestProduct(e2eClient);
+      const payload = res.body as PaginatedProducts;
 
-    expect(created.id).toBeDefined();
-    expect(created.sku).toContain('SKU_');
-    expect(created.priceCents).toBe(1000);
-  });
+      for (const p of payload.data) {
+        expect(p.priceCents).toBeGreaterThanOrEqual(1000);
+      }
+    });
 
-  it('POST /products should fail on duplicate sku', async () => {
-    const created = await createTestProduct(e2eClient);
+    it('get /products should support sorting', async () => {
+      const res = await userClient
+        .get('/products')
+        .query({ sortBy: 'priceCents', order: 'asc' as SortOrder })
+        .expect(200);
 
-    const payload = {
-      name: 'Duplicate SKU',
-      sku: created.sku,
-      priceCents: 1234,
-      stock: 5,
-      isActive: true,
-    };
+      const payload = res.body as PaginatedProducts;
+      expect(Array.isArray(payload.data)).toBe(true);
+    });
 
-    const res = await e2eClient.post('/products').send(payload).expect(409);
+    it('post /products should create product', async () => {
+      const created = await createTestProduct(adminClient);
 
-    const body = res.body as { message: string };
-    expect(body.message).toBeDefined();
-  });
+      expect(created.id).toBeDefined();
+      expect(created.sku).toContain('SKU_');
+      expect(created.priceCents).toBe(1000);
+    });
 
-  it('GET /products/:id should return one product', async () => {
-    const created = await createTestProduct(e2eClient);
+    it('post /products should fail on duplicate sku', async () => {
+      const created = await createTestProduct(adminClient);
 
-    const res = await e2eClient.get(`/products/${created.id}`).expect(200);
+      await adminClient
+        .post('/products', {
+          name: 'duplicate',
+          sku: created.sku,
+          priceCents: 1234,
+          stock: 5,
+          isActive: true,
+        })
+        .expect(409);
+    });
 
-    const payload = res.body as ProductResponse;
-    expect(payload.id).toBe(created.id);
-    expect(payload.sku).toBe(created.sku);
-  });
+    it('get /products/:id should return one product', async () => {
+      const created = await createTestProduct(adminClient);
 
-  it('GET /products/:id should return 404 for unknown id', async () => {
-    await e2eClient.get('/products/999999').expect(404);
-  });
+      const res = await userClient.get(`/products/${created.id}`).expect(200);
 
-  it('PATCH /products/:id should update product', async () => {
-    const created = await createTestProduct(e2eClient);
+      const payload = res.body as ProductResponse;
 
-    const res = await e2eClient
-      .patch(`/products/${created.id}`)
-      .send({ name: 'Updated Name' })
-      .expect(200);
-    const updated = res.body as ProductResponse;
-    expect(updated.id).toBe(created.id);
-    expect(updated.name).toBe('Updated Name');
-  });
+      expect(payload.id).toBe(created.id);
+      expect(payload.sku).toBe(created.sku);
+    });
 
-  it('DELETE /products/:id should delete product', async () => {
-    const created = await createTestProduct(e2eClient);
+    it('get /products/:id should return 404 on unknown id', async () => {
+      await userClient.get('/products/999999').expect(404);
+    });
 
-    await e2eClient.delete(`/products/${created.id}`).expect(204);
+    it('patch /products/:id should update product', async () => {
+      const created = await createTestProduct(adminClient);
 
-    await e2eClient.get(`/products/${created.id}`).expect(404);
-  });
+      const res = await adminClient
+        .patch(`/products/${created.id}`, { name: 'Updated Name' })
+        .expect(200);
 
-  it('DELETE /products/:id should return 404 on unknown id', async () => {
-    await e2eClient.delete('/products/999999').expect(404);
+      const updated = res.body as ProductResponse;
+
+      expect(updated.id).toBe(created.id);
+      expect(updated.name).toBe('Updated Name');
+    });
+
+    it('delete /products/:id should delete product', async () => {
+      const created = await createTestProduct(adminClient);
+
+      await adminClient.delete(`/products/${created.id}`).expect(204);
+      await adminClient.get(`/products/${created.id}`).expect(404);
+    });
+
+    it('delete /products/:id should return 404 on unknown id', async () => {
+      await adminClient.delete('/products/999999').expect(404);
+    });
   });
 });
