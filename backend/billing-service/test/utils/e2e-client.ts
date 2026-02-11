@@ -1,49 +1,59 @@
-// test/utils/e2e-client.ts
-
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-return */
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-call */
 
 import request from 'supertest';
 import { Server } from 'http';
 
-// default tenant used in all e2e tests
-const DEFAULT_TENANT_ID = 1;
+export type Credentials = {
+  email: string;
+  password: string;
+};
 
-// e2e http client with tenant automatically injected
 export class E2EClient {
   private readonly client;
-  private readonly tenantId: number;
+  private accessToken?: string;
 
-  constructor(server: Server, tenantId: number = DEFAULT_TENANT_ID) {
+  constructor(server: Server) {
     this.client = request(server);
-    this.tenantId = tenantId;
   }
 
-  // perform a get request with tenant header
+  // authenticate client using real login endpoint
+  async login(credentials: Credentials): Promise<void> {
+    const res = await this.client
+      .post('/auth/login')
+      .send(credentials)
+      .expect(201);
+
+    this.accessToken = res.body.accessToken;
+  }
+
+  // attach authorization header if logged in
+  private withAuth(req: request.Test): request.Test {
+    if (this.accessToken) {
+      req.set('Authorization', `Bearer ${this.accessToken}`);
+    }
+    return req;
+  }
+
   get(url: string) {
-    return this.client.get(url).set('X-Tenant-Id', String(this.tenantId));
+    return this.withAuth(this.client.get(url));
   }
 
-  // perform a post request with tenant header
   post(url: string, body?: unknown) {
-    const req = this.client.post(url).set('X-Tenant-Id', String(this.tenantId));
+    const req = this.withAuth(this.client.post(url));
     if (body) req.send(body);
     return req;
   }
 
-  // perform a patch request with tenant header
   patch(url: string, body?: unknown) {
-    const req = this.client
-      .patch(url)
-      .set('X-Tenant-Id', String(this.tenantId));
+    const req = this.withAuth(this.client.patch(url));
     if (body) req.send(body);
     return req;
   }
 
-  // perform a delete request with tenant header
   delete(url: string) {
-    return this.client.delete(url).set('X-Tenant-Id', String(this.tenantId));
+    return this.withAuth(this.client.delete(url));
   }
 }
