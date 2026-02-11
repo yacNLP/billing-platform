@@ -1,5 +1,5 @@
 import { execSync } from 'child_process';
-import { seedTestData, disconnectPrisma } from './seed';
+import { seedTestData, disconnectPrisma } from './seed.test';
 
 beforeAll(async () => {
   // apply prisma migrations to test database
