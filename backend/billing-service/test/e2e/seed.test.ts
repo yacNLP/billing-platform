@@ -1,4 +1,6 @@
 import { PrismaClient } from '@prisma/client';
+import bcrypt from 'bcrypt';
+import { Role } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
@@ -10,6 +12,8 @@ const TEST_TENANT_ID = 1;
  * fully multi-tenant aware.
  */
 export async function seedTestData() {
+  console.log('seed db url:', process.env.DATABASE_URL);
+
   // 1) tenant (idempotent)
   const tenant = await prisma.tenant.upsert({
     where: { id: TEST_TENANT_ID },
@@ -60,6 +64,30 @@ export async function seedTestData() {
     ],
     skipDuplicates: true,
   });
+
+  // 4) users for auth and rbac tests
+  await prisma.user.upsert({
+    where: { email: 'admin@test.com' },
+    update: {},
+    create: {
+      email: 'admin@test.com',
+      password: await bcrypt.hash('password123', 10),
+      role: Role.ADMIN,
+      tenantId,
+    },
+  });
+
+  await prisma.user.upsert({
+    where: { email: 'user@test.com' },
+    update: {},
+    create: {
+      email: 'user@test.com',
+      password: await bcrypt.hash('password123', 10),
+      role: Role.USER,
+      tenantId,
+    },
+  });
+  console.log('seeded users:', await prisma.user.findMany());
 }
 
 export async function disconnectPrisma() {
