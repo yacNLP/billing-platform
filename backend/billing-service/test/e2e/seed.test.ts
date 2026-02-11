@@ -1,52 +1,67 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Role } from '@prisma/client';
 import bcrypt from 'bcrypt';
-import { Role } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-// fixed tenant id for e2e tests
-const TEST_TENANT_ID = 1;
+const TENANT_1_ID = 1;
+const TENANT_2_ID = 2;
+
+async function hashPassword() {
+  return bcrypt.hash('password123', 10);
+}
 
 /**
- * minimal, idempotent fixtures for e2e tests.
- * fully multi-tenant aware.
+ * Minimal, idempotent fixtures for e2e tests.
+ * Multi-tenant aware.
  */
 export async function seedTestData() {
   console.log('seed db url:', process.env.DATABASE_URL);
 
-  // 1) tenant (idempotent)
-  const tenant = await prisma.tenant.upsert({
-    where: { id: TEST_TENANT_ID },
+  // =============================
+  // TENANTS
+  // =============================
+
+  const tenant1 = await prisma.tenant.upsert({
+    where: { id: TENANT_1_ID },
     update: {},
     create: {
-      id: TEST_TENANT_ID,
-      name: 'Test Tenant',
+      id: TENANT_1_ID,
+      name: 'Test Tenant 1',
     },
   });
 
-  const tenantId = tenant.id;
+  const tenant2 = await prisma.tenant.upsert({
+    where: { id: TENANT_2_ID },
+    update: {},
+    create: {
+      id: TENANT_2_ID,
+      name: 'Test Tenant 2',
+    },
+  });
 
-  // 2) customer (idempotent, scoped by tenant)
+  // =============================
+  // TENANT 1 DATA
+  // =============================
+
   await prisma.customer.upsert({
     where: {
       tenantId_email: {
-        tenantId,
+        tenantId: tenant1.id,
         email: 'billing@acme.com',
       },
     },
     update: {},
     create: {
-      tenantId,
+      tenantId: tenant1.id,
       name: 'ACME Corp',
       email: 'billing@acme.com',
     },
   });
 
-  // 3) products (idempotent, scoped by tenant)
   await prisma.product.createMany({
     data: [
       {
-        tenantId,
+        tenantId: tenant1.id,
         name: 'Standard Plan',
         sku: 'STD-001',
         priceCents: 990,
@@ -54,7 +69,7 @@ export async function seedTestData() {
         isActive: true,
       },
       {
-        tenantId,
+        tenantId: tenant1.id,
         name: 'Premium Plan',
         sku: 'PRM-001',
         priceCents: 1990,
@@ -65,15 +80,21 @@ export async function seedTestData() {
     skipDuplicates: true,
   });
 
-  // 4) users for auth and rbac tests
+  // =============================
+  // USERS
+  // =============================
+
+  const passwordHash = await hashPassword();
+
+  // Tenant 1
   await prisma.user.upsert({
     where: { email: 'admin@test.com' },
     update: {},
     create: {
       email: 'admin@test.com',
-      password: await bcrypt.hash('password123', 10),
+      password: passwordHash,
       role: Role.ADMIN,
-      tenantId,
+      tenantId: tenant1.id,
     },
   });
 
@@ -82,11 +103,24 @@ export async function seedTestData() {
     update: {},
     create: {
       email: 'user@test.com',
-      password: await bcrypt.hash('password123', 10),
+      password: passwordHash,
       role: Role.USER,
-      tenantId,
+      tenantId: tenant1.id,
     },
   });
+
+  // Tenant 2 (needed for isolation test)
+  await prisma.user.upsert({
+    where: { email: 'admin2@test.com' },
+    update: {},
+    create: {
+      email: 'admin2@test.com',
+      password: passwordHash,
+      role: Role.ADMIN,
+      tenantId: tenant2.id,
+    },
+  });
+
   console.log('seeded users:', await prisma.user.findMany());
 }
 
