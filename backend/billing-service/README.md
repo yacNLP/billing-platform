@@ -1,96 +1,173 @@
-# Billing Service — Backend MVP
+# Billing Service
 
-This repository contains the **Billing Service backend** for the *biling-platform* project.
+Billing Service is the core backend of the **Billing Platform**.
 
-It provides a REST API to manage:
-- customers
-- products
-- billing plans
+It exposes a secure, multi-tenant REST API to manage **customers**, **products**, and **subscription plans**.  
+The service is built as a **modular monolith** using **NestJS** and **Prisma**, with a strong focus on clean architecture and production-ready practices.
 
----
-
-## Tech Stack
-
-- **NestJS** — backend framework
-- **Prisma** — ORM
-- **PostgreSQL** — database
-- **Docker & Docker Compose** — local infrastructure
-- **TypeScript**
+This service is Docker-first and production-oriented.
 
 ---
 
-## Prerequisites
+## Architecture
 
-- Docker & Docker Compose
-- Node.js ≥ 18
-- npm ≥ 9
+The application follows a modular structure:
+
+- **auth** — JWT authentication and role-based access control  
+- **tenant** — request-scoped tenant resolution  
+- **customers** — customer management  
+- **products** — product catalog  
+- **plans** — subscription plans  
+- **common** — shared utilities and DTOs  
+
+### Key characteristics
+
+- Modular monolith (NestJS)
+- PostgreSQL database
+- Prisma ORM with migrations
+- JWT authentication
+- ADMIN / USER roles
+- Automatic tenant-based data scoping
+- Docker-ready setup
+- End-to-end test coverage for critical flows
 
 ---
 
-## Environment Variables
+## Environment Configuration
 
-The project uses **two environments**:
+The service supports multiple environments:
 
-- `.env` — development (Docker runtime)
-- `.env.test` — e2e tests
+- `.env` → local development (non-Docker)
+- `.env.docker` → Docker runtime
+- `.env.test` → end-to-end tests
+- `.env.example` → template file (committed)
 
-Both files must exist before running the application.
+### Local setup (without Docker)
+
+Copy the example file:
+
+```
+cp .env.example .env
+```
+
+
+Adjust values if needed.
+
+Docker automatically uses `.env.docker`.
 
 ---
 
-## Start the Application (Recommended: Docker)
 
+## Running the Service (Docker — Recommended)
 From the project root:
 
-```bash
+```
 docker compose up --build
 ```
 
-This starts:
-- PostgreSQL (dev)
-- PostgreSQL (test)
-- Billing API
+This will:
 
-API will be available at:
+- Start PostgreSQL
+- Apply Prisma migrations (`migrate deploy`)
+- Start the API
+
+The API will be available at:
+
+- http://localhost:3000  
+- http://localhost:3000/docs
+
+## Running Without Docker (Optional)
+
+Inside `backend/billing-service`:
+
+- Install dependencies
 
 ```
-http://localhost:3000
-http://localhost:3000/docs
+npm install
+```
+
+- Generate Prisma client:
+
+```
+npx prisma generate
+```
+
+- Apply migrations:
+
+```
+npx prisma migrate dev
+```
+
+- Start the server:
+
+```
+npm run start:dev
 ```
 
 ---
 
-## Database Migrations
 
-Apply existing migrations:
-migrate deploy is non-interactive and safe for Docker, tests, and CI.
-
+##  Database Migrations : 
+Production-safe migrations:
 ```
 npx prisma migrate deploy
 ```
 
-When modifying the Prisma schema (local development only)
-
+### Seed (Development Only)
 ```
-npx prisma migrate dev
-```
-
-----
-
-## Running the Application Without Docker (Optional)
-```
-npm install
-npx prisma generate
-npx prisma migrate dev
-npm run start:dev
-
+npm run db:seed:dev
 ```
 
-## Running End-to-End Tests
-The e2e tests use a dedicated test database.
+---
+## Testing
+End-to-end tests run against a dedicated test database.
+- Start the test database:
 
 ```
 docker compose up -d postgres-test
+```
+
+- Apply test migrations:
+```
 npm run db:test:deploy
+```
+- Run e2e tests:
+```
 npm run test:e2e
 ```
+- To reset the test database:
+```
+npm run db:test:reset
+```
+
+
+---
+
+## Security & Multi-Tenancy
+
+- JWT-based authentication
+- Role-based access control (ADMIN / USER)
+- Tenant resolved per request
+- Automatic data isolation at the service layer
+- Multi-tenant isolation verified through e2e tests
+
+---
+
+## Code Quality
+
+- ESLint + Prettier
+- DTO validation with `class-validator`
+- Jest (unit & e2e)
+- Prisma schema-driven modeling
+
+---
+
+## Documentation
+
+More detailed technical documentation (architecture decisions, domain model, roadmap) is available in:
+
+```
+docs/
+```
+
+

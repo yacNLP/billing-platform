@@ -1,96 +1,34 @@
-# Billing Service — Backend MVP
+# Billing Platform
 
-This repository contains the **Billing Service backend** for the *biling-platform* project.
+Billing Platform is a B2B SaaS billing foundation designed to manage customers, products, and subscription plans in a secure multi-tenant architecture.
 
-It provides a REST API to manage:
-- customers
-- products
-- billing plans
+It is built as a production-oriented backend system, focusing on scalability, security, and clean DevOps practices.
+
 
 ---
 
-## Tech Stack
+## Vision
 
-- **NestJS** — backend framework
-- **Prisma** — ORM
-- **PostgreSQL** — database
-- **Docker & Docker Compose** — local infrastructure
-- **TypeScript**
+The long-term goal is to evolve this foundation into a commercial-grade billing solution including subscriptions lifecycle, invoicing, payments integration, and an admin interface.
+
+The current version focuses on delivering a solid and extensible backend core.
 
 ---
 
-## Prerequisites
+## Getting Started
 
-- Docker & Docker Compose
-- Node.js ≥ 18
-- npm ≥ 9
-
----
-
-## Environment Variables
-
-The project uses **two environments**:
-
-- `.env` — development (Docker runtime)
-- `.env.test` — e2e tests
-
-Both files must exist before running the application.
-
----
-
-## Start the Application (Recommended: Docker)
-
-From the project root:
+Start the platform locally using Docker:
 
 ```bash
 docker compose up --build
 ```
+API will be available at: 
 
-This starts:
-- PostgreSQL (dev)
-- PostgreSQL (test)
-- Billing API
-
-API will be available at:
-
-```
 http://localhost:3000
-http://localhost:3000/docs
-```
 
 ---
-
-## Database Migrations
-
-Apply existing migrations:
-migrate deploy is non-interactive and safe for Docker, tests, and CI.
-
-```
-npx prisma migrate deploy
-```
-
-When modifying the Prisma schema (local development only)
-
-```
-npx prisma migrate dev
-```
-
-----
-
-## Running the Application Without Docker (Optional)
-```
-npm install
-npx prisma generate
-npx prisma migrate dev
-npm run start:dev
-
-```
-
-## Running End-to-End Tests
-The e2e tests use a dedicated test database.
-
-```
-docker compose up -d postgres-test
-npm run db:test:deploy
-npm run test:e2e
+For technical details and architecture documentation, see:
+```bash
+backend/billing-service/README.md
+backend/billing-service/docs/
 ```
