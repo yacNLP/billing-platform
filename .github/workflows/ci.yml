@@ -50,6 +50,10 @@ jobs:
       - name: Apply migrations
         run: npx prisma migrate deploy
         working-directory: backend/billing-service
+      
+      - name: Build application
+        run: npm run build
+        working-directory: backend/billing-service
 
       - name: Run e2e tests
         run: npm run test:e2e
