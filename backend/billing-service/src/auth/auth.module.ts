@@ -6,8 +6,6 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { JwtStrategy } from './jwt.strategy';
 
-import { PrismaService } from '../prisma.service';
-
 // JWT secret used to sign and verify tokens
 // Uses env variable in prod, fallback for dev
 const jwtSecret: string =
@@ -33,7 +31,7 @@ const jwtSecret: string =
   controllers: [AuthController],
 
   // Auth logic and JWT validation
-  providers: [AuthService, JwtStrategy, PrismaService],
+  providers: [AuthService, JwtStrategy],
 
   // Expose auth modules to other parts of the app
   exports: [JwtModule, PassportModule],
