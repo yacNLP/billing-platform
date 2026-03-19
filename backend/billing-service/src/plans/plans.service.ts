@@ -1,21 +1,21 @@
-// src/plans/plans.service.ts
 import {
   Injectable,
   NotFoundException,
   BadRequestException,
   ConflictException,
+  Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { Prisma, type Plan, type Product } from '@prisma/client';
 import { CreatePlanDto } from './dto/create-plan.dto';
 import { UpdatePlanDto } from './dto/update-plan.dto';
 import { PlansQueryDto } from './dto/plans-query.dto';
-import { errorMessage } from '../common/error.util';
 import { Paginated } from '../common/dto/paginated.type';
-import { TenantContext } from 'src/common/tenant/tenant.context';
+import { TenantContext } from '../common/tenant/tenant.context';
 
 // Whitelist for sorting
 type PlanSortKey = 'id' | 'code' | 'name' | 'amount' | 'createdAt';
+
 const ALLOWED_SORT: readonly PlanSortKey[] = [
   'id',
   'code',
@@ -24,14 +24,17 @@ const ALLOWED_SORT: readonly PlanSortKey[] = [
   'createdAt',
 ] as const;
 
-function isPlanSortKey(v: unknown): v is PlanSortKey {
+function isPlanSortKey(value: unknown): value is PlanSortKey {
   return (
-    typeof v === 'string' && (ALLOWED_SORT as readonly string[]).includes(v)
+    typeof value === 'string' &&
+    (ALLOWED_SORT as readonly string[]).includes(value)
   );
 }
 
 @Injectable()
 export class PlansService {
+  private readonly logger = new Logger(PlansService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly tenantContext: TenantContext,
@@ -39,11 +42,8 @@ export class PlansService {
 
   async create(dto: CreatePlanDto): Promise<Plan> {
     const tenantId = this.tenantContext.getTenantId();
-    // validate productId exists
-    const product: Product | null = await this.prisma.product.findFirst({
-      where: { id: dto.productId, tenantId },
-    });
-    if (!product) throw new BadRequestException('Invalid productId');
+
+    await this.ensureActiveTenantProduct(dto.productId, tenantId);
 
     try {
       const data: Prisma.PlanCreateInput = {
@@ -60,24 +60,21 @@ export class PlansService {
         product: { connect: { id: dto.productId } },
       };
 
-      return await this.prisma.plan.create({ data });
+      const created = await this.prisma.plan.create({ data });
+
+      this.logger.log(
+        `Created plan id=${created.id} code=${created.code} tenantId=${tenantId}`,
+      );
+
+      return created;
     } catch (e: unknown) {
-      if (e instanceof Prisma.PrismaClientKnownRequestError) {
-        if (e.code === 'P2002') {
-          // unique constraint violation on code
-          throw new ConflictException('Code already exists');
-        }
-        if (e.code === 'P2003') {
-          // invalid FK (should être rare vu le check plus haut)
-          throw new BadRequestException('Invalid productId');
-        }
-      }
-      throw new BadRequestException(`Operation failed: ${errorMessage(e)}`);
+      this.handleWriteError(e, { id: undefined });
     }
   }
 
   async findOne(id: number): Promise<Plan> {
     const tenantId = this.tenantContext.getTenantId();
+
     const plan = await this.prisma.plan.findFirst({
       where: { id, tenantId, deletedAt: null },
     });
@@ -97,13 +94,13 @@ export class PlansService {
     const sortField: PlanSortKey = isPlanSortKey(query.sort)
       ? query.sort
       : 'id';
-    const sortOrder: 'asc' | 'desc' =
-      query.order && query.order === 'desc' ? 'desc' : 'asc';
+
+    const sortOrder: 'asc' | 'desc' = query.order === 'desc' ? 'desc' : 'asc';
 
     const where: Prisma.PlanWhereInput = {
       tenantId,
       deletedAt: null,
-      ...(query.active ? { active: query.active === 'true' } : {}),
+      ...(query.active != null ? { active: query.active === 'true' } : {}),
       ...(query.currency ? { currency: query.currency } : {}),
       ...(query.search
         ? {
@@ -142,10 +139,10 @@ export class PlansService {
 
   async update(id: number, dto: UpdatePlanDto): Promise<Plan> {
     const tenantId = this.tenantContext.getTenantId();
-    const existing: Plan = await this.findOne(id);
+    const existing = await this.findOne(id);
 
-    // productId is immutable (rule in doc)
-    if (dto.productId && dto.productId !== existing.productId) {
+    // productId is immutable
+    if (dto.productId != null && dto.productId !== existing.productId) {
       throw new BadRequestException('productId cannot be changed');
     }
 
@@ -160,29 +157,26 @@ export class PlansService {
         intervalCount: dto.intervalCount,
         trialDays: dto.trialDays,
         active: dto.active,
-        // no product connect here: productId is immutable
       };
 
-      return await this.prisma.plan.update({
+      const updated = await this.prisma.plan.update({
         where: { id: existing.id, tenantId },
         data,
       });
+
+      this.logger.log(
+        `Updated plan id=${updated.id} code=${updated.code} tenantId=${tenantId}`,
+      );
+
+      return updated;
     } catch (e: unknown) {
-      if (e instanceof Prisma.PrismaClientKnownRequestError) {
-        if (e.code === 'P2002') {
-          throw new ConflictException('Code already exists');
-        }
-        if (e.code === 'P2003') {
-          throw new BadRequestException('Invalid productId');
-        }
-      }
-      throw new BadRequestException(`Operation failed: ${errorMessage(e)}`);
+      this.handleWriteError(e, { id });
     }
   }
 
   async remove(id: number): Promise<void> {
     const tenantId = this.tenantContext.getTenantId();
-    const existing: Plan = await this.findOne(id);
+    const existing = await this.findOne(id);
 
     await this.prisma.plan.update({
       where: { id: existing.id, tenantId },
@@ -191,5 +185,48 @@ export class PlansService {
         active: false,
       },
     });
+
+    this.logger.log(`Soft-deleted plan id=${existing.id} tenantId=${tenantId}`);
+  }
+
+  private async ensureActiveTenantProduct(
+    productId: number,
+    tenantId: number,
+  ): Promise<Product> {
+    const product = await this.prisma.product.findFirst({
+      where: {
+        id: productId,
+        tenantId,
+        isActive: true,
+      },
+    });
+
+    if (!product) {
+      throw new BadRequestException('Invalid or inactive productId');
+    }
+
+    return product;
+  }
+
+  private handleWriteError(error: unknown, context: { id?: number }): never {
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      if (error.code === 'P2002') {
+        throw new ConflictException('Code already exists');
+      }
+
+      if (error.code === 'P2003') {
+        throw new BadRequestException('Invalid or inactive productId');
+      }
+
+      if (error.code === 'P2025') {
+        if (context.id != null) {
+          throw new NotFoundException(`Plan with id=${context.id} not found`);
+        }
+
+        throw new NotFoundException('Plan not found');
+      }
+    }
+
+    throw error;
   }
 }
