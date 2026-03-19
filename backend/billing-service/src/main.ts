@@ -21,6 +21,7 @@ async function bootstrap() {
     .setTitle('Billing Platform API')
     .setDescription('API documentation for Billing Platform backend')
     .setVersion('1.0.0')
+    .addBearerAuth()
     .build();
 
   const document = SwaggerModule.createDocument(app, config);

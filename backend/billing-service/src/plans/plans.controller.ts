@@ -14,11 +14,12 @@ import { PlansService } from './plans.service';
 import { CreatePlanDto } from './dto/create-plan.dto';
 import { UpdatePlanDto } from './dto/update-plan.dto';
 import { PlansQueryDto } from './dto/plans-query.dto';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { Roles } from 'src/auth/roles.decorator';
 import { Role } from 'src/auth/role.enum';
 
 @ApiTags('plans')
+@ApiBearerAuth()
 @Controller('plans')
 export class PlansController {
   constructor(private readonly plansService: PlansService) {}
