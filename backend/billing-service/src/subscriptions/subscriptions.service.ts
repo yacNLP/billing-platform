@@ -167,8 +167,15 @@ export class SubscriptionsService {
       );
     }
 
+    const now = new Date();
+
+    if (!cancelAtPeriodEnd && now < existing.currentPeriodStart) {
+      throw new BadRequestException(
+        'Cannot immediately cancel a subscription before it starts',
+      );
+    }
+
     try {
-      const now = new Date();
       const canceledAt = existing.canceledAt ?? now;
 
       const updated = await this.prisma.subscription.update({
@@ -202,25 +209,75 @@ export class SubscriptionsService {
     interval: BillingInterval,
     intervalCount: number,
   ): Date {
-    const end = new Date(start);
-
     if (interval === BillingInterval.DAY) {
+      const end = new Date(start);
       end.setUTCDate(end.getUTCDate() + intervalCount);
       return end;
     }
 
     if (interval === BillingInterval.WEEK) {
+      const end = new Date(start);
       end.setUTCDate(end.getUTCDate() + intervalCount * 7);
       return end;
     }
 
     if (interval === BillingInterval.MONTH) {
-      end.setUTCMonth(end.getUTCMonth() + intervalCount);
-      return end;
+      return this.addMonthsClamped(start, intervalCount);
     }
 
-    end.setUTCFullYear(end.getUTCFullYear() + intervalCount);
-    return end;
+    return this.addYearsClamped(start, intervalCount);
+  }
+
+  private addMonthsClamped(start: Date, monthsToAdd: number): Date {
+    const year = start.getUTCFullYear();
+    const month = start.getUTCMonth();
+    const day = start.getUTCDate();
+
+    const targetMonthIndex = month + monthsToAdd;
+    const targetYear = year + Math.floor(targetMonthIndex / 12);
+    const targetMonth = ((targetMonthIndex % 12) + 12) % 12;
+
+    const daysInTargetMonth = new Date(
+      Date.UTC(targetYear, targetMonth + 1, 0),
+    ).getUTCDate();
+
+    const clampedDay = Math.min(day, daysInTargetMonth);
+
+    return new Date(
+      Date.UTC(
+        targetYear,
+        targetMonth,
+        clampedDay,
+        start.getUTCHours(),
+        start.getUTCMinutes(),
+        start.getUTCSeconds(),
+        start.getUTCMilliseconds(),
+      ),
+    );
+  }
+
+  private addYearsClamped(start: Date, yearsToAdd: number): Date {
+    const targetYear = start.getUTCFullYear() + yearsToAdd;
+    const targetMonth = start.getUTCMonth();
+    const day = start.getUTCDate();
+
+    const daysInTargetMonth = new Date(
+      Date.UTC(targetYear, targetMonth + 1, 0),
+    ).getUTCDate();
+
+    const clampedDay = Math.min(day, daysInTargetMonth);
+
+    return new Date(
+      Date.UTC(
+        targetYear,
+        targetMonth,
+        clampedDay,
+        start.getUTCHours(),
+        start.getUTCMinutes(),
+        start.getUTCSeconds(),
+        start.getUTCMilliseconds(),
+      ),
+    );
   }
 
   private handleWriteError(error: unknown): never {

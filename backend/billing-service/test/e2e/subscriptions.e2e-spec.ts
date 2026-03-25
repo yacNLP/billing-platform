@@ -135,6 +135,23 @@ describe('Subscriptions e2e', () => {
     expect(sub.intervalCountSnapshot).toBe(1);
   });
 
+  it('should clamp monthly period end for end-of-month start dates', async () => {
+    const customer = await createCustomer(adminClient);
+    const plan = await createPlan(adminClient);
+
+    const res = await adminClient
+      .post('/subscriptions', {
+        customerId: customer.id,
+        planId: plan.id,
+        startDate: '2025-01-31T00:00:00.000Z',
+      })
+      .expect(201);
+
+    const created = res.body as SubscriptionResponse;
+
+    expect(created.currentPeriodEnd.startsWith('2025-02-28')).toBe(true);
+  });
+
   it('should enforce only one ACTIVE subscription per customer', async () => {
     const customer = await createCustomer(adminClient);
     const firstPlan = await createPlan(adminClient);
@@ -232,6 +249,29 @@ describe('Subscriptions e2e', () => {
     const created = createdRes.body as SubscriptionResponse;
 
     await tenantBAdmin.get(`/subscriptions/${created.id}`).expect(404);
+  });
+
+  it('should reject immediate cancellation before subscription start date', async () => {
+    const customer = await createCustomer(adminClient);
+    const plan = await createPlan(adminClient);
+
+    const futureStart = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+    const createdRes = await adminClient
+      .post('/subscriptions', {
+        customerId: customer.id,
+        planId: plan.id,
+        startDate: futureStart.toISOString(),
+      })
+      .expect(201);
+
+    const created = createdRes.body as SubscriptionResponse;
+
+    await adminClient
+      .patch(`/subscriptions/${created.id}/cancel`, {
+        cancelAtPeriodEnd: false,
+      })
+      .expect(400);
   });
 
   it('PATCH /subscriptions/:id/cancel supports cancelAtPeriodEnd', async () => {
