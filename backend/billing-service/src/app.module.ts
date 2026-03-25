@@ -8,6 +8,7 @@ import { PlansModule } from './plans/plans.module';
 import { TenantModule } from './common/tenant/tenant.module';
 import { AuthModule } from './auth/auth.module';
 import { PrismaModule } from './prisma.module';
+import { InvoicesModule } from './invoices/invoices.module';
 
 import { JwtAuthGuard } from './auth/jwt.guard';
 import { TenantGuard } from './common/tenant/tenant.guard';
@@ -21,6 +22,7 @@ import { RolesGuard } from './auth/roles.guard';
     CustomersModule,
     ProductsModule,
     PlansModule,
+    InvoicesModule,
   ],
   controllers: [AppController],
   providers: [

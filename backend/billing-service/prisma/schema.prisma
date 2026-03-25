@@ -9,6 +9,14 @@ enum Role {
   ADMIN
   USER
 }
+
+enum InvoiceStatus {
+  DRAFT
+  OPEN
+  PAID
+  VOID
+  UNCOLLECTIBLE
+}
 generator client {
   provider = "prisma-client-js"
 }
@@ -26,12 +34,32 @@ model Customer {
 
   tenantId  Int
   tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  subscriptions Subscription[]
+  invoices  Invoice[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@unique([tenantId, email])
   @@index([tenantId])
+}
+
+model Subscription {
+  id         Int      @id @default(autoincrement())
+  tenantId   Int
+  tenant     Tenant   @relation(fields: [tenantId], references: [id])
+  customerId Int
+  customer   Customer @relation(fields: [customerId], references: [id])
+  planId     Int?
+  plan       Plan?    @relation(fields: [planId], references: [id])
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  invoices   Invoice[]
+
+  @@index([tenantId])
+  @@index([customerId])
 }
 
 
@@ -87,11 +115,53 @@ model Plan {
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
   deletedAt      DateTime?
+  subscriptions  Subscription[]
 
   @@unique([tenantId, code])
   @@index([tenantId])
   @@index([productId])
   @@index([active])
+}
+
+model Invoice {
+  id             Int            @id @default(autoincrement())
+  tenantId       Int
+  tenant         Tenant         @relation(fields: [tenantId], references: [id])
+
+  customerId     Int
+  customer       Customer       @relation(fields: [customerId], references: [id])
+
+  subscriptionId Int?
+  subscription   Subscription?  @relation(fields: [subscriptionId], references: [id])
+
+  invoiceNumber  String
+  status         InvoiceStatus  @default(DRAFT)
+
+  currency       String         @db.VarChar(3)
+  subtotalCents  Int
+  taxCents       Int            @default(0)
+  totalCents     Int
+
+  issuedAt       DateTime?
+  dueDate        DateTime
+  paidAt         DateTime?
+  voidedAt       DateTime?
+
+  periodStart    DateTime
+  periodEnd      DateTime
+
+  notes          String?        @db.Text
+
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@unique([tenantId, invoiceNumber])
+  @@index([tenantId])
+  @@index([customerId])
+  @@index([subscriptionId])
+  @@index([status])
+  @@index([tenantId, status])
+  @@index([tenantId, dueDate])
 }
 
 
@@ -104,6 +174,8 @@ model Tenant {
   customers Customer[]
   products  Product[]
   plans     Plan[]
+  subscriptions Subscription[]
+  invoices  Invoice[]
 }
 
 model User {
