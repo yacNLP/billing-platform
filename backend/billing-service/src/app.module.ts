@@ -5,6 +5,7 @@ import { AppController } from './app.controller';
 import { ProductsModule } from './products/products.module';
 import { CustomersModule } from './customers/customers.module';
 import { PlansModule } from './plans/plans.module';
+import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { TenantModule } from './common/tenant/tenant.module';
 import { AuthModule } from './auth/auth.module';
 import { PrismaModule } from './prisma.module';
@@ -21,6 +22,7 @@ import { RolesGuard } from './auth/roles.guard';
     CustomersModule,
     ProductsModule,
     PlansModule,
+    SubscriptionsModule,
   ],
   controllers: [AppController],
   providers: [

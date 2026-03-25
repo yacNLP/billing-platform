@@ -9,23 +9,33 @@ enum Role {
   ADMIN
   USER
 }
+
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELED
+  EXPIRED
+  PAST_DUE
+}
+
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider          = "postgresql"
+  url               = env("DATABASE_URL")
   shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
 }
 
 model Customer {
-  id        Int      @id @default(autoincrement())
-  name      String
-  email     String
+  id    Int    @id @default(autoincrement())
+  name  String
+  email String
 
-  tenantId  Int
-  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  tenantId Int
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+
+  subscriptions Subscription[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -34,26 +44,25 @@ model Customer {
   @@index([tenantId])
 }
 
-
 model Product {
-  id                Int      @id @default(autoincrement())
+  id                Int     @id @default(autoincrement())
   name              String
   sku               String
-  description       String?  @db.Text
+  description       String? @db.Text
   priceCents        Int
-  currency          String   @default("EUR")
-  taxRate           Decimal  @default(0.20) @db.Decimal(5, 4)
-  isActive          Boolean  @default(true)
-  stock             Int      @default(0)
-  lowStockThreshold Int      @default(0)
+  currency          String  @default("EUR")
+  taxRate           Decimal @default(0.20) @db.Decimal(5, 4)
+  isActive          Boolean @default(true)
+  stock             Int     @default(0)
+  lowStockThreshold Int     @default(0)
 
-  tenantId          Int
-  tenant            Tenant   @relation(fields: [tenantId], references: [id])
+  tenantId Int
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
 
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  plans             Plan[]
+  plans Plan[]
 
   @@unique([tenantId, sku])
   @@index([tenantId])
@@ -61,32 +70,33 @@ model Product {
   @@index([isActive])
 }
 
-
 model Plan {
-  id             Int              @id @default(autoincrement())
-  code           String
-  name           String
-  description    String?
+  id          Int     @id @default(autoincrement())
+  code        String
+  name        String
+  description String?
 
-  productId      Int
-  product        Product          @relation(fields: [productId], references: [id])
+  productId Int
+  product   Product @relation(fields: [productId], references: [id])
 
-  tenantId       Int
-  tenant         Tenant           @relation(fields: [tenantId], references: [id])
+  tenantId Int
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
 
-  amount         Int
-  currency       String           @db.VarChar(3)
+  amount   Int
+  currency String @db.VarChar(3)
 
-  interval       BillingInterval
-  intervalCount  Int              @default(1)
-  trialDays      Int              @default(0)
+  interval      BillingInterval
+  intervalCount Int             @default(1)
+  trialDays     Int             @default(0)
 
-  active         Boolean          @default(true)
-  metadata       Json?
+  active   Boolean @default(true)
+  metadata Json?
 
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
-  deletedAt      DateTime?
+  subscriptions Subscription[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
 
   @@unique([tenantId, code])
   @@index([tenantId])
@@ -94,26 +104,63 @@ model Plan {
   @@index([active])
 }
 
-
 model Tenant {
   id        Int      @id @default(autoincrement())
   name      String
   createdAt DateTime @default(now())
 
-  users     User[]
-  customers Customer[]
-  products  Product[]
-  plans     Plan[]
+  users         User[]
+  customers     Customer[]
+  products      Product[]
+  plans         Plan[]
+  subscriptions Subscription[]
 }
 
 model User {
-  id        Int      @id @default(autoincrement())
-  email     String   @unique
-  password  String
-  role      Role   @default(USER)
+  id       Int    @id @default(autoincrement())
+  email    String @unique
+  password String
+  role     Role   @default(USER)
 
-  tenantId  Int
-  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  tenantId Int
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
 
   createdAt DateTime @default(now())
+}
+
+model Subscription {
+  id Int @id @default(autoincrement())
+
+  tenantId Int
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+
+  customerId Int
+  customer   Customer @relation(fields: [customerId], references: [id])
+
+  planId Int
+  plan   Plan @relation(fields: [planId], references: [id])
+
+  status            SubscriptionStatus @default(ACTIVE)
+  cancelAtPeriodEnd Boolean            @default(false)
+  canceledAt        DateTime?
+
+  amountSnapshot        Int
+  currencySnapshot      String          @db.VarChar(3)
+  intervalSnapshot      BillingInterval
+  intervalCountSnapshot Int
+
+  startDate          DateTime
+  currentPeriodStart DateTime
+  currentPeriodEnd   DateTime
+
+  endedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([customerId])
+  @@index([planId])
+  @@index([status])
+  @@index([tenantId, customerId, status])
 }
