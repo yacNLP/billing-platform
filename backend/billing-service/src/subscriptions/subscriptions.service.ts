@@ -3,7 +3,6 @@ import {
   ConflictException,
   Injectable,
   Logger,
-  NotImplementedException,
   NotFoundException,
 } from '@nestjs/common';
 import {
@@ -184,17 +183,78 @@ export class SubscriptionsService {
     return subscription;
   }
 
-  cancel(id: number, dto: CancelSubscriptionDto): Promise<Subscription> {
+  async cancel(id: number, dto: CancelSubscriptionDto): Promise<Subscription> {
     const tenantId = this.tenantContext.getTenantId();
+    this.logger.debug(`cancel subscription id=${id} tenantId=${tenantId}`);
 
-    void this.prisma;
-    void id;
-    void dto;
+    const existing = await this.prisma.subscription.findFirst({
+      where: {
+        id,
+        tenantId,
+      },
+    });
 
-    this.logger.debug(`cancel subscription scaffold tenantId=${tenantId}`);
-    throw new NotImplementedException(
-      'Subscription cancellation is not implemented yet',
-    );
+    if (!existing) {
+      throw new NotFoundException(`Subscription with id=${id} not found`);
+    }
+
+    if (existing.status === SubscriptionStatus.CANCELED) {
+      return existing;
+    }
+
+    const cancelAtPeriodEnd = dto.cancelAtPeriodEnd ?? true;
+    const now = new Date();
+
+    try {
+      const updated = await this.prisma.subscription.update({
+        where: {
+          id: existing.id,
+        },
+        data: (() => {
+          if (cancelAtPeriodEnd) {
+            if (existing.status !== SubscriptionStatus.ACTIVE) {
+              throw new BadRequestException(
+                'Only active subscriptions can be scheduled for cancellation',
+              );
+            }
+
+            return {
+              cancelAtPeriodEnd: true,
+              canceledAt: existing.canceledAt ?? now,
+            };
+          }
+
+          if (now < existing.currentPeriodStart) {
+            throw new BadRequestException(
+              'Cannot immediately cancel a subscription before it starts',
+            );
+          }
+
+          return {
+            status: SubscriptionStatus.CANCELED,
+            cancelAtPeriodEnd: false,
+            canceledAt: existing.canceledAt ?? now,
+            endedAt: now,
+            currentPeriodEnd: now,
+          };
+        })(),
+      });
+
+      this.logger.log(
+        `canceled subscription id=${updated.id} tenantId=${tenantId} cancelAtPeriodEnd=${cancelAtPeriodEnd}`,
+      );
+
+      return updated;
+    } catch (e: unknown) {
+      if (
+        e instanceof Prisma.PrismaClientKnownRequestError &&
+        e.code === 'P2025'
+      ) {
+        throw new NotFoundException(`Subscription with id=${id} not found`);
+      }
+
+      throw e;
+    }
   }
 
   private computeCurrentPeriodEnd(
@@ -212,7 +272,7 @@ export class SubscriptionsService {
       case BillingInterval.YEAR:
         return this.addYearsClamped(startDate, intervalCount);
       default:
-        throw new Error(`Unsupported interval`);
+        throw new Error('Unsupported interval');
     }
   }
 
