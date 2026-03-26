@@ -5,6 +5,13 @@ enum BillingInterval {
   YEAR
 }
 
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELED
+  EXPIRED
+  PAST_DUE
+}
+
 enum Role {
   ADMIN
   USER
@@ -29,6 +36,8 @@ model Customer {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  subscriptions Subscription[]
 
   @@unique([tenantId, email])
   @@index([tenantId])
@@ -88,10 +97,48 @@ model Plan {
   updatedAt      DateTime         @updatedAt
   deletedAt      DateTime?
 
+  subscriptions  Subscription[]
+
   @@unique([tenantId, code])
   @@index([tenantId])
   @@index([productId])
   @@index([active])
+}
+
+model Subscription {
+  id                    Int                @id @default(autoincrement())
+
+  tenantId              Int
+  tenant                Tenant             @relation(fields: [tenantId], references: [id])
+
+  customerId            Int
+  customer              Customer           @relation(fields: [customerId], references: [id])
+
+  planId                Int
+  plan                  Plan               @relation(fields: [planId], references: [id])
+
+  status                SubscriptionStatus @default(ACTIVE)
+  cancelAtPeriodEnd     Boolean            @default(false)
+  canceledAt            DateTime?
+
+  amountSnapshot        Int
+  currencySnapshot      String             @db.VarChar(3)
+  intervalSnapshot      BillingInterval
+  intervalCountSnapshot Int
+
+  startDate             DateTime
+  currentPeriodStart    DateTime
+  currentPeriodEnd      DateTime
+  endedAt               DateTime?
+
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+
+  @@index([tenantId])
+  @@index([customerId])
+  @@index([planId])
+  @@index([status])
+  @@index([tenantId, customerId, status])
 }
 
 
@@ -104,6 +151,7 @@ model Tenant {
   customers Customer[]
   products  Product[]
   plans     Plan[]
+  subscriptions Subscription[]
 }
 
 model User {
