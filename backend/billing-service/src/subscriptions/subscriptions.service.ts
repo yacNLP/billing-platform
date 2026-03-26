@@ -203,11 +203,10 @@ export class SubscriptionsService {
       throw new NotFoundException(`Subscription with id=${id} not found`);
     }
 
-    if (existing.status === SubscriptionStatus.CANCELED) {
-      return existing;
-    }
-
-    if (existing.status === SubscriptionStatus.EXPIRED) {
+    if (
+      existing.status === SubscriptionStatus.CANCELED ||
+      existing.status === SubscriptionStatus.EXPIRED
+    ) {
       return existing;
     }
 
