@@ -75,6 +75,11 @@ export class SubscriptionsService {
     }
 
     const startDate = dto.startDate ? new Date(dto.startDate) : new Date();
+
+    if (Number.isNaN(startDate.getTime())) {
+      throw new BadRequestException('Invalid startDate');
+    }
+
     const currentPeriodStart = startDate;
     const currentPeriodEnd = this.computeCurrentPeriodEnd(
       currentPeriodStart,
@@ -202,6 +207,10 @@ export class SubscriptionsService {
       return existing;
     }
 
+    if (existing.status === SubscriptionStatus.EXPIRED) {
+      return existing;
+    }
+
     const cancelAtPeriodEnd = dto.cancelAtPeriodEnd ?? true;
     const now = new Date();
 
@@ -220,7 +229,7 @@ export class SubscriptionsService {
 
             return {
               cancelAtPeriodEnd: true,
-              canceledAt: existing.canceledAt ?? now,
+              canceledAt: now,
             };
           }
 
@@ -233,7 +242,7 @@ export class SubscriptionsService {
           return {
             status: SubscriptionStatus.CANCELED,
             cancelAtPeriodEnd: false,
-            canceledAt: existing.canceledAt ?? now,
+            canceledAt: now,
             endedAt: now,
             currentPeriodEnd: now,
           };
@@ -255,6 +264,60 @@ export class SubscriptionsService {
 
       throw e;
     }
+  }
+
+  async evaluateAndUpdateStatus(
+    subscription: Subscription,
+  ): Promise<Subscription> {
+    if (subscription.status !== SubscriptionStatus.ACTIVE) {
+      return subscription;
+    }
+
+    const now = new Date();
+
+    // PAST_DUE lifecycle handling will be introduced later.
+
+    if (now <= subscription.currentPeriodEnd) {
+      return subscription;
+    }
+
+    if (!subscription.cancelAtPeriodEnd) {
+      // Renewal logic not implemented yet -> keep ACTIVE
+      return subscription;
+    }
+
+    const updated = await this.prisma.subscription.update({
+      where: {
+        id: subscription.id,
+      },
+      data: {
+        status: SubscriptionStatus.EXPIRED,
+      },
+    });
+
+    const tenantId = this.tenantContext.getTenantId();
+    this.logger.log(
+      `subscription lifecycle updated id=${updated.id} tenantId=${tenantId} from=${subscription.status} to=${updated.status}`,
+    );
+
+    return updated;
+  }
+
+  async evaluateSubscriptionsLifecycle(): Promise<void> {
+    const tenantId = this.tenantContext.getTenantId();
+
+    const subscriptions = await this.prisma.subscription.findMany({
+      where: {
+        tenantId,
+        status: SubscriptionStatus.ACTIVE,
+      },
+    });
+
+    await Promise.all(
+      subscriptions.map((subscription) =>
+        this.evaluateAndUpdateStatus(subscription),
+      ),
+    );
   }
 
   private computeCurrentPeriodEnd(
