@@ -1,10 +1,11 @@
+import { SubscriptionStatus } from '@prisma/client';
 import { Type } from 'class-transformer';
-import { IsInt, IsOptional, IsString, Min } from 'class-validator';
+import { IsEnum, IsInt, IsOptional, Min } from 'class-validator';
 
 export class SubscriptionsQueryDto {
   @IsOptional()
-  @IsString()
-  status?: string;
+  @IsEnum(SubscriptionStatus)
+  status?: SubscriptionStatus;
 
   @IsOptional()
   @Type((): NumberConstructor => Number)

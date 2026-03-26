@@ -4,6 +4,7 @@ import {
   Injectable,
   Logger,
   NotImplementedException,
+  NotFoundException,
 } from '@nestjs/common';
 import {
   BillingInterval,
@@ -126,28 +127,61 @@ export class SubscriptionsService {
     }
   }
 
-  findAll(query: SubscriptionsQueryDto): Promise<Paginated<Subscription>> {
+  async findAll(
+    query: SubscriptionsQueryDto,
+  ): Promise<Paginated<Subscription>> {
     const tenantId = this.tenantContext.getTenantId();
+    const page = query.page ?? 1;
+    const pageSize = query.pageSize ?? 20;
+    const skip = (page - 1) * pageSize;
 
-    void this.prisma;
-    void query;
-
-    this.logger.debug(`list subscriptions scaffold tenantId=${tenantId}`);
-    throw new NotImplementedException(
-      'Subscription listing is not implemented yet',
+    this.logger.debug(
+      `list subscriptions tenantId=${tenantId} page=${page} pageSize=${pageSize} status=${query.status ?? ''}`,
     );
+
+    const where: Prisma.SubscriptionWhereInput = {
+      tenantId,
+      ...(query.status ? { status: query.status } : {}),
+    };
+
+    const [total, data] = await this.prisma.$transaction([
+      this.prisma.subscription.count({ where }),
+      this.prisma.subscription.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: pageSize,
+      }),
+    ]);
+
+    const totalPages = Math.ceil(total / pageSize);
+
+    return {
+      data,
+      total,
+      page,
+      pageSize,
+      totalPages,
+    };
   }
 
-  findOne(id: number): Promise<Subscription> {
+  async findOne(id: number): Promise<Subscription> {
     const tenantId = this.tenantContext.getTenantId();
 
-    void this.prisma;
-    void id;
+    this.logger.debug(`get subscription id=${id} tenantId=${tenantId}`);
 
-    this.logger.debug(`get subscription scaffold tenantId=${tenantId}`);
-    throw new NotImplementedException(
-      'Subscription retrieval is not implemented yet',
-    );
+    const subscription = await this.prisma.subscription.findFirst({
+      where: {
+        id,
+        tenantId,
+      },
+    });
+
+    if (!subscription) {
+      throw new NotFoundException(`Subscription with id=${id} not found`);
+    }
+
+    return subscription;
   }
 
   cancel(id: number, dto: CancelSubscriptionDto): Promise<Subscription> {
