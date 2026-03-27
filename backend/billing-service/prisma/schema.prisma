@@ -12,6 +12,13 @@ enum SubscriptionStatus {
   PAST_DUE
 }
 
+enum InvoiceStatus {
+  ISSUED
+  PAID
+  VOID
+  OVERDUE
+}
+
 enum Role {
   ADMIN
   USER
@@ -38,6 +45,7 @@ model Customer {
   updatedAt DateTime @updatedAt
 
   subscriptions Subscription[]
+  invoices      Invoice[]
 
   @@unique([tenantId, email])
   @@index([tenantId])
@@ -134,11 +142,48 @@ model Subscription {
   createdAt             DateTime           @default(now())
   updatedAt             DateTime           @updatedAt
 
+  invoices              Invoice[]
+
   @@index([tenantId])
   @@index([customerId])
   @@index([planId])
   @@index([status])
   @@index([tenantId, customerId, status])
+}
+
+model Invoice {
+  id             Int           @id @default(autoincrement())
+
+  tenantId       Int
+  tenant         Tenant        @relation(fields: [tenantId], references: [id])
+
+  subscriptionId Int
+  subscription   Subscription  @relation(fields: [subscriptionId], references: [id])
+
+  customerId     Int
+  customer       Customer      @relation(fields: [customerId], references: [id])
+
+  invoiceNumber  String
+  status         InvoiceStatus @default(ISSUED)
+  currency       String        @db.VarChar(3)
+  amountDue      Int
+  amountPaid     Int           @default(0)
+  periodStart    DateTime
+  periodEnd      DateTime
+  issuedAt       DateTime
+  dueAt          DateTime
+  paidAt         DateTime?
+  voidedAt       DateTime?
+
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@unique([tenantId, invoiceNumber])
+  @@index([tenantId])
+  @@index([subscriptionId])
+  @@index([customerId])
+  @@index([status])
+  @@index([dueAt])
 }
 
 
@@ -152,6 +197,7 @@ model Tenant {
   products  Product[]
   plans     Plan[]
   subscriptions Subscription[]
+  invoices      Invoice[]
 }
 
 model User {
