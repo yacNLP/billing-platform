@@ -19,6 +19,11 @@ enum InvoiceStatus {
   OVERDUE
 }
 
+enum PaymentStatus {
+  SUCCESS
+  FAILED
+}
+
 enum Role {
   ADMIN
   USER
@@ -178,6 +183,8 @@ model Invoice {
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 
+  payments       Payment[]
+
   @@unique([tenantId, invoiceNumber])
   @@index([tenantId])
   @@index([subscriptionId])
@@ -186,18 +193,44 @@ model Invoice {
   @@index([dueAt])
 }
 
+model Payment {
+  id                Int           @id @default(autoincrement())
+
+  tenantId          Int
+  tenant            Tenant        @relation(fields: [tenantId], references: [id])
+
+  invoiceId         Int
+  invoice           Invoice       @relation(fields: [invoiceId], references: [id])
+
+  status            PaymentStatus
+  amount            Int
+  currency          String        @db.VarChar(3)
+  paidAt            DateTime?
+  failureReason     String?       @db.Text
+  provider          String?
+  providerReference String?
+
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  @@index([tenantId])
+  @@index([invoiceId])
+  @@index([status])
+}
+
 
 model Tenant {
   id        Int      @id @default(autoincrement())
   name      String
   createdAt DateTime @default(now())
 
-  users     User[]
-  customers Customer[]
-  products  Product[]
-  plans     Plan[]
+  users         User[]
+  customers     Customer[]
+  products      Product[]
+  plans         Plan[]
   subscriptions Subscription[]
   invoices      Invoice[]
+  payments      Payment[]
 }
 
 model User {
