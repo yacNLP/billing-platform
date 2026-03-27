@@ -4,6 +4,7 @@ import {
   Get,
   Param,
   ParseIntPipe,
+  Patch,
   Post,
   Query,
 } from '@nestjs/common';
@@ -34,5 +35,23 @@ export class InvoicesController {
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.invoicesService.findOne(id);
+  }
+
+  @Roles(Role.ADMIN)
+  @Patch(':id/paid')
+  markAsPaid(@Param('id', ParseIntPipe) id: number) {
+    return this.invoicesService.markAsPaid(id);
+  }
+
+  @Roles(Role.ADMIN)
+  @Patch(':id/void')
+  markAsVoid(@Param('id', ParseIntPipe) id: number) {
+    return this.invoicesService.markAsVoid(id);
+  }
+
+  @Roles(Role.ADMIN)
+  @Patch(':id/overdue')
+  markAsOverdue(@Param('id', ParseIntPipe) id: number) {
+    return this.invoicesService.markAsOverdue(id);
   }
 }
