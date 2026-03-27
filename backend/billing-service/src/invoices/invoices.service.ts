@@ -196,7 +196,152 @@ export class InvoicesService {
     const tenantId = this.tenantContext.getTenantId();
 
     this.logger.debug(`get invoice id=${id} tenantId=${tenantId}`);
+    return this.findInvoiceOrThrow(id, tenantId);
+  }
 
+  async markAsPaid(id: number): Promise<Invoice> {
+    const tenantId = this.tenantContext.getTenantId();
+
+    this.logger.debug(`mark invoice as paid id=${id} tenantId=${tenantId}`);
+    const invoice = await this.findInvoiceOrThrow(id, tenantId);
+
+    if (
+      invoice.status !== InvoiceStatus.ISSUED &&
+      invoice.status !== InvoiceStatus.OVERDUE
+    ) {
+      throw new BadRequestException(
+        'Only issued or overdue invoices can be marked as paid',
+      );
+    }
+
+    const now = new Date();
+
+    try {
+      const updated = await this.prisma.invoice.update({
+        where: {
+          id: invoice.id,
+        },
+        data: {
+          status: InvoiceStatus.PAID,
+          amountPaid: invoice.amountDue,
+          paidAt: now,
+        },
+      });
+
+      this.logger.log(
+        `marked invoice id=${updated.id} as paid tenantId=${tenantId}`,
+      );
+
+      return updated;
+    } catch (e: unknown) {
+      if (
+        e instanceof Prisma.PrismaClientKnownRequestError &&
+        e.code === 'P2025'
+      ) {
+        this.logger.warn(`Invoice with id=${id} not found`);
+        throw new NotFoundException(`Invoice with id=${id} not found`);
+      }
+
+      this.logger.error(
+        `mark invoice as paid failed id=${id}: ${errorMessage(e)}`,
+      );
+      throw e;
+    }
+  }
+
+  async markAsVoid(id: number): Promise<Invoice> {
+    const tenantId = this.tenantContext.getTenantId();
+
+    this.logger.debug(`mark invoice as void id=${id} tenantId=${tenantId}`);
+    const invoice = await this.findInvoiceOrThrow(id, tenantId);
+
+    if (invoice.status !== InvoiceStatus.ISSUED) {
+      throw new BadRequestException('Only issued invoices can be voided');
+    }
+
+    const now = new Date();
+
+    try {
+      const updated = await this.prisma.invoice.update({
+        where: {
+          id: invoice.id,
+        },
+        data: {
+          status: InvoiceStatus.VOID,
+          amountPaid: 0,
+          paidAt: null,
+          voidedAt: now,
+        },
+      });
+
+      this.logger.log(
+        `marked invoice id=${updated.id} as void tenantId=${tenantId}`,
+      );
+
+      return updated;
+    } catch (e: unknown) {
+      if (
+        e instanceof Prisma.PrismaClientKnownRequestError &&
+        e.code === 'P2025'
+      ) {
+        this.logger.warn(`Invoice with id=${id} not found`);
+        throw new NotFoundException(`Invoice with id=${id} not found`);
+      }
+
+      this.logger.error(
+        `mark invoice as void failed id=${id}: ${errorMessage(e)}`,
+      );
+      throw e;
+    }
+  }
+
+  async markAsOverdue(id: number): Promise<Invoice> {
+    const tenantId = this.tenantContext.getTenantId();
+
+    this.logger.debug(`mark invoice as overdue id=${id} tenantId=${tenantId}`);
+    const invoice = await this.findInvoiceOrThrow(id, tenantId);
+
+    if (invoice.status !== InvoiceStatus.ISSUED) {
+      throw new BadRequestException(
+        'Only issued invoices can be marked as overdue',
+      );
+    }
+
+    try {
+      const updated = await this.prisma.invoice.update({
+        where: {
+          id: invoice.id,
+        },
+        data: {
+          status: InvoiceStatus.OVERDUE,
+        },
+      });
+
+      this.logger.log(
+        `marked invoice id=${updated.id} as overdue tenantId=${tenantId}`,
+      );
+
+      return updated;
+    } catch (e: unknown) {
+      if (
+        e instanceof Prisma.PrismaClientKnownRequestError &&
+        e.code === 'P2025'
+      ) {
+        this.logger.warn(`Invoice with id=${id} not found`);
+        throw new NotFoundException(`Invoice with id=${id} not found`);
+      }
+
+      this.logger.error(
+        `mark invoice as overdue failed id=${id}: ${errorMessage(e)}`,
+      );
+      throw e;
+    }
+  }
+
+  private async findInvoiceOrThrow(
+    id: number,
+    tenantId: number,
+  ): Promise<Invoice> {
     const invoice = await this.prisma.invoice.findFirst({
       where: {
         id,
