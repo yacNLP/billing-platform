@@ -95,14 +95,11 @@ export class SubscriptionsService {
     }
 
     try {
-      for (
-        let attempt = 0;
-        attempt < SubscriptionsService.INVOICE_NUMBER_MAX_ATTEMPTS;
-        attempt++
-      ) {
-        try {
-          const created = await this.prisma.$transaction(async (tx) => {
-            const subscription = await tx.subscription.create({
+      const created = await this.withInvoiceNumberRetry(
+        `creating initial invoice tenantId=${tenantId} subscriptionCustomerId=${customer.id}`,
+        (attempt) =>
+          this.prisma.$transaction(async (innerTx) => {
+            const subscription = await innerTx.subscription.create({
               data: {
                 tenantId,
                 customerId: customer.id,
@@ -119,7 +116,7 @@ export class SubscriptionsService {
               },
             });
 
-            await this.createInitialInvoice(tx, {
+            await this.createIssuedInvoiceForPeriod(innerTx, {
               tenantId,
               customerId: customer.id,
               subscriptionId: subscription.id,
@@ -131,33 +128,14 @@ export class SubscriptionsService {
             });
 
             return subscription;
-          });
+          }),
+      );
 
-          this.logger.log(
-            `created subscription id=${created.id} customerId=${created.customerId} planId=${created.planId} tenantId=${tenantId}`,
-          );
+      this.logger.log(
+        `created subscription id=${created.id} customerId=${created.customerId} planId=${created.planId} tenantId=${tenantId}`,
+      );
 
-          return created;
-        } catch (e: unknown) {
-          if (this.isInvoiceNumberConflict(e)) {
-            if (
-              attempt <
-              SubscriptionsService.INVOICE_NUMBER_MAX_ATTEMPTS - 1
-            ) {
-              this.logger.warn(
-                `duplicate invoiceNumber while creating initial invoice tenantId=${tenantId} subscriptionCustomerId=${customer.id}`,
-              );
-              continue;
-            }
-
-            throw new ConflictException('Invoice number already exists');
-          }
-
-          throw e;
-        }
-      }
-
-      throw new ConflictException('Invoice number already exists');
+      return created;
     } catch (e: unknown) {
       if (e instanceof Prisma.PrismaClientKnownRequestError) {
         if (e.code === 'P2002') {
@@ -324,8 +302,7 @@ export class SubscriptionsService {
     }
 
     if (!subscription.cancelAtPeriodEnd) {
-      // Renewal logic not implemented yet -> keep ACTIVE
-      return subscription;
+      return this.renewSubscription(subscription);
     }
 
     const updated = await this.prisma.subscription.update({
@@ -346,6 +323,38 @@ export class SubscriptionsService {
     return updated;
   }
 
+  async renewDueSubscriptions(): Promise<number> {
+    const tenantId = this.tenantContext.getTenantId();
+    const now = new Date();
+
+    this.logger.debug(`renew due subscriptions tenantId=${tenantId}`);
+
+    const subscriptions = await this.prisma.subscription.findMany({
+      where: {
+        tenantId,
+        status: SubscriptionStatus.ACTIVE,
+        cancelAtPeriodEnd: false,
+        currentPeriodEnd: {
+          lt: now,
+        },
+      },
+      orderBy: { currentPeriodEnd: 'asc' },
+    });
+
+    let renewedCount = 0;
+
+    for (const subscription of subscriptions) {
+      await this.renewSubscription(subscription);
+      renewedCount += 1;
+    }
+
+    this.logger.log(
+      `renewed due subscriptions tenantId=${tenantId} renewedCount=${renewedCount}`,
+    );
+
+    return renewedCount;
+  }
+
   async evaluateSubscriptionsLifecycle(): Promise<void> {
     const tenantId = this.tenantContext.getTenantId();
 
@@ -356,14 +365,74 @@ export class SubscriptionsService {
       },
     });
 
-    await Promise.all(
-      subscriptions.map((subscription) =>
-        this.evaluateAndUpdateStatus(subscription),
-      ),
-    );
+    for (const subscription of subscriptions) {
+      await this.evaluateAndUpdateStatus(subscription);
+    }
   }
 
-  private async createInitialInvoice(
+  private async renewSubscription(
+    subscription: Subscription,
+  ): Promise<Subscription> {
+    const tenantId = this.tenantContext.getTenantId();
+    const now = new Date();
+
+    if (subscription.status !== SubscriptionStatus.ACTIVE) {
+      return subscription;
+    }
+
+    if (subscription.cancelAtPeriodEnd) {
+      return subscription;
+    }
+
+    if (subscription.currentPeriodEnd >= now) {
+      return subscription;
+    }
+
+    const nextPeriodStart = subscription.currentPeriodEnd;
+    const nextPeriodEnd = this.computeCurrentPeriodEnd(
+      nextPeriodStart,
+      subscription.intervalSnapshot,
+      subscription.intervalCountSnapshot,
+    );
+
+    const renewed = await this.withInvoiceNumberRetry(
+      `renewing subscription tenantId=${tenantId} subscriptionId=${subscription.id}`,
+      (attempt) =>
+        this.prisma.$transaction(async (innerTx) => {
+          const updated = await innerTx.subscription.update({
+            where: {
+              id: subscription.id,
+            },
+            data: {
+              currentPeriodStart: nextPeriodStart,
+              currentPeriodEnd: nextPeriodEnd,
+              status: SubscriptionStatus.ACTIVE,
+            },
+          });
+
+          await this.createIssuedInvoiceForPeriod(innerTx, {
+            tenantId,
+            customerId: subscription.customerId,
+            subscriptionId: subscription.id,
+            amountDue: subscription.amountSnapshot,
+            currency: subscription.currencySnapshot,
+            periodStart: nextPeriodStart,
+            periodEnd: nextPeriodEnd,
+            invoiceNumberOffset: attempt,
+          });
+
+          return updated;
+        }),
+    );
+
+    this.logger.log(
+      `renewed subscription id=${renewed.id} tenantId=${tenantId} periodStart=${renewed.currentPeriodStart.toISOString()} periodEnd=${renewed.currentPeriodEnd.toISOString()}`,
+    );
+
+    return renewed;
+  }
+
+  private async createIssuedInvoiceForPeriod(
     tx: Prisma.TransactionClient,
     params: {
       tenantId: number;
@@ -403,6 +472,37 @@ export class SubscriptionsService {
         dueAt,
       },
     });
+  }
+
+  private async withInvoiceNumberRetry<T>(
+    conflictContext: string,
+    operation: (attempt: number) => Promise<T>,
+  ): Promise<T> {
+    for (
+      let attempt = 0;
+      attempt < SubscriptionsService.INVOICE_NUMBER_MAX_ATTEMPTS;
+      attempt++
+    ) {
+      try {
+        return await operation(attempt);
+      } catch (e: unknown) {
+        if (
+          this.isInvoiceNumberConflict(e) &&
+          attempt < SubscriptionsService.INVOICE_NUMBER_MAX_ATTEMPTS - 1
+        ) {
+          this.logger.warn(`duplicate invoiceNumber while ${conflictContext}`);
+          continue;
+        }
+
+        if (this.isInvoiceNumberConflict(e)) {
+          throw new ConflictException('Invoice number already exists');
+        }
+
+        throw e;
+      }
+    }
+
+    throw new ConflictException('Invoice number already exists');
   }
 
   private async generateInvoiceNumber(
