@@ -97,6 +97,20 @@ function uniqueSuffix(): string {
   return `${Date.now()}_${uniqueCounter}`;
 }
 
+async function listInvoices(client: E2EClient): Promise<InvoiceResponse[]> {
+  const res = await client.get('/invoices?pageSize=500').expect(200);
+  const payload = res.body as PaginatedInvoices;
+  return payload.data;
+}
+
+async function listInvoicesForSubscription(
+  client: E2EClient,
+  subscriptionId: number,
+): Promise<InvoiceResponse[]> {
+  const invoices = await listInvoices(client);
+  return invoices.filter((item) => item.subscriptionId === subscriptionId);
+}
+
 async function createTestCustomer(
   client: E2EClient,
   prefix = 'subscription_customer',
@@ -523,7 +537,7 @@ describe('Subscriptions e2e', () => {
       expect(payload.endedAt).not.toBeNull();
     });
 
-    it('keeps subscription ACTIVE when currentPeriodEnd is in the past but cancelAtPeriodEnd is false', async () => {
+    it('renews an active subscription when currentPeriodEnd is in the past and cancelAtPeriodEnd is false', async () => {
       const customer = await createTestCustomer(adminClient);
       const product = await createTestProduct(adminClient);
       const plan = await createTestPlan(adminClient, product.id, {
@@ -542,14 +556,313 @@ describe('Subscriptions e2e', () => {
         },
       );
 
+      const invoicesBefore = await listInvoicesForSubscription(
+        adminClient,
+        created.id,
+      );
+
       await subscriptionsService.evaluateSubscriptionsLifecycle();
 
       const res = await adminClient
         .get(`/subscriptions/${created.id}`)
         .expect(200);
       const payload = res.body as SubscriptionResponse;
+      const invoicesAfter = await listInvoicesForSubscription(
+        adminClient,
+        created.id,
+      );
+      const renewedInvoice = invoicesAfter.find(
+        (item) => !invoicesBefore.some((existing) => existing.id === item.id),
+      );
 
       expect(payload.status).toBe('ACTIVE');
+      expect(payload.cancelAtPeriodEnd).toBe(false);
+      expect(payload.currentPeriodStart).toBe(created.currentPeriodEnd);
+      expect(new Date(payload.currentPeriodEnd).getTime()).toBeGreaterThan(
+        new Date(payload.currentPeriodStart).getTime(),
+      );
+      expect(invoicesAfter).toHaveLength(invoicesBefore.length + 1);
+      expect(renewedInvoice).toBeDefined();
+      expect(renewedInvoice?.status).toBe('ISSUED');
+      expect(renewedInvoice?.amountDue).toBe(payload.amountSnapshot);
+      expect(renewedInvoice?.amountPaid).toBe(0);
+      expect(renewedInvoice?.currency).toBe(payload.currencySnapshot);
+      expect(renewedInvoice?.periodStart).toBe(payload.currentPeriodStart);
+      expect(renewedInvoice?.periodEnd).toBe(payload.currentPeriodEnd);
+      expect(new Date(renewedInvoice!.dueAt).getTime()).toBe(
+        new Date(renewedInvoice!.issuedAt).getTime() + 7 * 24 * 60 * 60 * 1000,
+      );
+    });
+  });
+
+  describe('subscription renewal', () => {
+    it('does not renew subscriptions with cancelAtPeriodEnd = true', async () => {
+      await subscriptionsService.renewDueSubscriptions();
+
+      const customer = await createTestCustomer(adminClient);
+      const product = await createTestProduct(adminClient);
+      const plan = await createTestPlan(adminClient, product.id, {
+        interval: 'DAY',
+        intervalCount: 1,
+      });
+      const created = await createTestSubscription(
+        adminClient,
+        customer.id,
+        plan.id,
+        {
+          startDate: new Date(
+            Date.now() - 3 * 24 * 60 * 60 * 1000,
+          ).toISOString(),
+          cancelAtPeriodEnd: true,
+        },
+      );
+
+      const invoicesBefore = await listInvoicesForSubscription(
+        adminClient,
+        created.id,
+      );
+
+      await subscriptionsService.renewDueSubscriptions();
+
+      const res = await adminClient
+        .get(`/subscriptions/${created.id}`)
+        .expect(200);
+      const payload = res.body as SubscriptionResponse;
+      const invoicesAfter = await listInvoicesForSubscription(
+        adminClient,
+        created.id,
+      );
+
+      expect(payload.currentPeriodStart).toBe(created.currentPeriodStart);
+      expect(payload.currentPeriodEnd).toBe(created.currentPeriodEnd);
+      expect(invoicesAfter).toHaveLength(invoicesBefore.length);
+    });
+
+    it('does not renew subscriptions whose currentPeriodEnd is still in the future', async () => {
+      await subscriptionsService.renewDueSubscriptions();
+
+      const customer = await createTestCustomer(adminClient);
+      const product = await createTestProduct(adminClient);
+      const plan = await createTestPlan(adminClient, product.id, {
+        interval: 'DAY',
+        intervalCount: 5,
+      });
+      const created = await createTestSubscription(
+        adminClient,
+        customer.id,
+        plan.id,
+        {
+          startDate: new Date().toISOString(),
+          cancelAtPeriodEnd: false,
+        },
+      );
+
+      const invoicesBefore = await listInvoicesForSubscription(
+        adminClient,
+        created.id,
+      );
+
+      await subscriptionsService.renewDueSubscriptions();
+
+      const res = await adminClient
+        .get(`/subscriptions/${created.id}`)
+        .expect(200);
+      const payload = res.body as SubscriptionResponse;
+      const invoicesAfter = await listInvoicesForSubscription(
+        adminClient,
+        created.id,
+      );
+
+      expect(payload.currentPeriodStart).toBe(created.currentPeriodStart);
+      expect(payload.currentPeriodEnd).toBe(created.currentPeriodEnd);
+      expect(invoicesAfter).toHaveLength(invoicesBefore.length);
+    });
+
+    it('renewDueSubscriptions renews only eligible subscriptions and returns the correct count', async () => {
+      await subscriptionsService.renewDueSubscriptions();
+
+      const renewableCustomer = await createTestCustomer(
+        adminClient,
+        'renewable_sub',
+      );
+      const renewableProduct = await createTestProduct(
+        adminClient,
+        'renewable_sub',
+      );
+      const renewablePlan = await createTestPlan(
+        adminClient,
+        renewableProduct.id,
+        {
+          interval: 'DAY',
+          intervalCount: 1,
+        },
+      );
+
+      const secondRenewableCustomer = await createTestCustomer(
+        adminClient,
+        'renewable_sub_2',
+      );
+      const secondRenewableProduct = await createTestProduct(
+        adminClient,
+        'renewable_sub_2',
+      );
+      const secondRenewablePlan = await createTestPlan(
+        adminClient,
+        secondRenewableProduct.id,
+        {
+          interval: 'DAY',
+          intervalCount: 1,
+        },
+      );
+
+      const cancelingCustomer = await createTestCustomer(
+        adminClient,
+        'non_renew_cancel',
+      );
+      const cancelingProduct = await createTestProduct(
+        adminClient,
+        'non_renew_cancel',
+      );
+      const cancelingPlan = await createTestPlan(
+        adminClient,
+        cancelingProduct.id,
+        {
+          interval: 'DAY',
+          intervalCount: 1,
+        },
+      );
+
+      const futureCustomer = await createTestCustomer(
+        adminClient,
+        'non_renew_future',
+      );
+      const futureProduct = await createTestProduct(
+        adminClient,
+        'non_renew_future',
+      );
+      const futurePlan = await createTestPlan(adminClient, futureProduct.id, {
+        interval: 'DAY',
+        intervalCount: 5,
+      });
+
+      const renewableOne = await createTestSubscription(
+        adminClient,
+        renewableCustomer.id,
+        renewablePlan.id,
+        {
+          startDate: new Date(
+            Date.now() - 3 * 24 * 60 * 60 * 1000,
+          ).toISOString(),
+          cancelAtPeriodEnd: false,
+        },
+      );
+      const renewableTwo = await createTestSubscription(
+        adminClient,
+        secondRenewableCustomer.id,
+        secondRenewablePlan.id,
+        {
+          startDate: new Date(
+            Date.now() - 4 * 24 * 60 * 60 * 1000,
+          ).toISOString(),
+          cancelAtPeriodEnd: false,
+        },
+      );
+      const nonRenewCancelAtPeriodEnd = await createTestSubscription(
+        adminClient,
+        cancelingCustomer.id,
+        cancelingPlan.id,
+        {
+          startDate: new Date(
+            Date.now() - 3 * 24 * 60 * 60 * 1000,
+          ).toISOString(),
+          cancelAtPeriodEnd: true,
+        },
+      );
+      const nonRenewFuture = await createTestSubscription(
+        adminClient,
+        futureCustomer.id,
+        futurePlan.id,
+        {
+          startDate: new Date().toISOString(),
+          cancelAtPeriodEnd: false,
+        },
+      );
+
+      const invoicesBeforeRenewableOne = await listInvoicesForSubscription(
+        adminClient,
+        renewableOne.id,
+      );
+      const invoicesBeforeRenewableTwo = await listInvoicesForSubscription(
+        adminClient,
+        renewableTwo.id,
+      );
+      const invoicesBeforeCancel = await listInvoicesForSubscription(
+        adminClient,
+        nonRenewCancelAtPeriodEnd.id,
+      );
+      const invoicesBeforeFuture = await listInvoicesForSubscription(
+        adminClient,
+        nonRenewFuture.id,
+      );
+
+      const renewedCount = await subscriptionsService.renewDueSubscriptions();
+
+      const renewedOneRes = await adminClient
+        .get(`/subscriptions/${renewableOne.id}`)
+        .expect(200);
+      const renewedTwoRes = await adminClient
+        .get(`/subscriptions/${renewableTwo.id}`)
+        .expect(200);
+      const cancelRes = await adminClient
+        .get(`/subscriptions/${nonRenewCancelAtPeriodEnd.id}`)
+        .expect(200);
+      const futureRes = await adminClient
+        .get(`/subscriptions/${nonRenewFuture.id}`)
+        .expect(200);
+
+      const renewedOne = renewedOneRes.body as SubscriptionResponse;
+      const renewedTwo = renewedTwoRes.body as SubscriptionResponse;
+      const canceling = cancelRes.body as SubscriptionResponse;
+      const future = futureRes.body as SubscriptionResponse;
+
+      const invoicesAfterRenewableOne = await listInvoicesForSubscription(
+        adminClient,
+        renewableOne.id,
+      );
+      const invoicesAfterRenewableTwo = await listInvoicesForSubscription(
+        adminClient,
+        renewableTwo.id,
+      );
+      const invoicesAfterCancel = await listInvoicesForSubscription(
+        adminClient,
+        nonRenewCancelAtPeriodEnd.id,
+      );
+      const invoicesAfterFuture = await listInvoicesForSubscription(
+        adminClient,
+        nonRenewFuture.id,
+      );
+
+      expect(renewedCount).toBe(2);
+      expect(renewedOne.status).toBe('ACTIVE');
+      expect(renewedTwo.status).toBe('ACTIVE');
+      expect(renewedOne.currentPeriodStart).toBe(renewableOne.currentPeriodEnd);
+      expect(renewedTwo.currentPeriodStart).toBe(renewableTwo.currentPeriodEnd);
+      expect(invoicesAfterRenewableOne).toHaveLength(
+        invoicesBeforeRenewableOne.length + 1,
+      );
+      expect(invoicesAfterRenewableTwo).toHaveLength(
+        invoicesBeforeRenewableTwo.length + 1,
+      );
+      expect(invoicesAfterCancel).toHaveLength(invoicesBeforeCancel.length);
+      expect(invoicesAfterFuture).toHaveLength(invoicesBeforeFuture.length);
+      expect(canceling.currentPeriodStart).toBe(
+        nonRenewCancelAtPeriodEnd.currentPeriodStart,
+      );
+      expect(canceling.currentPeriodEnd).toBe(
+        nonRenewCancelAtPeriodEnd.currentPeriodEnd,
+      );
+      expect(future.currentPeriodStart).toBe(nonRenewFuture.currentPeriodStart);
+      expect(future.currentPeriodEnd).toBe(nonRenewFuture.currentPeriodEnd);
     });
   });
 });
