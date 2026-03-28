@@ -4,10 +4,11 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { InvoiceStatus, Payment, PaymentStatus } from '@prisma/client';
+import { InvoiceStatus, Payment, PaymentStatus, Prisma } from '@prisma/client';
 import { TenantContext } from '../common/tenant/tenant.context';
 import { PrismaService } from '../prisma.service';
 import { CreatePaymentDto } from './dto/create-payment.dto';
+import { PaymentsQueryDto } from './dto/payments-query.dto';
 
 @Injectable()
 export class PaymentsService {
@@ -111,6 +112,46 @@ export class PaymentsService {
     this.logger.log(
       `created failed payment id=${payment.id} invoiceId=${invoice.id} tenantId=${tenantId}`,
     );
+
+    return payment;
+  }
+
+  async findAll(query: PaymentsQueryDto): Promise<Payment[]> {
+    const tenantId = this.tenantContext.getTenantId();
+
+    this.logger.debug(
+      `list payments tenantId=${tenantId} status=${query.status ?? ''} invoiceId=${query.invoiceId ?? ''} limit=${query.limit ?? ''} offset=${query.offset ?? ''}`,
+    );
+
+    const where: Prisma.PaymentWhereInput = {
+      tenantId,
+      ...(query.status ? { status: query.status } : {}),
+      ...(query.invoiceId ? { invoiceId: query.invoiceId } : {}),
+    };
+
+    return this.prisma.payment.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      ...(query.limit !== undefined ? { take: query.limit } : {}),
+      ...(query.offset !== undefined ? { skip: query.offset } : {}),
+    });
+  }
+
+  async findOne(id: number): Promise<Payment> {
+    const tenantId = this.tenantContext.getTenantId();
+
+    this.logger.debug(`get payment id=${id} tenantId=${tenantId}`);
+
+    const payment = await this.prisma.payment.findFirst({
+      where: {
+        id,
+        tenantId,
+      },
+    });
+
+    if (!payment) {
+      throw new NotFoundException(`Payment with id=${id} not found`);
+    }
 
     return payment;
   }
