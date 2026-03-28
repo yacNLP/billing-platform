@@ -11,6 +11,7 @@ import { PrismaModule } from './prisma.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { InvoicesModule } from './invoices/invoices.module';
 import { PaymentsModule } from './payments/payments.module';
+import { AdminBillingModule } from './admin-billing/admin-billing.module';
 
 import { JwtAuthGuard } from './auth/jwt.guard';
 import { TenantGuard } from './common/tenant/tenant.guard';
@@ -27,6 +28,7 @@ import { RolesGuard } from './auth/roles.guard';
     SubscriptionsModule,
     InvoicesModule,
     PaymentsModule,
+    AdminBillingModule,
   ],
   controllers: [AppController],
   providers: [

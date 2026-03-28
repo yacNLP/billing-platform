@@ -7,5 +7,6 @@ import { TenantModule } from 'src/common/tenant/tenant.module';
   imports: [TenantModule],
   controllers: [InvoicesController],
   providers: [InvoicesService],
+  exports: [InvoicesService],
 })
 export class InvoicesModule {}
