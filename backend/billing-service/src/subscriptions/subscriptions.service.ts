@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import {
   BillingInterval,
+  InvoiceStatus,
   Prisma,
   Subscription,
   SubscriptionStatus,
@@ -21,6 +22,8 @@ import { SubscriptionsQueryDto } from './dto/subscriptions-query.dto';
 @Injectable()
 export class SubscriptionsService {
   private readonly logger = new Logger(SubscriptionsService.name);
+  private static readonly INITIAL_INVOICE_DUE_IN_DAYS = 7;
+  private static readonly INVOICE_NUMBER_MAX_ATTEMPTS = 3;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -92,28 +95,69 @@ export class SubscriptionsService {
     }
 
     try {
-      const created = await this.prisma.subscription.create({
-        data: {
-          tenantId,
-          customerId: customer.id,
-          planId: plan.id,
-          status: SubscriptionStatus.ACTIVE,
-          cancelAtPeriodEnd: dto.cancelAtPeriodEnd ?? false,
-          amountSnapshot: plan.amount,
-          currencySnapshot: plan.currency,
-          intervalSnapshot: plan.interval,
-          intervalCountSnapshot: plan.intervalCount,
-          startDate,
-          currentPeriodStart,
-          currentPeriodEnd,
-        },
-      });
+      for (
+        let attempt = 0;
+        attempt < SubscriptionsService.INVOICE_NUMBER_MAX_ATTEMPTS;
+        attempt++
+      ) {
+        try {
+          const created = await this.prisma.$transaction(async (tx) => {
+            const subscription = await tx.subscription.create({
+              data: {
+                tenantId,
+                customerId: customer.id,
+                planId: plan.id,
+                status: SubscriptionStatus.ACTIVE,
+                cancelAtPeriodEnd: dto.cancelAtPeriodEnd ?? false,
+                amountSnapshot: plan.amount,
+                currencySnapshot: plan.currency,
+                intervalSnapshot: plan.interval,
+                intervalCountSnapshot: plan.intervalCount,
+                startDate,
+                currentPeriodStart,
+                currentPeriodEnd,
+              },
+            });
 
-      this.logger.log(
-        `created subscription id=${created.id} customerId=${created.customerId} planId=${created.planId} tenantId=${tenantId}`,
-      );
+            await this.createInitialInvoice(tx, {
+              tenantId,
+              customerId: customer.id,
+              subscriptionId: subscription.id,
+              amountDue: subscription.amountSnapshot,
+              currency: subscription.currencySnapshot,
+              periodStart: subscription.currentPeriodStart,
+              periodEnd: subscription.currentPeriodEnd,
+              invoiceNumberOffset: attempt,
+            });
 
-      return created;
+            return subscription;
+          });
+
+          this.logger.log(
+            `created subscription id=${created.id} customerId=${created.customerId} planId=${created.planId} tenantId=${tenantId}`,
+          );
+
+          return created;
+        } catch (e: unknown) {
+          if (this.isInvoiceNumberConflict(e)) {
+            if (
+              attempt <
+              SubscriptionsService.INVOICE_NUMBER_MAX_ATTEMPTS - 1
+            ) {
+              this.logger.warn(
+                `duplicate invoiceNumber while creating initial invoice tenantId=${tenantId} subscriptionCustomerId=${customer.id}`,
+              );
+              continue;
+            }
+
+            throw new ConflictException('Invoice number already exists');
+          }
+
+          throw e;
+        }
+      }
+
+      throw new ConflictException('Invoice number already exists');
     } catch (e: unknown) {
       if (e instanceof Prisma.PrismaClientKnownRequestError) {
         if (e.code === 'P2002') {
@@ -243,7 +287,6 @@ export class SubscriptionsService {
             cancelAtPeriodEnd: false,
             canceledAt: now,
             endedAt: now,
-            currentPeriodEnd: now,
           };
         })(),
       });
@@ -291,6 +334,7 @@ export class SubscriptionsService {
       },
       data: {
         status: SubscriptionStatus.EXPIRED,
+        endedAt: now,
       },
     });
 
@@ -319,6 +363,76 @@ export class SubscriptionsService {
     );
   }
 
+  private async createInitialInvoice(
+    tx: Prisma.TransactionClient,
+    params: {
+      tenantId: number;
+      customerId: number;
+      subscriptionId: number;
+      amountDue: number;
+      currency: string;
+      periodStart: Date;
+      periodEnd: Date;
+      invoiceNumberOffset: number;
+    },
+  ): Promise<void> {
+    const issuedAt = new Date();
+    const dueAt = this.addDays(
+      issuedAt,
+      SubscriptionsService.INITIAL_INVOICE_DUE_IN_DAYS,
+    );
+    const invoiceNumber = await this.generateInvoiceNumber(
+      tx,
+      params.tenantId,
+      params.invoiceNumberOffset,
+    );
+
+    await tx.invoice.create({
+      data: {
+        tenantId: params.tenantId,
+        customerId: params.customerId,
+        subscriptionId: params.subscriptionId,
+        invoiceNumber,
+        status: InvoiceStatus.ISSUED,
+        currency: params.currency,
+        amountDue: params.amountDue,
+        amountPaid: 0,
+        periodStart: params.periodStart,
+        periodEnd: params.periodEnd,
+        issuedAt,
+        dueAt,
+      },
+    });
+  }
+
+  private async generateInvoiceNumber(
+    tx: Prisma.TransactionClient,
+    tenantId: number,
+    offset = 0,
+  ): Promise<string> {
+    const total = await tx.invoice.count({
+      where: {
+        tenantId,
+      },
+    });
+
+    return `INV-${tenantId}-${String(total + 1 + offset).padStart(6, '0')}`;
+  }
+
+  private isInvoiceNumberConflict(e: unknown): boolean {
+    if (!(e instanceof Prisma.PrismaClientKnownRequestError)) {
+      return false;
+    }
+
+    if (e.code !== 'P2002') {
+      return false;
+    }
+
+    const target = Array.isArray(e.meta?.target) ? e.meta.target : [];
+
+    return target.includes('tenantId') && target.includes('invoiceNumber');
+  }
+
   private computeCurrentPeriodEnd(
     startDate: Date,
     interval: BillingInterval,
@@ -334,7 +448,7 @@ export class SubscriptionsService {
       case BillingInterval.YEAR:
         return this.addYearsClamped(startDate, intervalCount);
       default:
-        throw new Error('Unsupported interval');
+        throw new BadRequestException('Unsupported billing interval');
     }
   }
 

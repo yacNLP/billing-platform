@@ -407,7 +407,7 @@ describe('Subscriptions e2e', () => {
       expect(payload.cancelAtPeriodEnd).toBe(false);
       expect(payload.canceledAt).not.toBeNull();
       expect(payload.endedAt).not.toBeNull();
-      expect(payload.currentPeriodEnd).toBe(payload.endedAt);
+      expect(payload.currentPeriodEnd).toBe(created.currentPeriodEnd);
     });
   });
 
