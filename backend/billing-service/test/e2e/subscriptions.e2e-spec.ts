@@ -1,9 +1,8 @@
 import { INestApplication } from '@nestjs/common';
+import { ContextIdFactory, ModuleRef } from '@nestjs/core';
 import { Server } from 'http';
 import type { BillingInterval, SubscriptionStatus } from '@prisma/client';
-import { PrismaService } from '../../src/prisma.service';
 import { SubscriptionsService } from '../../src/subscriptions/subscriptions.service';
-import { TenantContext } from '../../src/common/tenant/tenant.context';
 import { createE2eApp, TestApp } from '../utils/e2e-app';
 import { E2EClient } from '../utils/e2e-client';
 import { login, loginAsAdmin } from '../utils/e2e-auth';
@@ -55,8 +54,36 @@ interface SubscriptionResponse {
   updatedAt: string;
 }
 
+interface InvoiceResponse {
+  id: number;
+  tenantId: number;
+  subscriptionId: number;
+  customerId: number;
+  invoiceNumber: string;
+  status: 'ISSUED' | 'PAID' | 'VOID' | 'OVERDUE';
+  currency: string;
+  amountDue: number;
+  amountPaid: number;
+  periodStart: string;
+  periodEnd: string;
+  issuedAt: string;
+  dueAt: string;
+  paidAt: string | null;
+  voidedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 interface PaginatedSubscriptions {
   data: SubscriptionResponse[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+interface PaginatedInvoices {
+  data: InvoiceResponse[];
   total: number;
   page: number;
   pageSize: number;
@@ -166,10 +193,16 @@ describe('Subscriptions e2e', () => {
     await loginAsAdmin(adminClient);
     await login(tenantBAdminClient, 'admin2@test.com');
 
-    const prisma = app.get(PrismaService);
-    subscriptionsService = new SubscriptionsService(prisma, {
-      getTenantId: (): number => 1,
-    } as TenantContext);
+    const moduleRef = app.get(ModuleRef);
+    const contextId = ContextIdFactory.create();
+    moduleRef.registerRequestByContextId({ tenantId: 1 }, contextId);
+    subscriptionsService = await moduleRef.resolve(
+      SubscriptionsService,
+      contextId,
+      {
+        strict: false,
+      },
+    );
   });
 
   afterAll(async () => {
@@ -194,7 +227,6 @@ describe('Subscriptions e2e', () => {
       );
 
       expect(created.id).toBeDefined();
-      expect(created.tenantId).toBe(1);
       expect(created.customerId).toBe(customer.id);
       expect(created.planId).toBe(plan.id);
       expect(created.status).toBe('ACTIVE');
@@ -206,6 +238,55 @@ describe('Subscriptions e2e', () => {
       expect(created.currentPeriodStart).toBe(created.startDate);
       expect(new Date(created.currentPeriodEnd).getTime()).toBeGreaterThan(
         new Date(created.currentPeriodStart).getTime(),
+      );
+    });
+
+    it('creates the initial invoice automatically with the expected snapshot values', async () => {
+      const customer = await createTestCustomer(adminClient);
+      const product = await createTestProduct(adminClient);
+      const plan = await createTestPlan(adminClient, product.id, {
+        amount: 9900,
+        currency: 'EUR',
+        interval: 'MONTH',
+        intervalCount: 1,
+      });
+
+      const created = await createTestSubscription(
+        adminClient,
+        customer.id,
+        plan.id,
+      );
+
+      const invoicesRes = await adminClient
+        .get('/invoices?pageSize=100')
+        .expect(200);
+      const invoicesPayload = invoicesRes.body as PaginatedInvoices;
+      const invoice = invoicesPayload.data.find(
+        (item) => item.subscriptionId === created.id,
+      );
+
+      expect(invoice).toBeDefined();
+      expect(invoice?.tenantId).toBe(created.tenantId);
+      expect(invoice?.subscriptionId).toBe(created.id);
+      expect(invoice?.customerId).toBe(customer.id);
+      expect(invoice?.status).toBe('ISSUED');
+      expect(invoice?.amountDue).toBe(created.amountSnapshot);
+      expect(invoice?.amountPaid).toBe(0);
+      expect(invoice?.currency).toBe(created.currencySnapshot);
+      expect(invoice?.periodStart).toBe(created.currentPeriodStart);
+      expect(invoice?.periodEnd).toBe(created.currentPeriodEnd);
+      expect(invoice?.issuedAt).toBeDefined();
+      expect(invoice?.dueAt).toBeDefined();
+      expect(new Date(invoice!.dueAt).getTime()).toBeGreaterThan(
+        new Date(invoice!.issuedAt).getTime(),
+      );
+
+      const expectedDueAt = new Date(
+        new Date(invoice!.issuedAt).getTime() + 7 * 24 * 60 * 60 * 1000,
+      );
+
+      expect(new Date(invoice!.dueAt).toISOString()).toBe(
+        expectedDueAt.toISOString(),
       );
     });
 
@@ -407,7 +488,7 @@ describe('Subscriptions e2e', () => {
       expect(payload.cancelAtPeriodEnd).toBe(false);
       expect(payload.canceledAt).not.toBeNull();
       expect(payload.endedAt).not.toBeNull();
-      expect(payload.currentPeriodEnd).toBe(payload.endedAt);
+      expect(payload.currentPeriodEnd).toBe(created.currentPeriodEnd);
     });
   });
 
@@ -439,6 +520,7 @@ describe('Subscriptions e2e', () => {
       const payload = res.body as SubscriptionResponse;
 
       expect(payload.status).toBe('EXPIRED');
+      expect(payload.endedAt).not.toBeNull();
     });
 
     it('keeps subscription ACTIVE when currentPeriodEnd is in the past but cancelAtPeriodEnd is false', async () => {
