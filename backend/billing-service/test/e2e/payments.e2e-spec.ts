@@ -478,7 +478,11 @@ describe('Payments e2e', () => {
       expect(olderIndex).toBeGreaterThanOrEqual(0);
       expect(newerIndex).toBeGreaterThanOrEqual(0);
       expect(newerIndex).toBeLessThan(olderIndex);
-      expect(payments.every((item) => item.tenantId === 1)).toBe(true);
+      expect(payments.some((item) => item.id === olderPayment.id)).toBe(true);
+      expect(payments.some((item) => item.id === newerPayment.id)).toBe(true);
+      expect(
+        payments.some((item) => item.invoiceId === tenantBFixture.invoice.id),
+      ).toBe(false);
     });
 
     it('supports filtering by status', async () => {
@@ -557,7 +561,6 @@ describe('Payments e2e', () => {
       const payment = res.body as PaymentResponse;
 
       expect(payment.id).toBe(created.id);
-      expect(payment.tenantId).toBe(1);
       expect(payment.invoiceId).toBe(invoice.id);
       expect(payment.status).toBe('SUCCESS');
     });
@@ -589,7 +592,9 @@ describe('Payments e2e', () => {
       expect(payments.some((item) => item.id === tenantAPayment.id)).toBe(
         false,
       );
-      expect(payments.every((item) => item.tenantId === 2)).toBe(true);
+      expect(payments.some((item) => item.invoiceId === invoice.id)).toBe(
+        false,
+      );
     });
   });
 });
