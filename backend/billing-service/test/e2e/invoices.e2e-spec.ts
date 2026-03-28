@@ -1,7 +1,9 @@
 import { INestApplication } from '@nestjs/common';
+import { ContextIdFactory, ModuleRef } from '@nestjs/core';
 import { Server } from 'http';
 import type { BillingInterval } from '@prisma/client';
 
+import { InvoicesService } from '../../src/invoices/invoices.service';
 import { createE2eApp, TestApp } from '../utils/e2e-app';
 import { E2EClient } from '../utils/e2e-client';
 import { login, loginAsAdmin } from '../utils/e2e-auth';
@@ -148,6 +150,14 @@ async function createTestInvoice(
   client: E2EClient,
   customerId: number,
   subscriptionId: number,
+  overrides: Partial<{
+    amountDue: number;
+    currency: string;
+    periodStart: string;
+    periodEnd: string;
+    issuedAt: string;
+    dueAt: string;
+  }> = {},
 ): Promise<InvoiceResponse> {
   const periodStart = new Date('2026-01-01T00:00:00.000Z');
   const periodEnd = new Date('2026-02-01T00:00:00.000Z');
@@ -164,6 +174,7 @@ async function createTestInvoice(
       periodEnd: periodEnd.toISOString(),
       issuedAt: issuedAt.toISOString(),
       dueAt: dueAt.toISOString(),
+      ...overrides,
     })
     .expect(201);
 
@@ -175,6 +186,7 @@ describe('Invoices e2e', () => {
   let server: Server;
   let adminClient: E2EClient;
   let tenantBAdminClient: E2EClient;
+  let invoicesService: InvoicesService;
 
   beforeAll(async () => {
     const testApp: TestApp = await createE2eApp();
@@ -186,6 +198,13 @@ describe('Invoices e2e', () => {
 
     await loginAsAdmin(adminClient);
     await login(tenantBAdminClient, 'admin2@test.com');
+
+    const moduleRef = app.get(ModuleRef);
+    const contextId = ContextIdFactory.create();
+    moduleRef.registerRequestByContextId({ tenantId: 1 }, contextId);
+    invoicesService = await moduleRef.resolve(InvoicesService, contextId, {
+      strict: false,
+    });
   });
 
   afterAll(async () => {
@@ -380,6 +399,164 @@ describe('Invoices e2e', () => {
 
     const invoice = res.body as InvoiceResponse;
     expect(invoice.status).toBe('OVERDUE');
+  });
+
+  it('PATCH /invoices/:id/overdue should return 400 when invoice dueAt is in the future', async () => {
+    const customer = await createTestCustomer(adminClient);
+    const product = await createTestProduct(adminClient);
+    const plan = await createTestPlan(adminClient, product.id);
+    const subscription = await createTestSubscription(
+      adminClient,
+      customer.id,
+      plan.id,
+    );
+    const created = await createTestInvoice(
+      adminClient,
+      customer.id,
+      subscription.id,
+      {
+        issuedAt: '2026-04-01T00:00:00.000Z',
+        dueAt: '2026-04-10T00:00:00.000Z',
+      },
+    );
+
+    await adminClient.patch(`/invoices/${created.id}/overdue`).expect(400);
+  });
+
+  it('PATCH /invoices/:id/overdue should return 400 when invoice is already PAID', async () => {
+    const customer = await createTestCustomer(adminClient);
+    const product = await createTestProduct(adminClient);
+    const plan = await createTestPlan(adminClient, product.id);
+    const subscription = await createTestSubscription(
+      adminClient,
+      customer.id,
+      plan.id,
+    );
+    const created = await createTestInvoice(
+      adminClient,
+      customer.id,
+      subscription.id,
+    );
+
+    await adminClient.patch(`/invoices/${created.id}/paid`).expect(200);
+    await adminClient.patch(`/invoices/${created.id}/overdue`).expect(400);
+  });
+
+  it('PATCH /invoices/:id/overdue should return 400 when invoice is already VOID', async () => {
+    const customer = await createTestCustomer(adminClient);
+    const product = await createTestProduct(adminClient);
+    const plan = await createTestPlan(adminClient, product.id);
+    const subscription = await createTestSubscription(
+      adminClient,
+      customer.id,
+      plan.id,
+    );
+    const created = await createTestInvoice(
+      adminClient,
+      customer.id,
+      subscription.id,
+    );
+
+    await adminClient.patch(`/invoices/${created.id}/void`).expect(200);
+    await adminClient.patch(`/invoices/${created.id}/overdue`).expect(400);
+  });
+
+  it('markOverdueInvoices should update only past-due ISSUED invoices for the current tenant', async () => {
+    await invoicesService.markOverdueInvoices();
+
+    const customer = await createTestCustomer(adminClient);
+    const product = await createTestProduct(adminClient);
+    const plan = await createTestPlan(adminClient, product.id);
+    const subscription = await createTestSubscription(
+      adminClient,
+      customer.id,
+      plan.id,
+    );
+
+    const pastDueIssued = await createTestInvoice(
+      adminClient,
+      customer.id,
+      subscription.id,
+    );
+    const futureIssued = await createTestInvoice(
+      adminClient,
+      customer.id,
+      subscription.id,
+      {
+        issuedAt: '2026-04-01T00:00:00.000Z',
+        dueAt: '2026-04-10T00:00:00.000Z',
+      },
+    );
+    const paidInvoice = await createTestInvoice(
+      adminClient,
+      customer.id,
+      subscription.id,
+    );
+    const voidInvoice = await createTestInvoice(
+      adminClient,
+      customer.id,
+      subscription.id,
+    );
+    const alreadyOverdue = await createTestInvoice(
+      adminClient,
+      customer.id,
+      subscription.id,
+    );
+
+    await adminClient.patch(`/invoices/${paidInvoice.id}/paid`).expect(200);
+    await adminClient.patch(`/invoices/${voidInvoice.id}/void`).expect(200);
+    await adminClient
+      .patch(`/invoices/${alreadyOverdue.id}/overdue`)
+      .expect(200);
+
+    const tenantBCustomer = await createTestCustomer(tenantBAdminClient);
+    const tenantBProduct = await createTestProduct(tenantBAdminClient);
+    const tenantBPlan = await createTestPlan(
+      tenantBAdminClient,
+      tenantBProduct.id,
+    );
+    const tenantBSubscription = await createTestSubscription(
+      tenantBAdminClient,
+      tenantBCustomer.id,
+      tenantBPlan.id,
+    );
+    const tenantBPastDueIssued = await createTestInvoice(
+      tenantBAdminClient,
+      tenantBCustomer.id,
+      tenantBSubscription.id,
+    );
+
+    const updatedCount = await invoicesService.markOverdueInvoices();
+
+    expect(updatedCount).toBe(1);
+
+    const refreshedPastDueIssued = (
+      await adminClient.get(`/invoices/${pastDueIssued.id}`).expect(200)
+    ).body as InvoiceResponse;
+    const refreshedFutureIssued = (
+      await adminClient.get(`/invoices/${futureIssued.id}`).expect(200)
+    ).body as InvoiceResponse;
+    const refreshedPaidInvoice = (
+      await adminClient.get(`/invoices/${paidInvoice.id}`).expect(200)
+    ).body as InvoiceResponse;
+    const refreshedVoidInvoice = (
+      await adminClient.get(`/invoices/${voidInvoice.id}`).expect(200)
+    ).body as InvoiceResponse;
+    const refreshedAlreadyOverdue = (
+      await adminClient.get(`/invoices/${alreadyOverdue.id}`).expect(200)
+    ).body as InvoiceResponse;
+    const refreshedTenantBPastDueIssued = (
+      await tenantBAdminClient
+        .get(`/invoices/${tenantBPastDueIssued.id}`)
+        .expect(200)
+    ).body as InvoiceResponse;
+
+    expect(refreshedPastDueIssued.status).toBe('OVERDUE');
+    expect(refreshedFutureIssued.status).toBe('ISSUED');
+    expect(refreshedPaidInvoice.status).toBe('PAID');
+    expect(refreshedVoidInvoice.status).toBe('VOID');
+    expect(refreshedAlreadyOverdue.status).toBe('OVERDUE');
+    expect(refreshedTenantBPastDueIssued.status).toBe('ISSUED');
   });
 
   it('should isolate invoices between tenants', async () => {
