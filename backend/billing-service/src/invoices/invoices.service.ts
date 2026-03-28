@@ -297,6 +297,7 @@ export class InvoicesService {
 
   async markAsOverdue(id: number): Promise<Invoice> {
     const tenantId = this.tenantContext.getTenantId();
+    const now = new Date();
 
     this.logger.debug(`mark invoice as overdue id=${id} tenantId=${tenantId}`);
     const invoice = await this.findInvoiceOrThrow(id, tenantId);
@@ -304,6 +305,12 @@ export class InvoicesService {
     if (invoice.status !== InvoiceStatus.ISSUED) {
       throw new BadRequestException(
         'Only issued invoices can be marked as overdue',
+      );
+    }
+
+    if (invoice.dueAt >= now) {
+      throw new BadRequestException(
+        'Only past-due invoices can be marked as overdue',
       );
     }
 
@@ -336,6 +343,32 @@ export class InvoicesService {
       );
       throw e;
     }
+  }
+
+  async markOverdueInvoices(): Promise<number> {
+    const tenantId = this.tenantContext.getTenantId();
+    const now = new Date();
+
+    this.logger.debug(`mark overdue invoices tenantId=${tenantId}`);
+
+    const result = await this.prisma.invoice.updateMany({
+      where: {
+        tenantId,
+        status: InvoiceStatus.ISSUED,
+        dueAt: {
+          lt: now,
+        },
+      },
+      data: {
+        status: InvoiceStatus.OVERDUE,
+      },
+    });
+
+    this.logger.log(
+      `marked overdue invoices tenantId=${tenantId} updatedCount=${result.count}`,
+    );
+
+    return result.count;
   }
 
   private async findInvoiceOrThrow(
