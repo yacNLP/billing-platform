@@ -12,6 +12,7 @@ import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { InvoicesModule } from './invoices/invoices.module';
 import { PaymentsModule } from './payments/payments.module';
 import { AdminBillingModule } from './admin-billing/admin-billing.module';
+import { AnalyticsModule } from './analytics/analytics.module';
 
 import { JwtAuthGuard } from './auth/jwt.guard';
 import { TenantGuard } from './common/tenant/tenant.guard';
@@ -29,6 +30,7 @@ import { RolesGuard } from './auth/roles.guard';
     InvoicesModule,
     PaymentsModule,
     AdminBillingModule,
+    AnalyticsModule,
   ],
   controllers: [AppController],
   providers: [
