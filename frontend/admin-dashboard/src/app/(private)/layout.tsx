@@ -1,6 +1,7 @@
 import type { PropsWithChildren } from "react";
 
 import { Sidebar } from "@/components/navigation/sidebar";
+import { Topbar } from "@/components/navigation/topbar";
 import { ProtectedRoute } from "@/features/auth/components/protected-route";
 
 export default function PrivateLayout({ children }: PropsWithChildren) {
@@ -11,7 +12,10 @@ export default function PrivateLayout({ children }: PropsWithChildren) {
           <Sidebar />
 
           {/* Main content stays flexible so future shell steps can grow here. */}
-          <div className="min-w-0 flex-1">{children}</div>
+          <div className="min-w-0 flex-1 space-y-6">
+            <Topbar />
+            {children}
+          </div>
         </div>
       </div>
     </ProtectedRoute>

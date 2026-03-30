@@ -3,15 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-import { adminNavigation } from "@/lib/navigation";
-
-function isNavigationItemActive(currentPathname: string, itemPath: string) {
-  if (itemPath === "/dashboard") {
-    return currentPathname === itemPath;
-  }
-
-  return currentPathname === itemPath || currentPathname.startsWith(`${itemPath}/`);
-}
+import { adminNavigation, isNavigationItemActive } from "@/lib/navigation";
 
 export function Sidebar() {
   const pathname = usePathname();
