@@ -3,7 +3,19 @@ import { PrismaClient } from '@prisma/client';
 import { Role } from '@prisma/client';
 const prisma = new PrismaClient();
 
+async function syncSequence(tableName: string) {
+  await prisma.$executeRawUnsafe(`
+    SELECT setval(
+      pg_get_serial_sequence('"${tableName}"', 'id'),
+      COALESCE((SELECT MAX(id) FROM "${tableName}"), 0) + 1,
+      false
+    );
+  `);
+}
+
 async function main() {
+  await syncSequence('Tenant');
+
   // 1. seed tenant (entreprise)
   let tenant = await prisma.tenant.findFirst({
     where: { name: 'ACME' },
@@ -18,6 +30,8 @@ async function main() {
   console.log('Seeded tenant');
 
   // seed admin user
+  await syncSequence('User');
+
   const adminEmail = 'admin@acme.com';
 
   let adminUser = await prisma.user.findUnique({
@@ -62,6 +76,7 @@ async function main() {
   }
 
   // 2. seed customers
+  await syncSequence('Customer');
   await prisma.customer.createMany({
     data: [
       { name: 'ACME Corp', email: 'billing@acme.com', tenantId: tenant.id },
@@ -74,6 +89,7 @@ async function main() {
   console.log('Seeded customers');
 
   // 3. seed products
+  await syncSequence('Product');
   await prisma.product.createMany({
     data: [
       {
@@ -131,6 +147,7 @@ async function main() {
     return;
   }
 
+  await syncSequence('Plan');
   await prisma.plan.createMany({
     data: [
       {
