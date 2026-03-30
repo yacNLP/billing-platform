@@ -4,6 +4,7 @@ export type AdminNavigationItem = {
   path: string;
 };
 
+// Single source of truth for admin navigation.
 export const adminNavigation: AdminNavigationItem[] = [
   { id: "dashboard", label: "Dashboard", path: "/dashboard" },
   { id: "customers", label: "Customers", path: "/customers" },
