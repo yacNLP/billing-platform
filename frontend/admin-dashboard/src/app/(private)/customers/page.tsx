@@ -1,5 +1,5 @@
-import { AdminPagePlaceholder } from "@/components/placeholders/admin-page-placeholder";
+import { CustomersList } from "@/features/customers/components/customers-list";
 
 export default function CustomersPage() {
-  return <AdminPagePlaceholder title="Customers" />;
+  return <CustomersList />;
 }
