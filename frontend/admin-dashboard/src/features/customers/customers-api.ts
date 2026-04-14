@@ -7,24 +7,33 @@ export const customersApi = baseApi
     addTagTypes: ["Customers"],
   })
   .injectEndpoints({
-  endpoints: (build) => ({
-    getCustomers: build.query<Customer[], void>({
-      query: () => ({
-        url: "/customers",
+    endpoints: (build) => ({
+      getCustomers: build.query<Customer[], void>({
+        query: () => ({
+          url: "/customers",
+        }),
+        // The backend returns a paginated object. For this first list view, we only need the array.
+        transformResponse: (response: CustomersListResponse) => response.data,
+        providesTags: ["Customers"],
       }),
-      // The backend returns a paginated object. For this first list view, we only need the array.
-      transformResponse: (response: CustomersListResponse) => response.data,
-      providesTags: ["Customers"],
-    }),
-    createCustomer: build.mutation<Customer, { name: string; email: string }>({
-      query: (body) => ({
-        url: "/customers",
-        method: "POST",
-        body,
+      getCustomerById: build.query<Customer, number>({
+        query: (id) => ({
+          url: `/customers/${id}`,
+        }),
       }),
-      invalidatesTags: ["Customers"], // Invalidate the cache so it will be refetched
+      createCustomer: build.mutation<Customer, { name: string; email: string }>({
+        query: (body) => ({
+          url: "/customers",
+          method: "POST",
+          body,
+        }),
+        invalidatesTags: ["Customers"], // Invalidate the cache so it will be refetched
+      }),
     }),
-  }),
-});
+  });
 
-export const { useCreateCustomerMutation, useGetCustomersQuery } = customersApi;
+export const {
+  useCreateCustomerMutation,
+  useGetCustomerByIdQuery,
+  useGetCustomersQuery,
+} = customersApi;

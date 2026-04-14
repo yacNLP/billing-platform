@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import { useGetCustomersQuery } from "@/features/customers/customers-api";
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", {
@@ -55,6 +57,12 @@ export function CustomersList() {
                     {customer.name}
                   </p>
                   <p className="text-sm text-slate-600">{customer.email}</p>
+                  <Link
+                    className="text-sm font-medium text-[var(--color-accent)] underline-offset-4 hover:underline"
+                    href={`/customers/${customer.id}`}
+                  >
+                    View details
+                  </Link>
                 </div>
 
                 {/* Keep the first version simple with a readable creation date only. */}
