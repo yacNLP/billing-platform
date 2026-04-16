@@ -44,11 +44,22 @@ export const customersApi = baseApi
           { type: "Customers", id },
         ],
       }),
+      deleteCustomer: build.mutation<void, number>({
+        query: (id) => ({
+          url: `/customers/${id}`,
+          method: "DELETE",
+        }),
+        invalidatesTags: (_result, _error, id) => [
+          { type: "Customers", id: "LIST" },
+          { type: "Customers", id },
+        ],
+      }),
     }),
   });
 
 export const {
   useCreateCustomerMutation,
+  useDeleteCustomerMutation,
   useGetCustomerByIdQuery,
   useGetCustomersQuery,
   useUpdateCustomerMutation,
