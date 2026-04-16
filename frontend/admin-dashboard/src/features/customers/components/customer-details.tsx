@@ -1,5 +1,6 @@
 "use client";
 
+import { EditCustomerForm } from "@/features/customers/components/edit-customer-form";
 import { useGetCustomerByIdQuery } from "@/features/customers/customers-api";
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", {
@@ -60,6 +61,8 @@ export function CustomerDetails({ id }: CustomerDetailsProps) {
             </dd>
           </div>
         </dl>
+
+        <EditCustomerForm customer={data} />
       </section>
     </main>
   );

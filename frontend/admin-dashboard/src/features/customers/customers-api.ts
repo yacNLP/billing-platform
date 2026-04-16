@@ -14,12 +14,13 @@ export const customersApi = baseApi
         }),
         // The backend returns a paginated object. For this first list view, we only need the array.
         transformResponse: (response: CustomersListResponse) => response.data,
-        providesTags: ["Customers"],
+        providesTags: [{ type: "Customers", id: "LIST" }],
       }),
       getCustomerById: build.query<Customer, number>({
         query: (id) => ({
           url: `/customers/${id}`,
         }),
+        providesTags: (_result, _error, id) => [{ type: "Customers", id }],
       }),
       createCustomer: build.mutation<Customer, { name: string; email: string }>({
         query: (body) => ({
@@ -27,7 +28,21 @@ export const customersApi = baseApi
           method: "POST",
           body,
         }),
-        invalidatesTags: ["Customers"], // Invalidate the cache so it will be refetched
+        invalidatesTags: [{ type: "Customers", id: "LIST" }],
+      }),
+      updateCustomer: build.mutation<
+        Customer,
+        { id: number; name: string; email: string }
+      >({
+        query: ({ id, ...body }) => ({
+          url: `/customers/${id}`,
+          method: "PATCH",
+          body,
+        }),
+        invalidatesTags: (_result, _error, { id }) => [
+          { type: "Customers", id: "LIST" },
+          { type: "Customers", id },
+        ],
       }),
     }),
   });
@@ -36,4 +51,5 @@ export const {
   useCreateCustomerMutation,
   useGetCustomerByIdQuery,
   useGetCustomersQuery,
+  useUpdateCustomerMutation,
 } = customersApi;
