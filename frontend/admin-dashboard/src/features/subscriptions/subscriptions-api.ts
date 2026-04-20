@@ -18,7 +18,24 @@ export const subscriptionsApi = baseApi
         transformResponse: (response: SubscriptionsListResponse) => response.data,
         providesTags: [{ type: "Subscriptions", id: "LIST" }],
       }),
+      createSubscription: build.mutation<
+        Subscription,
+        {
+          customerId: number;
+          planId: number;
+          startDate?: string;
+          cancelAtPeriodEnd?: boolean;
+        }
+      >({
+        query: (body) => ({
+          url: "/subscriptions",
+          method: "POST",
+          body,
+        }),
+        invalidatesTags: [{ type: "Subscriptions", id: "LIST" }],
+      }),
     }),
   });
 
-export const { useGetSubscriptionsQuery } = subscriptionsApi;
+export const { useCreateSubscriptionMutation, useGetSubscriptionsQuery } =
+  subscriptionsApi;
