@@ -21,12 +21,19 @@ interface PaginatedCustomers {
   hasNext?: boolean;
 }
 
+let uniqueCounter = 0;
+
+function uniqueSuffix(): string {
+  uniqueCounter += 1;
+  return `${Date.now()}_${uniqueCounter}`;
+}
+
 // create a unique customer for tests
 async function createTestCustomer(
   client: E2EClient,
   overrides: Partial<CustomerResponse> = {},
 ): Promise<CustomerResponse> {
-  const uid = Date.now();
+  const uid = uniqueSuffix();
 
   const payload = {
     name: 'Test Customer',
@@ -62,10 +69,11 @@ describe('Customers e2e', () => {
 
   describe('rbac', () => {
     it('USER cannot create customer', async () => {
+      const suffix = uniqueSuffix();
       await userClient
         .post('/customers', {
           name: 'x',
-          email: `x_${Date.now()}@ex.com`,
+          email: `x_${suffix}@ex.com`,
         })
         .expect(403);
     });

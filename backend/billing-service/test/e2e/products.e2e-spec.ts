@@ -21,11 +21,18 @@ interface PaginatedProducts {
   totalPages: number;
 }
 
+let uniqueCounter = 0;
+
+function uniqueSuffix(): string {
+  uniqueCounter += 1;
+  return `${Date.now()}_${uniqueCounter}`;
+}
+
 async function createTestProduct(
   client: E2EClient,
   overrides: Partial<ProductResponse> = {},
 ): Promise<ProductResponse> {
-  const uid = Date.now();
+  const uid = uniqueSuffix();
 
   const payload = {
     name: `Test Product ${uid}`,

@@ -77,6 +77,10 @@ function uniqueSuffix(): string {
   return `${Date.now()}_${uniqueCounter}`;
 }
 
+function isoDaysFromNow(daysOffset: number): string {
+  return new Date(Date.now() + daysOffset * 24 * 60 * 60 * 1000).toISOString();
+}
+
 async function createTestCustomer(
   client: E2EClient,
 ): Promise<CustomerResponse> {
@@ -411,8 +415,8 @@ describe('Invoices e2e', () => {
       customer.id,
       subscription.id,
       {
-        issuedAt: '2026-04-01T00:00:00.000Z',
-        dueAt: '2026-04-10T00:00:00.000Z',
+        issuedAt: isoDaysFromNow(-1),
+        dueAt: isoDaysFromNow(5),
       },
     );
 
@@ -479,8 +483,8 @@ describe('Invoices e2e', () => {
       customer.id,
       subscription.id,
       {
-        issuedAt: '2026-04-01T00:00:00.000Z',
-        dueAt: '2026-04-10T00:00:00.000Z',
+        issuedAt: isoDaysFromNow(-1),
+        dueAt: isoDaysFromNow(5),
       },
     );
     const paidInvoice = await createTestInvoice(

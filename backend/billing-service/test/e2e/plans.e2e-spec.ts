@@ -38,13 +38,20 @@ interface PaginatedPlans {
   totalPages: number;
 }
 
+let uniqueCounter = 0;
+
+function uniqueSuffix(): string {
+  uniqueCounter += 1;
+  return `${Date.now()}_${uniqueCounter}`;
+}
+
 // helper to create product
 async function createTestProduct(client: E2EClient): Promise<ProductResponse> {
-  const uid = Date.now();
+  const uid = uniqueSuffix();
 
   const res = await client
     .post('/products', {
-      name: 'Plan Product',
+      name: `Plan Product ${uid}`,
       description: `Plan product ${uid}`,
       isActive: true,
     })
@@ -58,7 +65,7 @@ async function createTestPlan(
   client: E2EClient,
   productId: number,
 ): Promise<PlanResponse> {
-  const uid = Date.now();
+  const uid = uniqueSuffix();
 
   const res = await client
     .post('/plans', {
@@ -103,10 +110,11 @@ describe('Plans e2e', () => {
   describe('rbac', () => {
     it('USER cannot create plan', async () => {
       const product = await createTestProduct(adminClient);
+      const suffix = uniqueSuffix();
 
       await userClient
         .post('/plans', {
-          code: `FORBIDDEN_${Date.now()}`,
+          code: `FORBIDDEN_${suffix}`,
           name: 'Forbidden',
           description: null,
           amount: 1000,
@@ -154,9 +162,10 @@ describe('Plans e2e', () => {
     });
 
     it('POST /plans should fail when productId invalid', async () => {
+      const suffix = uniqueSuffix();
       await adminClient
         .post('/plans', {
-          code: `INVALID_${Date.now()}`,
+          code: `INVALID_${suffix}`,
           name: 'Invalid',
           description: null,
           amount: 1000,
