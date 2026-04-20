@@ -1,5 +1,6 @@
 "use client";
 
+import { EditProductForm } from "@/features/products/components/edit-product-form";
 import { useGetProductByIdQuery } from "@/features/products/products-api";
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", {
@@ -69,6 +70,8 @@ export function ProductDetails({ id }: ProductDetailsProps) {
             </dd>
           </div>
         </dl>
+
+        <EditProductForm product={data} />
       </section>
     </main>
   );

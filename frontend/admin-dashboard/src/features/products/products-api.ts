@@ -32,6 +32,20 @@ export const productsApi = baseApi
         }),
         invalidatesTags: [{ type: "Products", id: "LIST" }],
       }),
+      updateProduct: build.mutation<
+        Product,
+        { id: number; name: string; description?: string; isActive: boolean }
+      >({
+        query: ({ id, ...body }) => ({
+          url: `/products/${id}`,
+          method: "PATCH",
+          body,
+        }),
+        invalidatesTags: (_result, _error, { id }) => [
+          { type: "Products", id: "LIST" },
+          { type: "Products", id },
+        ],
+      }),
     }),
   });
 
@@ -39,4 +53,5 @@ export const {
   useCreateProductMutation,
   useGetProductByIdQuery,
   useGetProductsQuery,
+  useUpdateProductMutation,
 } = productsApi;
