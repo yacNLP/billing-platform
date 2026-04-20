@@ -1,6 +1,10 @@
 import { baseApi } from "@/store/api/base-api";
 
-import type { Plan, PlansListResponse } from "@/features/plans/types";
+import type {
+  BillingInterval,
+  Plan,
+  PlansListResponse,
+} from "@/features/plans/types";
 
 export const plansApi = baseApi
   .enhanceEndpoints({
@@ -15,7 +19,29 @@ export const plansApi = baseApi
         transformResponse: (response: PlansListResponse) => response.data,
         providesTags: [{ type: "Plans", id: "LIST" }],
       }),
+      createPlan: build.mutation<
+        Plan,
+        {
+          code: string;
+          name: string;
+          description?: string;
+          productId: number;
+          amount: number;
+          currency: string;
+          interval: BillingInterval;
+          intervalCount: number;
+          trialDays: number;
+          active?: boolean;
+        }
+      >({
+        query: (body) => ({
+          url: "/plans",
+          method: "POST",
+          body,
+        }),
+        invalidatesTags: [{ type: "Plans", id: "LIST" }],
+      }),
     }),
   });
 
-export const { useGetPlansQuery } = plansApi;
+export const { useCreatePlanMutation, useGetPlansQuery } = plansApi;
