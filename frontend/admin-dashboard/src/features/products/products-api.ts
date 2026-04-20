@@ -15,7 +15,18 @@ export const productsApi = baseApi
         transformResponse: (response: ProductsListResponse) => response.data,
         providesTags: [{ type: "Products", id: "LIST" }],
       }),
+      createProduct: build.mutation<
+        Product,
+        { name: string; description?: string; isActive: boolean }
+      >({
+        query: (body) => ({
+          url: "/products",
+          method: "POST",
+          body,
+        }),
+        invalidatesTags: [{ type: "Products", id: "LIST" }],
+      }),
     }),
   });
 
-export const { useGetProductsQuery } = productsApi;
+export const { useCreateProductMutation, useGetProductsQuery } = productsApi;
