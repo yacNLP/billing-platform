@@ -150,9 +150,9 @@ async function main() {
   await prisma.plan.createMany({
     data: [
       {
-        code: 'BASIC_MONTHLY',
-        name: 'Basic Monthly',
-        description: 'Basic plan billed monthly',
+        code: 'STARTER_MONTHLY',
+        name: 'Starter Monthly',
+        description: 'Starter plan billed monthly for early-stage teams',
         productId: product.id,
         amount: 4900,
         currency: 'EUR',
@@ -163,9 +163,9 @@ async function main() {
         tenantId: tenant.id,
       },
       {
-        code: 'PRO_MONTHLY',
-        name: 'Pro Monthly',
-        description: 'Pro plan billed monthly',
+        code: 'GROWTH_MONTHLY',
+        name: 'Growth Monthly',
+        description: 'Growth plan billed monthly for scaling teams',
         productId: product.id,
         amount: 9900,
         currency: 'EUR',
@@ -176,9 +176,9 @@ async function main() {
         tenantId: tenant.id,
       },
       {
-        code: 'PRO_YEARLY',
-        name: 'Pro Yearly',
-        description: 'Pro plan billed yearly',
+        code: 'PRO_ANNUAL',
+        name: 'Pro Annual',
+        description: 'Annual pro plan for established revenue teams',
         productId: product.id,
         amount: 99000,
         currency: 'EUR',

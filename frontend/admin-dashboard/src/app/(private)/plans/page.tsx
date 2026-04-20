@@ -1,5 +1,5 @@
-import { AdminPagePlaceholder } from "@/components/placeholders/admin-page-placeholder";
+import { PlansList } from "@/features/plans/components/plans-list";
 
 export default function PlansPage() {
-  return <AdminPagePlaceholder title="Plans" />;
+  return <PlansList />;
 }
