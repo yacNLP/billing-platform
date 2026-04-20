@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import type {
   BillingInterval,
   SubscriptionStatus,
@@ -110,6 +112,12 @@ export function SubscriptionsList() {
                       Customer ID {subscription.customerId} · Plan ID{" "}
                       {subscription.planId}
                     </p>
+                    <Link
+                      className="text-sm font-medium text-[var(--color-accent)] underline-offset-4 hover:underline"
+                      href={`/subscriptions/${subscription.id}`}
+                    >
+                      View details
+                    </Link>
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2">

@@ -18,6 +18,12 @@ export const subscriptionsApi = baseApi
         transformResponse: (response: SubscriptionsListResponse) => response.data,
         providesTags: [{ type: "Subscriptions", id: "LIST" }],
       }),
+      getSubscriptionById: build.query<Subscription, number>({
+        query: (id) => ({
+          url: `/subscriptions/${id}`,
+        }),
+        providesTags: (_result, _error, id) => [{ type: "Subscriptions", id }],
+      }),
       createSubscription: build.mutation<
         Subscription,
         {
@@ -37,5 +43,8 @@ export const subscriptionsApi = baseApi
     }),
   });
 
-export const { useCreateSubscriptionMutation, useGetSubscriptionsQuery } =
-  subscriptionsApi;
+export const {
+  useCreateSubscriptionMutation,
+  useGetSubscriptionByIdQuery,
+  useGetSubscriptionsQuery,
+} = subscriptionsApi;
