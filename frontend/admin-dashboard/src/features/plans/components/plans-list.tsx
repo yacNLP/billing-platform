@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import { useGetPlansQuery } from "@/features/plans/plans-api";
 import type { BillingInterval } from "@/features/plans/types";
 
@@ -78,6 +80,12 @@ export function PlansList() {
                     <p className="text-sm text-slate-600">
                       {plan.description || "No description provided."}
                     </p>
+                    <Link
+                      className="text-sm font-medium text-[var(--color-accent)] underline-offset-4 hover:underline"
+                      href={`/plans/${plan.id}`}
+                    >
+                      View details
+                    </Link>
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2">

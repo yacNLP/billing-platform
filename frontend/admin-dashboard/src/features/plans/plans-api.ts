@@ -19,6 +19,12 @@ export const plansApi = baseApi
         transformResponse: (response: PlansListResponse) => response.data,
         providesTags: [{ type: "Plans", id: "LIST" }],
       }),
+      getPlanById: build.query<Plan, number>({
+        query: (id) => ({
+          url: `/plans/${id}`,
+        }),
+        providesTags: (_result, _error, id) => [{ type: "Plans", id }],
+      }),
       createPlan: build.mutation<
         Plan,
         {
@@ -41,7 +47,48 @@ export const plansApi = baseApi
         }),
         invalidatesTags: [{ type: "Plans", id: "LIST" }],
       }),
+      updatePlan: build.mutation<
+        Plan,
+        {
+          id: number;
+          code: string;
+          name: string;
+          description?: string;
+          amount: number;
+          currency: string;
+          interval: BillingInterval;
+          intervalCount: number;
+          trialDays: number;
+          active: boolean;
+        }
+      >({
+        query: ({ id, ...body }) => ({
+          url: `/plans/${id}`,
+          method: "PATCH",
+          body,
+        }),
+        invalidatesTags: (_result, _error, { id }) => [
+          { type: "Plans", id: "LIST" },
+          { type: "Plans", id },
+        ],
+      }),
+      deletePlan: build.mutation<void, number>({
+        query: (id) => ({
+          url: `/plans/${id}`,
+          method: "DELETE",
+        }),
+        invalidatesTags: (_result, _error, id) => [
+          { type: "Plans", id: "LIST" },
+          { type: "Plans", id },
+        ],
+      }),
     }),
   });
 
-export const { useCreatePlanMutation, useGetPlansQuery } = plansApi;
+export const {
+  useCreatePlanMutation,
+  useDeletePlanMutation,
+  useGetPlanByIdQuery,
+  useGetPlansQuery,
+  useUpdatePlanMutation,
+} = plansApi;
