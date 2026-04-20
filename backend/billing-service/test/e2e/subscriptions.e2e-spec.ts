@@ -16,9 +16,7 @@ interface CustomerResponse {
 interface ProductResponse {
   id: number;
   name: string;
-  sku: string;
-  priceCents: number;
-  stock: number;
+  description: string | null;
   isActive: boolean;
 }
 
@@ -134,9 +132,7 @@ async function createTestProduct(
   const res = await client
     .post('/products', {
       name: `Product ${suffix}`,
-      sku: `${prefix.toUpperCase()}_${suffix}`,
-      priceCents: 1990,
-      stock: 25,
+      description: `${prefix} description ${suffix}`,
       isActive: true,
     })
     .expect(201);

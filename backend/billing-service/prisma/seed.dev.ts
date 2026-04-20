@@ -90,56 +90,55 @@ async function main() {
 
   // 3. seed products
   await syncSequence('Product');
-  await prisma.product.createMany({
-    data: [
-      {
-        name: 'Thé Vert Menthe',
-        sku: 'TEA-GREEN-MINT',
-        priceCents: 590,
-        stock: 120,
-        lowStockThreshold: 10,
-        tenantId: tenant.id,
+  for (const productData of [
+    {
+      name: 'Billing Platform',
+      description:
+        'Core billing engine for subscriptions, invoices and payments',
+      isActive: true,
+    },
+    {
+      name: 'Revenue Analytics',
+      description: 'Track MRR, churn, and revenue performance',
+      isActive: true,
+    },
+    {
+      name: 'Invoice Automation',
+      description: 'Automate invoice generation and lifecycle',
+      isActive: true,
+    },
+    {
+      name: 'Subscription Management',
+      description: 'Manage customer subscriptions and lifecycle',
+      isActive: true,
+    },
+  ]) {
+    const existingProduct = await prisma.product.findUnique({
+      where: {
+        tenantId_name: {
+          tenantId: tenant.id,
+          name: productData.name,
+        },
       },
-      {
-        name: 'Thé Noir Earl Grey',
-        sku: 'TEA-BLACK-EG',
-        priceCents: 690,
-        stock: 80,
-        lowStockThreshold: 8,
-        tenantId: tenant.id,
-      },
-      {
-        name: 'Infusion Verveine',
-        sku: 'INF-VERVEINE',
-        priceCents: 550,
-        stock: 50,
-        lowStockThreshold: 5,
-        tenantId: tenant.id,
-      },
-      {
-        name: 'Oolong Nature',
-        sku: 'TEA-OOLONG',
-        priceCents: 890,
-        stock: 30,
-        lowStockThreshold: 5,
-        tenantId: tenant.id,
-      },
-      {
-        name: 'Matcha Cérémonial',
-        sku: 'TEA-MATCHA-CER',
-        priceCents: 1590,
-        stock: 12,
-        lowStockThreshold: 3,
-        tenantId: tenant.id,
-      },
-    ],
-    skipDuplicates: true,
-  });
+    });
+
+    if (!existingProduct) {
+      await prisma.product.create({
+        data: {
+          ...productData,
+          tenantId: tenant.id,
+        },
+      });
+    }
+  }
   console.log('Seeded products');
 
   // 4. seed plans
   const product = await prisma.product.findFirst({
-    where: { tenantId: tenant.id },
+    where: {
+      tenantId: tenant.id,
+      name: 'Billing Platform',
+    },
   });
 
   if (!product) {
