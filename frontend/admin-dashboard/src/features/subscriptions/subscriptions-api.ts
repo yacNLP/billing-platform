@@ -40,10 +40,25 @@ export const subscriptionsApi = baseApi
         }),
         invalidatesTags: [{ type: "Subscriptions", id: "LIST" }],
       }),
+      cancelSubscription: build.mutation<
+        Subscription,
+        { id: number; cancelAtPeriodEnd?: boolean }
+      >({
+        query: ({ id, ...body }) => ({
+          url: `/subscriptions/${id}/cancel`,
+          method: "PATCH",
+          body,
+        }),
+        invalidatesTags: (_result, _error, { id }) => [
+          { type: "Subscriptions", id: "LIST" },
+          { type: "Subscriptions", id },
+        ],
+      }),
     }),
   });
 
 export const {
+  useCancelSubscriptionMutation,
   useCreateSubscriptionMutation,
   useGetSubscriptionByIdQuery,
   useGetSubscriptionsQuery,

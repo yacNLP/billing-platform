@@ -1,10 +1,15 @@
 "use client";
 
+import { useState } from "react";
+
 import type {
   BillingInterval,
   SubscriptionStatus,
 } from "@/features/subscriptions/types";
-import { useGetSubscriptionByIdQuery } from "@/features/subscriptions/subscriptions-api";
+import {
+  useCancelSubscriptionMutation,
+  useGetSubscriptionByIdQuery,
+} from "@/features/subscriptions/subscriptions-api";
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", {
   year: "numeric",
@@ -50,6 +55,26 @@ type SubscriptionDetailsProps = {
 
 export function SubscriptionDetails({ id }: SubscriptionDetailsProps) {
   const { data, error, isLoading } = useGetSubscriptionByIdQuery(id);
+  const [cancelMode, setCancelMode] = useState<"period_end" | "immediate" | null>(
+    null,
+  );
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [cancelSubscription, { isLoading: isCanceling }] =
+    useCancelSubscriptionMutation();
+
+  async function handleCancelSubscription(cancelAtPeriodEnd: boolean) {
+    setErrorMessage(null);
+
+    try {
+      await cancelSubscription({
+        id,
+        cancelAtPeriodEnd,
+      }).unwrap();
+      setCancelMode(null);
+    } catch {
+      setErrorMessage("Unable to cancel subscription.");
+    }
+  }
 
   if (isLoading) {
     return <StatePanel title="Subscription details" message="Loading subscription..." />;
@@ -69,6 +94,11 @@ export function SubscriptionDetails({ id }: SubscriptionDetailsProps) {
       <StatePanel title="Subscription details" message="Subscription not found." />
     );
   }
+
+  const canScheduleCancellation =
+    data.status === "ACTIVE" && !data.cancelAtPeriodEnd;
+  const canImmediatelyCancel = data.status === "ACTIVE";
+  const showCancelActions = canScheduleCancellation || canImmediatelyCancel;
 
   return (
     <main className="px-6 py-16">
@@ -172,6 +202,87 @@ export function SubscriptionDetails({ id }: SubscriptionDetailsProps) {
             </dd>
           </div>
         </dl>
+
+        {errorMessage ? (
+          <p className="mt-6 text-sm text-red-600" role="alert">
+            {errorMessage}
+          </p>
+        ) : null}
+
+        {cancelMode ? (
+          <section className="mt-6 rounded-[1.5rem] border border-red-200 bg-red-50 p-6">
+            <div className="space-y-2">
+              <h3 className="text-xl font-semibold tracking-tight text-red-900">
+                {cancelMode === "period_end"
+                  ? "Cancel at period end"
+                  : "Cancel subscription immediately"}
+              </h3>
+              <p className="text-sm leading-6 text-red-800">
+                {cancelMode === "period_end"
+                  ? "The subscription will stay active until the current billing period ends."
+                  : "The subscription will be canceled now and its status will become canceled immediately."}
+              </p>
+            </div>
+
+            <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+              <button
+                className="rounded-xl bg-red-700 px-4 py-3 text-sm font-medium text-white transition hover:bg-red-800 disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={isCanceling}
+                onClick={() =>
+                  handleCancelSubscription(cancelMode === "period_end")
+                }
+                type="button"
+              >
+                {isCanceling ? "Saving..." : "Confirm"}
+              </button>
+
+              <button
+                className="rounded-xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={isCanceling}
+                onClick={() => setCancelMode(null)}
+                type="button"
+              >
+                Cancel
+              </button>
+            </div>
+          </section>
+        ) : showCancelActions ? (
+          <section className="mt-6 rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
+            <div className="space-y-2">
+              <h3 className="text-xl font-semibold tracking-tight text-slate-950">
+                Cancel subscription
+              </h3>
+              <p className="text-sm leading-6 text-slate-600">
+                Choose whether to stop this subscription at the end of the current
+                period or cancel it immediately.
+              </p>
+            </div>
+
+            <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+              {canScheduleCancellation ? (
+                <button
+                  className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60"
+                  disabled={isCanceling}
+                  onClick={() => setCancelMode("period_end")}
+                  type="button"
+                >
+                  Cancel at period end
+                </button>
+              ) : null}
+
+              {canImmediatelyCancel ? (
+                <button
+                  className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+                  disabled={isCanceling}
+                  onClick={() => setCancelMode("immediate")}
+                  type="button"
+                >
+                  Cancel immediately
+                </button>
+              ) : null}
+            </div>
+          </section>
+        ) : null}
       </section>
     </main>
   );
