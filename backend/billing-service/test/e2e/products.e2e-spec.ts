@@ -174,15 +174,16 @@ describe('Products e2e', () => {
 
     it('patch /products/:id should update product', async () => {
       const created = await createTestProduct(adminClient);
+      const suffix = uniqueSuffix();
 
       const res = await adminClient
-        .patch(`/products/${created.id}`, { name: 'Updated Name' })
+        .patch(`/products/${created.id}`, { name: `Updated Name ${suffix}` })
         .expect(200);
 
       const updated = res.body as ProductResponse;
 
       expect(updated.id).toBe(created.id);
-      expect(updated.name).toBe('Updated Name');
+      expect(updated.name).toBe(`Updated Name ${suffix}`);
     });
 
     it('delete /products/:id should delete product', async () => {
