@@ -15,6 +15,12 @@ export const productsApi = baseApi
         transformResponse: (response: ProductsListResponse) => response.data,
         providesTags: [{ type: "Products", id: "LIST" }],
       }),
+      getProductById: build.query<Product, number>({
+        query: (id) => ({
+          url: `/products/${id}`,
+        }),
+        providesTags: (_result, _error, id) => [{ type: "Products", id }],
+      }),
       createProduct: build.mutation<
         Product,
         { name: string; description?: string; isActive: boolean }
@@ -29,4 +35,8 @@ export const productsApi = baseApi
     }),
   });
 
-export const { useCreateProductMutation, useGetProductsQuery } = productsApi;
+export const {
+  useCreateProductMutation,
+  useGetProductByIdQuery,
+  useGetProductsQuery,
+} = productsApi;

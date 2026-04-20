@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import { useGetProductsQuery } from "@/features/products/products-api";
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", {
@@ -56,6 +58,12 @@ export function ProductsList() {
                   <p className="text-sm text-slate-600">
                     {product.isActive ? "Active" : "Inactive"}
                   </p>
+                  <Link
+                    className="text-sm font-medium text-[var(--color-accent)] underline-offset-4 hover:underline"
+                    href={`/products/${product.id}`}
+                  >
+                    View details
+                  </Link>
                 </div>
 
                 <p className="text-sm text-slate-500">
