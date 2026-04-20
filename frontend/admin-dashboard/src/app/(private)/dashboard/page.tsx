@@ -1,5 +1,5 @@
-import { AdminPagePlaceholder } from "@/components/placeholders/admin-page-placeholder";
+import { AnalyticsSummaryPanel } from "@/features/analytics/components/analytics-summary-panel";
 
 export default function DashboardPage() {
-  return <AdminPagePlaceholder title="Dashboard" />;
+  return <AnalyticsSummaryPanel />;
 }

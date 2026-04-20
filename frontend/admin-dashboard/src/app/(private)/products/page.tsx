@@ -1,5 +1,11 @@
-import { AdminPagePlaceholder } from "@/components/placeholders/admin-page-placeholder";
+import { CreateProductForm } from "@/features/products/components/create-product-form";
+import { ProductsList } from "@/features/products/components/products-list";
 
 export default function ProductsPage() {
-  return <AdminPagePlaceholder title="Products" />;
+  return (
+    <>
+      <CreateProductForm />
+      <ProductsList />
+    </>
+  );
 }
