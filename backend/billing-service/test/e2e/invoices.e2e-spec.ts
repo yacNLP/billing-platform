@@ -17,9 +17,7 @@ interface CustomerResponse {
 interface ProductResponse {
   id: number;
   name: string;
-  sku: string;
-  priceCents: number;
-  stock: number;
+  description: string | null;
   isActive: boolean;
 }
 
@@ -98,9 +96,7 @@ async function createTestProduct(client: E2EClient): Promise<ProductResponse> {
   const res = await client
     .post('/products', {
       name: `Invoice Product ${suffix}`,
-      sku: `INVOICE_PRODUCT_${suffix}`,
-      priceCents: 2500,
-      stock: 50,
+      description: `Invoice product ${suffix}`,
       isActive: true,
     })
     .expect(201);

@@ -58,26 +58,20 @@ model Customer {
 
 
 model Product {
-  id                Int      @id @default(autoincrement())
-  name              String
-  sku               String
-  description       String?  @db.Text
-  priceCents        Int
-  currency          String   @default("EUR")
-  taxRate           Decimal  @default(0.20) @db.Decimal(5, 4)
-  isActive          Boolean  @default(true)
-  stock             Int      @default(0)
-  lowStockThreshold Int      @default(0)
+  id          Int      @id @default(autoincrement())
+  name        String
+  description String?  @db.Text
+  isActive    Boolean  @default(true)
 
-  tenantId          Int
-  tenant            Tenant   @relation(fields: [tenantId], references: [id])
+  tenantId    Int
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
 
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  plans             Plan[]
+  plans       Plan[]
 
-  @@unique([tenantId, sku])
+  @@unique([tenantId, name])
   @@index([tenantId])
   @@index([name])
   @@index([isActive])

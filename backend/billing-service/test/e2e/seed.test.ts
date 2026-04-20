@@ -58,27 +58,33 @@ export async function seedTestData() {
     },
   });
 
-  await prisma.product.createMany({
-    data: [
-      {
-        tenantId: tenant1.id,
-        name: 'Standard Plan',
-        sku: 'STD-001',
-        priceCents: 990,
-        stock: 100,
-        isActive: true,
+  for (const productData of [
+    {
+      tenantId: tenant1.id,
+      name: 'Standard Workspace',
+      description: 'Core SaaS workspace for e2e tests',
+      isActive: true,
+    },
+    {
+      tenantId: tenant1.id,
+      name: 'Premium Workspace',
+      description: 'Expanded SaaS workspace for e2e tests',
+      isActive: true,
+    },
+  ]) {
+    const existingProduct = await prisma.product.findFirst({
+      where: {
+        tenantId: productData.tenantId,
+        name: productData.name,
       },
-      {
-        tenantId: tenant1.id,
-        name: 'Premium Plan',
-        sku: 'PRM-001',
-        priceCents: 1990,
-        stock: 50,
-        isActive: true,
-      },
-    ],
-    skipDuplicates: true,
-  });
+    });
+
+    if (!existingProduct) {
+      await prisma.product.create({ data: productData });
+    }
+  }
+
+  console.log('seeded products');
 
   // =============================
   // USERS

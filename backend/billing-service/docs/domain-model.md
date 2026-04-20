@@ -95,20 +95,13 @@ Customers are hard-deleted in the MVP.
 
 ### 3.4 Product
 
-Represents a sellable item or service.
+Represents a SaaS commercial offer family.
 
 Fields:
 - `name`
-- `sku`
-- `priceCents`
-- `currency`
-- `taxRate`
-- `stock`
+- `description`
 - `isActive`
 - `tenantId`
-
-Constraints:
-- SKU unique per tenant (`@@unique([tenantId, sku])`)
 
 Relations:
 - 1 → N Plans
@@ -133,6 +126,8 @@ Fields:
 - `trialDays`
 - `active`
 - `deletedAt` (soft delete)
+
+Pricing belongs here, not on Product.
 
 Constraints:
 - Code unique per tenant (`@@unique([tenantId, code])`)

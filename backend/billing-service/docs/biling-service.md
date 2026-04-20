@@ -39,9 +39,8 @@ Il s’agit de poser une base solide avant d’introduire les abonnements, la fa
 
 - **Products**
   - CRUD complet
-  - SKU unique
-  - Champs essentiels : prix, devise, stock, TVA
-  - Filtres : actif/inactif, prix min/max, recherche (name/sku), tri complet
+  - Offre SaaS simple : nom, description, actif/inactif
+  - Filtres : actif/inactif, recherche par nom, tri simple
   - Pagination standard
 
 - **Plans**
@@ -146,15 +145,12 @@ Champs clés :
 - Dates de création / mise à jour
 
 #### **Product**
-Représente un élément vendable : un service ou un article.  
-C’est la base commerciale.
+Représente une offre SaaS abstraite.  
+C’est la base commerciale à laquelle les plans sont rattachés.
 
 Champs clés :
-- Nom, SKU unique
-- Prix en centimes
-- Devise
-- Stock
-- TVA
+- Nom
+- Description
 - Actif / inactif
 
 #### **Plan**
@@ -169,6 +165,8 @@ Champs clés :
 - Actif / inactif
 - Soft delete (deletedAt)
 
+Le pricing vit ici, pas dans Product.
+
 ---
 
 
@@ -182,14 +180,13 @@ Champs clés :
 
 ### 4.3 Règles métier globales
 
-- Un Product doit avoir un **SKU unique**.
 - Un Plan doit avoir un **code unique**.
 - Un Plan ne peut pas exister sans Product (`productId` obligatoire).
 - Les Plans utilisent **soft delete** (`deletedAt`).
 - Customers et Products utilisent **hard delete**.
 - Les entités ont un champ `active` permettant de les désactiver (sans suppression).
 - La devise principale du MVP est **EUR**.
-- Les champs monétaires sont exprimés en **centimes** (`amount`, `priceCents`).
+- Les champs monétaires sont exprimés en **centimes** côté Plan (`amount`).
 
 ---
 
@@ -556,18 +553,12 @@ Aucun contenu
 
 ```prisma
 model Product {
-  id                Int      @id @default(autoincrement())
-  name              String
-  sku               String   @unique
-  description       String?  @db.Text
-  priceCents        Int
-  currency          String   @default("EUR")
-  taxRate           Decimal  @default(0.20) @db.Decimal(5, 4)
-  isActive          Boolean  @default(true)
-  stock             Int      @default(0)
-  lowStockThreshold Int      @default(0)
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  id          Int      @id @default(autoincrement())
+  name        String
+  description String?  @db.Text
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@index([name])
   @@index([isActive])
@@ -593,15 +584,11 @@ model Product {
 - `pageSize` — défaut : `20`
 
  **Recherche textuelle**
-- `q` — recherche sur `name` ou `sku`
+- `q` — recherche sur `name`
 
  **Tri**
-- `sortBy` ∈ `name`, `priceCents`, `createdAt`, `updatedAt`, `stock`, `sku`
+- `sortBy` ∈ `name`, `createdAt`, `updatedAt`
 - `order` ∈ `asc` / `desc` (défaut : `desc`)
-
- **Filtres prix**
-- `minPriceCents`
-- `maxPriceCents`
 
  **Filtre état**
 - `isActive` ∈ `true` / `false`
@@ -624,20 +611,14 @@ Body typique :
 ```
 {
   name: string;
-  sku: string;               // unique
-  priceCents: number;        // ≥ 0
   description?: string;
-  stock: number;             // ≥ 0
-  currency?: string;         // défaut "EUR"
-  taxRate?: number;
-  lowStockThreshold?: number;
+  isActive?: boolean;        // défaut true
 }
 
 ```
 
 **Erreurs** :
 - 400 — validation échouée
-- 409 — sku déjà utilisé
 
 **PATCH /products/:id**
 
@@ -647,7 +628,6 @@ Les mêmes contraintes métier que pour `POST` sont appliquées.
 
 **Erreurs possibles :**
 - **404** — produit introuvable  
-- **409** — conflit de `sku`
 
 ---
 

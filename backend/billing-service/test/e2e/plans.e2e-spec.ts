@@ -12,9 +12,7 @@ type CurrencyCode = 'EUR' | 'USD' | 'DZD';
 interface ProductResponse {
   id: number;
   name: string;
-  sku: string;
-  priceCents: number;
-  stock: number;
+  description: string | null;
   isActive: boolean;
 }
 
@@ -47,9 +45,7 @@ async function createTestProduct(client: E2EClient): Promise<ProductResponse> {
   const res = await client
     .post('/products', {
       name: 'Plan Product',
-      sku: `PLAN_PROD_${uid}`,
-      priceCents: 1000,
-      stock: 100,
+      description: `Plan product ${uid}`,
       isActive: true,
     })
     .expect(201);
