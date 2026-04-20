@@ -21,10 +21,9 @@ export class ProductsService {
     private readonly tenantContext: TenantContext,
   ) {}
 
-  // creation with unique sku handling (409)
   async create(dto: CreateProductDto): Promise<Product> {
     const tenantId = this.tenantContext.getTenantId();
-    this.logger.log(`create product sku=${dto.sku}`);
+    this.logger.log(`create product name=${dto.name}`);
     try {
       const created = await this.prisma.product.create({
         data: {
@@ -36,20 +35,18 @@ export class ProductsService {
       return created;
     } catch (err: unknown) {
       this.logger.error(
-        `create failed for sku=${dto.sku}: ${errorMessage(err)}`,
+        `create failed for name=${dto.name}: ${errorMessage(err)}`,
       );
       if (
         err instanceof Prisma.PrismaClientKnownRequestError &&
         err.code === 'P2002'
       ) {
-        // unique constraint violation on sku
-        throw new ConflictException('SKU already exists');
+        throw new ConflictException('Product name already exists');
       }
       throw err;
     }
   }
 
-  // list with query filters, sorting and pagination
   async findAll(q: ProductsQueryDto): Promise<Paginated<Product>> {
     const tenantId = this.tenantContext.getTenantId();
     const {
@@ -58,50 +55,30 @@ export class ProductsService {
       q: query,
       sortBy = 'createdAt',
       order = 'desc',
-      minPriceCents,
-      maxPriceCents,
       isActive,
     } = q;
 
     this.logger.debug(
-      `list products page=${page} size=${pageSize} q=${query ?? ''} sort=${sortBy}:${order} price=[${minPriceCents ?? ''},${maxPriceCents ?? ''}] active=${isActive ?? ''}`,
+      `list products page=${page} size=${pageSize} q=${query ?? ''} sort=${sortBy}:${order} active=${isActive ?? ''}`,
     );
 
     const where: Prisma.ProductWhereInput = {
       tenantId,
     };
 
-    // text search on name and sku
     if (query) {
-      where.OR = [
-        { name: { contains: query, mode: 'insensitive' } },
-        { sku: { contains: query, mode: 'insensitive' } },
-      ];
+      where.name = { contains: query, mode: 'insensitive' };
     }
 
-    // price range filter
-    const priceFilter: Prisma.IntFilter = {};
-    if (typeof minPriceCents === 'number') priceFilter.gte = minPriceCents;
-    if (typeof maxPriceCents === 'number') priceFilter.lte = maxPriceCents;
-    if (Object.keys(priceFilter).length > 0) where.priceCents = priceFilter;
-
-    // active flag filter
     if (isActive === 'true') where.isActive = true;
     if (isActive === 'false') where.isActive = false;
 
-    // typed orderBy mapping to avoid unsafe dynamic keys
     const orderBy: Prisma.ProductOrderByWithRelationInput =
       sortBy === 'name'
         ? { name: order }
-        : sortBy === 'priceCents'
-          ? { priceCents: order }
-          : sortBy === 'updatedAt'
-            ? { updatedAt: order }
-            : sortBy === 'stock'
-              ? { stock: order }
-              : sortBy === 'sku'
-                ? { sku: order }
-                : { createdAt: order };
+        : sortBy === 'updatedAt'
+          ? { updatedAt: order }
+          : { createdAt: order };
 
     const [total, data] = await this.prisma.$transaction([
       this.prisma.product.count({ where }),
@@ -120,7 +97,6 @@ export class ProductsService {
     return { data, total, page, pageSize, totalPages };
   }
 
-  // read one or 404
   async findOne(id: number): Promise<Product> {
     const tenantId = this.tenantContext.getTenantId();
     this.logger.debug(`get product id=${id}`);
@@ -134,10 +110,9 @@ export class ProductsService {
     return item;
   }
 
-  // update with not-found and duplicate-sku handling
   async update(id: number, dto: UpdateProductDto): Promise<Product> {
     const tenantId = this.tenantContext.getTenantId();
-    this.logger.log(`update product id=${id} sku=${dto.sku ?? '<unchanged>'}`);
+    this.logger.log(`update product id=${id}`);
     try {
       const updated = await this.prisma.product.update({
         where: { id, tenantId },
@@ -148,18 +123,15 @@ export class ProductsService {
     } catch (err: unknown) {
       this.logger.error(`update failed id=${id}: ${errorMessage(err)}`);
       if (err instanceof Prisma.PrismaClientKnownRequestError) {
-        // record not found
         if (err.code === 'P2025')
           throw new NotFoundException('Product not found');
-        // unique constraint violation on sku
         if (err.code === 'P2002')
-          throw new ConflictException('SKU already exists');
+          throw new ConflictException('Product name already exists');
       }
       throw err;
     }
   }
 
-  // delete with not-found handling
   async remove(id: number): Promise<void> {
     const tenantId = this.tenantContext.getTenantId();
     this.logger.log(`delete product id=${id}`);

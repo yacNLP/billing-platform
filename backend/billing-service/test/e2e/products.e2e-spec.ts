@@ -4,14 +4,10 @@ import { Server } from 'http';
 import { E2EClient } from '../utils/e2e-client';
 import { loginAsAdmin, loginAsUser } from '../utils/e2e-auth';
 
-type SortOrder = 'asc' | 'desc';
-
 interface ProductResponse {
   id: number;
   name: string;
-  sku: string;
-  priceCents: number;
-  stock: number;
+  description: string | null;
   isActive: boolean;
   createdAt?: string;
   updatedAt?: string;
@@ -25,17 +21,22 @@ interface PaginatedProducts {
   totalPages: number;
 }
 
+let uniqueCounter = 0;
+
+function uniqueSuffix(): string {
+  uniqueCounter += 1;
+  return `${Date.now()}_${uniqueCounter}`;
+}
+
 async function createTestProduct(
   client: E2EClient,
   overrides: Partial<ProductResponse> = {},
 ): Promise<ProductResponse> {
-  const uid = Date.now();
+  const uid = uniqueSuffix();
 
   const payload = {
-    name: 'Test Product',
-    sku: `SKU_${uid}`,
-    priceCents: 1000,
-    stock: 10,
+    name: `Test Product ${uid}`,
+    description: `Test SaaS product ${uid}`,
     isActive: true,
     ...overrides,
   };
@@ -71,9 +72,7 @@ describe('Products e2e', () => {
       await userClient
         .post('/products', {
           name: 'x',
-          sku: `x_${Date.now()}`,
-          priceCents: 100,
-          stock: 1,
+          description: 'forbidden',
           isActive: true,
         })
         .expect(403);
@@ -116,34 +115,34 @@ describe('Products e2e', () => {
 
       const res = await userClient
         .get('/products')
-        .query({ q: created.sku })
+        .query({ q: created.name })
         .expect(200);
 
       const payload = res.body as PaginatedProducts;
 
-      expect(payload.data.some((p) => p.sku === created.sku)).toBe(true);
+      expect(payload.data.some((p) => p.name === created.name)).toBe(true);
     });
 
-    it('get /products should respect price range filter', async () => {
-      await createTestProduct(adminClient, { priceCents: 500 });
-      await createTestProduct(adminClient, { priceCents: 2000 });
+    it('get /products should filter by active flag', async () => {
+      await createTestProduct(adminClient, { isActive: false });
+      await createTestProduct(adminClient, { isActive: true });
 
       const res = await userClient
         .get('/products')
-        .query({ minPriceCents: 1000 })
+        .query({ isActive: 'false' })
         .expect(200);
 
       const payload = res.body as PaginatedProducts;
 
       for (const p of payload.data) {
-        expect(p.priceCents).toBeGreaterThanOrEqual(1000);
+        expect(p.isActive).toBe(false);
       }
     });
 
     it('get /products should support sorting', async () => {
       const res = await userClient
         .get('/products')
-        .query({ sortBy: 'priceCents', order: 'asc' as SortOrder })
+        .query({ sortBy: 'name', order: 'asc' })
         .expect(200);
 
       const payload = res.body as PaginatedProducts;
@@ -154,22 +153,8 @@ describe('Products e2e', () => {
       const created = await createTestProduct(adminClient);
 
       expect(created.id).toBeDefined();
-      expect(created.sku).toContain('SKU_');
-      expect(created.priceCents).toBe(1000);
-    });
-
-    it('post /products should fail on duplicate sku', async () => {
-      const created = await createTestProduct(adminClient);
-
-      await adminClient
-        .post('/products', {
-          name: 'duplicate',
-          sku: created.sku,
-          priceCents: 1234,
-          stock: 5,
-          isActive: true,
-        })
-        .expect(409);
+      expect(created.name).toContain('Test Product');
+      expect(created.isActive).toBe(true);
     });
 
     it('get /products/:id should return one product', async () => {
@@ -180,7 +165,7 @@ describe('Products e2e', () => {
       const payload = res.body as ProductResponse;
 
       expect(payload.id).toBe(created.id);
-      expect(payload.sku).toBe(created.sku);
+      expect(payload.name).toBe(created.name);
     });
 
     it('get /products/:id should return 404 on unknown id', async () => {
@@ -189,15 +174,16 @@ describe('Products e2e', () => {
 
     it('patch /products/:id should update product', async () => {
       const created = await createTestProduct(adminClient);
+      const suffix = uniqueSuffix();
 
       const res = await adminClient
-        .patch(`/products/${created.id}`, { name: 'Updated Name' })
+        .patch(`/products/${created.id}`, { name: `Updated Name ${suffix}` })
         .expect(200);
 
       const updated = res.body as ProductResponse;
 
       expect(updated.id).toBe(created.id);
-      expect(updated.name).toBe('Updated Name');
+      expect(updated.name).toBe(`Updated Name ${suffix}`);
     });
 
     it('delete /products/:id should delete product', async () => {

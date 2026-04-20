@@ -23,29 +23,17 @@ export class ProductsQueryDto {
 
   @IsOptional()
   @IsString()
-  q?: string; // recherche texte (nom/sku)
+  q?: string; // recherche texte sur le nom
 
   @IsOptional()
   @IsString()
-  @IsIn(['name', 'priceCents', 'createdAt', 'updatedAt', 'stock', 'sku'])
+  @IsIn(['name', 'createdAt', 'updatedAt'])
   sortBy?: string = 'createdAt'; // tri par champ
 
   @IsOptional()
   @IsString()
   @IsIn(['asc', 'desc'])
   order?: 'asc' | 'desc' = 'desc'; // ordre du tri
-
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(0)
-  minPriceCents?: number; // filtre prix min
-
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(0)
-  maxPriceCents?: number; // filtre prix max
 
   @IsOptional()
   isActive?: 'true' | 'false'; // filtre actif/inactif
