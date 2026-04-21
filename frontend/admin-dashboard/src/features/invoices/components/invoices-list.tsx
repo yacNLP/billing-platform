@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import type { InvoiceStatus } from "@/features/invoices/types";
 import { useGetInvoicesQuery } from "@/features/invoices/invoices-api";
 
@@ -81,6 +83,12 @@ export function InvoicesList() {
                       Invoice #{invoice.id} · Customer ID {invoice.customerId} ·
                       Subscription ID {invoice.subscriptionId}
                     </p>
+                    <Link
+                      className="text-sm font-medium text-[var(--color-accent)] underline-offset-4 hover:underline"
+                      href={`/invoices/${invoice.id}`}
+                    >
+                      View details
+                    </Link>
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2">

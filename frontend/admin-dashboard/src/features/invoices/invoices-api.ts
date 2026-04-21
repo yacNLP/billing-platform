@@ -15,7 +15,13 @@ export const invoicesApi = baseApi
         transformResponse: (response: InvoicesListResponse) => response.data,
         providesTags: [{ type: "Invoices", id: "LIST" }],
       }),
+      getInvoiceById: build.query<Invoice, number>({
+        query: (id) => ({
+          url: `/invoices/${id}`,
+        }),
+        providesTags: (_result, _error, id) => [{ type: "Invoices", id }],
+      }),
     }),
   });
 
-export const { useGetInvoicesQuery } = invoicesApi;
+export const { useGetInvoiceByIdQuery, useGetInvoicesQuery } = invoicesApi;
