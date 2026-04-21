@@ -1,5 +1,5 @@
-import { AdminPagePlaceholder } from "@/components/placeholders/admin-page-placeholder";
+import { InvoicesList } from "@/features/invoices/components/invoices-list";
 
 export default function InvoicesPage() {
-  return <AdminPagePlaceholder title="Invoices" />;
+  return <InvoicesList />;
 }
