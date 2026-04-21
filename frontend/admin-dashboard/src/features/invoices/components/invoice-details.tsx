@@ -1,7 +1,14 @@
 "use client";
 
+import { useState } from "react";
+
 import type { InvoiceStatus } from "@/features/invoices/types";
-import { useGetInvoiceByIdQuery } from "@/features/invoices/invoices-api";
+import {
+  useGetInvoiceByIdQuery,
+  useMarkInvoiceOverdueMutation,
+  useMarkInvoicePaidMutation,
+  useMarkInvoiceVoidMutation,
+} from "@/features/invoices/invoices-api";
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", {
   year: "numeric",
@@ -30,6 +37,40 @@ type InvoiceDetailsProps = {
 
 export function InvoiceDetails({ id }: InvoiceDetailsProps) {
   const { data, error, isLoading } = useGetInvoiceByIdQuery(id);
+  const [actionMode, setActionMode] = useState<"paid" | "void" | "overdue" | null>(
+    null,
+  );
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [markInvoicePaid, { isLoading: isMarkingPaid }] =
+    useMarkInvoicePaidMutation();
+  const [markInvoiceVoid, { isLoading: isVoiding }] =
+    useMarkInvoiceVoidMutation();
+  const [markInvoiceOverdue, { isLoading: isMarkingOverdue }] =
+    useMarkInvoiceOverdueMutation();
+
+  const isSubmittingAction = isMarkingPaid || isVoiding || isMarkingOverdue;
+
+  async function handleInvoiceAction() {
+    if (!actionMode) {
+      return;
+    }
+
+    setErrorMessage(null);
+
+    try {
+      if (actionMode === "paid") {
+        await markInvoicePaid(id).unwrap();
+      } else if (actionMode === "void") {
+        await markInvoiceVoid(id).unwrap();
+      } else {
+        await markInvoiceOverdue(id).unwrap();
+      }
+
+      setActionMode(null);
+    } catch {
+      setErrorMessage("Unable to update invoice status.");
+    }
+  }
 
   if (isLoading) {
     return <StatePanel title="Invoice details" message="Loading invoice..." />;
@@ -42,6 +83,11 @@ export function InvoiceDetails({ id }: InvoiceDetailsProps) {
   if (!data) {
     return <StatePanel title="Invoice details" message="Invoice not found." />;
   }
+
+  const canMarkPaid = data.status === "ISSUED" || data.status === "OVERDUE";
+  const canVoid = data.status === "ISSUED";
+  const canMarkOverdue = data.status === "ISSUED";
+  const showActions = canMarkPaid || canVoid || canMarkOverdue;
 
   return (
     <main className="px-6 py-16">
@@ -145,6 +191,99 @@ export function InvoiceDetails({ id }: InvoiceDetailsProps) {
             </dd>
           </div>
         </dl>
+
+        {errorMessage ? (
+          <p className="mt-6 text-sm text-red-600" role="alert">
+            {errorMessage}
+          </p>
+        ) : null}
+
+        {actionMode ? (
+          <section className="mt-6 rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
+            <div className="space-y-2">
+              <h3 className="text-xl font-semibold tracking-tight text-slate-950">
+                {actionMode === "paid"
+                  ? "Mark invoice as paid"
+                  : actionMode === "void"
+                    ? "Void invoice"
+                    : "Mark invoice as overdue"}
+              </h3>
+              <p className="text-sm leading-6 text-slate-600">
+                {actionMode === "paid"
+                  ? "This will mark the invoice as paid and set the paid amount to the full due amount."
+                  : actionMode === "void"
+                    ? "This will void the invoice and clear any paid timestamp."
+                    : "This will move the invoice to overdue if the backend considers it past due."}
+              </p>
+            </div>
+
+            <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+              <button
+                className="rounded-xl bg-slate-950 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={isSubmittingAction}
+                onClick={handleInvoiceAction}
+                type="button"
+              >
+                {isSubmittingAction ? "Saving..." : "Confirm"}
+              </button>
+
+              <button
+                className="rounded-xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={isSubmittingAction}
+                onClick={() => setActionMode(null)}
+                type="button"
+              >
+                Cancel
+              </button>
+            </div>
+          </section>
+        ) : showActions ? (
+          <section className="mt-6 rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
+            <div className="space-y-2">
+              <h3 className="text-xl font-semibold tracking-tight text-slate-950">
+                Invoice actions
+              </h3>
+              <p className="text-sm leading-6 text-slate-600">
+                Apply one of the supported backend status actions for this invoice.
+              </p>
+            </div>
+
+            <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+              {canMarkPaid ? (
+                <button
+                  className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
+                  disabled={isSubmittingAction}
+                  onClick={() => setActionMode("paid")}
+                  type="button"
+                >
+                  Mark paid
+                </button>
+              ) : null}
+
+              {canVoid ? (
+                <button
+                  className="rounded-xl border border-slate-200 bg-slate-100 px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-60"
+                  disabled={isSubmittingAction}
+                  onClick={() => setActionMode("void")}
+                  type="button"
+                >
+                  Void
+                </button>
+              ) : null}
+
+              {canMarkOverdue ? (
+                <button
+                  className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+                  disabled={isSubmittingAction}
+                  onClick={() => setActionMode("overdue")}
+                  type="button"
+                >
+                  Mark overdue
+                </button>
+              ) : null}
+            </div>
+          </section>
+        ) : null}
       </section>
     </main>
   );
