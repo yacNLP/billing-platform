@@ -21,6 +21,26 @@ export const invoicesApi = baseApi
         }),
         providesTags: (_result, _error, id) => [{ type: "Invoices", id }],
       }),
+      createInvoice: build.mutation<
+        Invoice,
+        {
+          subscriptionId: number;
+          customerId: number;
+          amountDue: number;
+          currency?: string;
+          periodStart: string;
+          periodEnd: string;
+          issuedAt?: string;
+          dueAt: string;
+        }
+      >({
+        query: (body) => ({
+          url: "/invoices",
+          method: "POST",
+          body,
+        }),
+        invalidatesTags: [{ type: "Invoices", id: "LIST" }],
+      }),
       markInvoicePaid: build.mutation<Invoice, number>({
         query: (id) => ({
           url: `/invoices/${id}/paid`,
@@ -55,6 +75,7 @@ export const invoicesApi = baseApi
   });
 
 export const {
+  useCreateInvoiceMutation,
   useGetInvoiceByIdQuery,
   useGetInvoicesQuery,
   useMarkInvoiceOverdueMutation,
