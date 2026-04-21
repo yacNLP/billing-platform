@@ -1,5 +1,11 @@
-import { AdminPagePlaceholder } from "@/components/placeholders/admin-page-placeholder";
+import { CreatePaymentForm } from "@/features/payments/components/create-payment-form";
+import { PaymentsList } from "@/features/payments/components/payments-list";
 
 export default function PaymentsPage() {
-  return <AdminPagePlaceholder title="Payments" />;
+  return (
+    <>
+      <CreatePaymentForm />
+      <PaymentsList />
+    </>
+  );
 }
