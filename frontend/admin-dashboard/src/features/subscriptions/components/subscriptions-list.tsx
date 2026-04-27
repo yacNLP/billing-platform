@@ -8,6 +8,9 @@ import {
   useSearchParams,
 } from "next/navigation";
 
+import { PageHeader } from "@/components/admin/page-header";
+import { PaginationControls } from "@/components/admin/pagination-controls";
+import { StatePanel } from "@/components/admin/state-panel";
 import { useGetCustomersQuery } from "@/features/customers/customers-api";
 import { useGetPlansQuery } from "@/features/plans/plans-api";
 import type {
@@ -161,37 +164,43 @@ export function SubscriptionsList() {
   }
 
   if (isLoading) {
-    return <StatePanel title="Subscriptions" message="Loading subscriptions..." />;
+    return (
+      <StatePanel
+        eyebrow="Subscriptions"
+        title="Subscriptions"
+        message="Loading subscriptions..."
+      />
+    );
   }
 
   if (error) {
     return (
-      <StatePanel title="Subscriptions" message="Unable to load subscriptions." />
+      <StatePanel
+        eyebrow="Subscriptions"
+        title="Subscriptions"
+        message="Unable to load subscriptions."
+      />
     );
   }
 
   if (!data || data.data.length === 0) {
-    return <StatePanel title="Subscriptions" message="No subscriptions found." />;
+    return (
+      <StatePanel
+        eyebrow="Subscriptions"
+        title="Subscriptions"
+        message="No subscriptions found."
+      />
+    );
   }
-
-  const hasPreviousPage = data.page > 1;
-  const hasNextPage = data.page < data.totalPages;
 
   return (
     <main className="px-6 py-16">
       <section className="mx-auto w-full max-w-5xl rounded-[2rem] border border-[var(--color-border)] bg-white/90 p-8 shadow-[0_24px_80px_rgba(15,23,42,0.08)] backdrop-blur">
-        <div className="space-y-3">
-          <p className="text-sm font-medium uppercase tracking-[0.24em] text-[var(--color-accent)]">
-            Subscriptions
-          </p>
-          <h2 className="text-4xl font-semibold tracking-tight text-slate-950">
-            Listing
-          </h2>
-          <p className="max-w-3xl text-base leading-7 text-slate-600">
-            Paginated subscriptions listing with backend-aligned status filters
-            and URL state.
-          </p>
-        </div>
+        <PageHeader
+          eyebrow="Subscriptions"
+          title="Listing"
+          description="Paginated subscriptions listing with backend-aligned status filters and URL state."
+        />
 
         {isFetching ? (
           <p className="mt-6 text-sm text-slate-500">
@@ -418,53 +427,12 @@ export function SubscriptionsList() {
           })}
         </ul>
 
-        <div className="mt-8 flex flex-col gap-3 border-t border-[var(--color-border)] pt-6 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm text-slate-500">
-            Showing page {data.page} with {data.data.length} result
-            {data.data.length > 1 ? "s" : ""}.
-          </p>
-          <div className="flex items-center gap-3">
-            <button
-              className="rounded-xl border border-[var(--color-border)] bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-              disabled={!hasPreviousPage}
-              onClick={() => handlePageChange(data.page - 1)}
-              type="button"
-            >
-              Previous
-            </button>
-            <button
-              className="rounded-xl border border-[var(--color-border)] bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-              disabled={!hasNextPage}
-              onClick={() => handlePageChange(data.page + 1)}
-              type="button"
-            >
-              Next
-            </button>
-          </div>
-        </div>
-      </section>
-    </main>
-  );
-}
-
-type StatePanelProps = {
-  title: string;
-  message: string;
-};
-
-function StatePanel({ title, message }: StatePanelProps) {
-  return (
-    <main className="px-6 py-16">
-      <section className="mx-auto w-full max-w-5xl rounded-[2rem] border border-[var(--color-border)] bg-white/90 p-8 shadow-[0_24px_80px_rgba(15,23,42,0.08)] backdrop-blur">
-        <div className="space-y-3">
-          <p className="text-sm font-medium uppercase tracking-[0.24em] text-[var(--color-accent)]">
-            Subscriptions
-          </p>
-          <h2 className="text-4xl font-semibold tracking-tight text-slate-950">
-            {title}
-          </h2>
-          <p className="text-base leading-7 text-slate-600">{message}</p>
-        </div>
+        <PaginationControls
+          currentPage={data.page}
+          totalPages={data.totalPages}
+          displayedResults={data.data.length}
+          onPageChange={handlePageChange}
+        />
       </section>
     </main>
   );

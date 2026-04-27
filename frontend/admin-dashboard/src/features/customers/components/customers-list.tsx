@@ -8,6 +8,9 @@ import {
   useSearchParams,
 } from "next/navigation";
 
+import { PageHeader } from "@/components/admin/page-header";
+import { PaginationControls } from "@/components/admin/pagination-controls";
+import { StatePanel } from "@/components/admin/state-panel";
 import { useGetCustomersQuery } from "@/features/customers/customers-api";
 import type { CustomersQueryParams } from "@/features/customers/types";
 
@@ -120,31 +123,35 @@ export function CustomersList() {
   }
 
   if (isLoading) {
-    return <StatePanel title="Customers" message="Loading customers..." />;
+    return (
+      <StatePanel
+        eyebrow="Customers"
+        title="Customers"
+        message="Loading customers..."
+      />
+    );
   }
 
   if (error) {
-    return <StatePanel title="Customers" message="Unable to load customers." />;
+    return (
+      <StatePanel
+        eyebrow="Customers"
+        title="Customers"
+        message="Unable to load customers."
+      />
+    );
   }
 
   const customers = data?.data || [];
-  const hasPreviousPage = data ? data.page > 1 : false;
-  const hasNextPage = data ? data.page < data.totalPages : false;
 
   return (
     <main className="px-6 py-16">
       <section className="mx-auto w-full max-w-5xl rounded-[2rem] border border-[var(--color-border)] bg-white/90 p-8 shadow-[0_24px_80px_rgba(15,23,42,0.08)] backdrop-blur">
-        <div className="space-y-3">
-          <p className="text-sm font-medium uppercase tracking-[0.24em] text-[var(--color-accent)]">
-            Customers
-          </p>
-          <h2 className="text-4xl font-semibold tracking-tight text-slate-950">
-            Listing
-          </h2>
-          <p className="max-w-3xl text-base leading-7 text-slate-600">
-            Paginated customer listing with URL-driven search and sorting.
-          </p>
-        </div>
+        <PageHeader
+          eyebrow="Customers"
+          title="Listing"
+          description="Paginated customer listing with URL-driven search and sorting."
+        />
 
         {isFetching ? (
           <p className="mt-6 text-sm text-slate-500">Refreshing customers...</p>
@@ -288,53 +295,12 @@ export function CustomersList() {
           ))}
         </ul>
 
-        <div className="mt-8 flex flex-col gap-3 border-t border-[var(--color-border)] pt-6 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm text-slate-500">
-            Showing page {data?.page ?? 1} with {customers.length} result
-            {customers.length > 1 ? "s" : ""}.
-          </p>
-          <div className="flex items-center gap-3">
-            <button
-              className="rounded-xl border border-[var(--color-border)] bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-              disabled={!hasPreviousPage}
-              onClick={() => handlePageChange((data?.page ?? 1) - 1)}
-              type="button"
-            >
-              Previous
-            </button>
-            <button
-              className="rounded-xl border border-[var(--color-border)] bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-              disabled={!hasNextPage}
-              onClick={() => handlePageChange((data?.page ?? 1) + 1)}
-              type="button"
-            >
-              Next
-            </button>
-          </div>
-        </div>
-      </section>
-    </main>
-  );
-}
-
-type StatePanelProps = {
-  title: string;
-  message: string;
-};
-
-function StatePanel({ title, message }: StatePanelProps) {
-  return (
-    <main className="px-6 py-16">
-      <section className="mx-auto w-full max-w-5xl rounded-[2rem] border border-[var(--color-border)] bg-white/90 p-8 shadow-[0_24px_80px_rgba(15,23,42,0.08)] backdrop-blur">
-        <div className="space-y-3">
-          <p className="text-sm font-medium uppercase tracking-[0.24em] text-[var(--color-accent)]">
-            Customers
-          </p>
-          <h2 className="text-4xl font-semibold tracking-tight text-slate-950">
-            {title}
-          </h2>
-          <p className="text-base leading-7 text-slate-600">{message}</p>
-        </div>
+        <PaginationControls
+          currentPage={data?.page ?? 1}
+          totalPages={data?.totalPages ?? 1}
+          displayedResults={customers.length}
+          onPageChange={handlePageChange}
+        />
       </section>
     </main>
   );
