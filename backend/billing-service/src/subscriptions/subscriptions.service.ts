@@ -162,12 +162,14 @@ export class SubscriptionsService {
     const skip = (page - 1) * pageSize;
 
     this.logger.debug(
-      `list subscriptions tenantId=${tenantId} page=${page} pageSize=${pageSize} status=${query.status ?? ''}`,
+      `list subscriptions tenantId=${tenantId} page=${page} pageSize=${pageSize} status=${query.status ?? ''} customerId=${query.customerId ?? ''} planId=${query.planId ?? ''}`,
     );
 
     const where: Prisma.SubscriptionWhereInput = {
       tenantId,
       ...(query.status ? { status: query.status } : {}),
+      ...(query.customerId ? { customerId: query.customerId } : {}),
+      ...(query.planId ? { planId: query.planId } : {}),
     };
 
     const [total, data] = await this.prisma.$transaction([

@@ -50,11 +50,11 @@ export function CreateInvoiceForm() {
     data: subscriptions,
     isLoading: isLoadingSubscriptions,
     error: subscriptionsError,
-  } = useGetSubscriptionsQuery();
+  } = useGetSubscriptionsQuery({ page: 1, pageSize: 100 });
 
   const filteredSubscriptions = useMemo(() => {
     const parsedCustomerId = Number(customerId);
-    const activeSubscriptions = (subscriptions || []).filter(
+    const activeSubscriptions = (subscriptions?.data || []).filter(
       (subscription) => subscription.status === "ACTIVE",
     );
 

@@ -3,6 +3,7 @@ import { baseApi } from "@/store/api/base-api";
 import type {
   Subscription,
   SubscriptionsListResponse,
+  SubscriptionsQueryParams,
 } from "@/features/subscriptions/types";
 
 export const subscriptionsApi = baseApi
@@ -11,11 +12,14 @@ export const subscriptionsApi = baseApi
   })
   .injectEndpoints({
     endpoints: (build) => ({
-      getSubscriptions: build.query<Subscription[], void>({
-        query: () => ({
+      getSubscriptions: build.query<
+        SubscriptionsListResponse,
+        SubscriptionsQueryParams | void
+      >({
+        query: (params) => ({
           url: "/subscriptions",
+          ...(params ? { params } : {}),
         }),
-        transformResponse: (response: SubscriptionsListResponse) => response.data,
         providesTags: [{ type: "Subscriptions", id: "LIST" }],
       }),
       getSubscriptionById: build.query<Subscription, number>({

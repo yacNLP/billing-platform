@@ -6,6 +6,14 @@ export type SubscriptionStatus =
   | "EXPIRED"
   | "PAST_DUE";
 
+export type SubscriptionsQueryParams = {
+  status?: SubscriptionStatus;
+  customerId?: number;
+  planId?: number;
+  page?: number;
+  pageSize?: number;
+};
+
 export type Subscription = {
   id: number;
   tenantId: number;

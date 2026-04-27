@@ -11,6 +11,18 @@ export class SubscriptionsQueryDto {
   @Type((): NumberConstructor => Number)
   @IsInt()
   @Min(1)
+  customerId?: number;
+
+  @IsOptional()
+  @Type((): NumberConstructor => Number)
+  @IsInt()
+  @Min(1)
+  planId?: number;
+
+  @IsOptional()
+  @Type((): NumberConstructor => Number)
+  @IsInt()
+  @Min(1)
   page?: number = 1;
 
   @IsOptional()

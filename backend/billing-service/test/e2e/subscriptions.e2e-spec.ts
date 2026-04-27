@@ -404,6 +404,101 @@ describe('Subscriptions e2e', () => {
       ).toBe(false);
     });
 
+    it('lists subscriptions with status, customerId, planId, page, and pageSize filters', async () => {
+      const activeCustomer = await createTestCustomer(adminClient);
+      const canceledCustomer = await createTestCustomer(adminClient);
+      const activeProduct = await createTestProduct(adminClient, 'active_sub');
+      const canceledProduct = await createTestProduct(
+        adminClient,
+        'canceled_sub',
+      );
+      const activePlan = await createTestPlan(adminClient, activeProduct.id);
+      const canceledPlan = await createTestPlan(
+        adminClient,
+        canceledProduct.id,
+      );
+      const activeSubscription = await createTestSubscription(
+        adminClient,
+        activeCustomer.id,
+        activePlan.id,
+      );
+      const canceledSubscription = await createTestSubscription(
+        adminClient,
+        canceledCustomer.id,
+        canceledPlan.id,
+      );
+
+      await adminClient
+        .patch(`/subscriptions/${canceledSubscription.id}/cancel`, {
+          cancelAtPeriodEnd: false,
+        })
+        .expect(200);
+
+      const filteredByStatus = await adminClient
+        .get('/subscriptions')
+        .query({ status: 'CANCELED' })
+        .expect(200);
+
+      const statusPayload = filteredByStatus.body as PaginatedSubscriptions;
+      expect(
+        statusPayload.data.every((item) => item.status === 'CANCELED'),
+      ).toBe(true);
+      expect(
+        statusPayload.data.some((item) => item.id === canceledSubscription.id),
+      ).toBe(true);
+      expect(
+        statusPayload.data.some((item) => item.id === activeSubscription.id),
+      ).toBe(false);
+
+      const filteredByCustomer = await adminClient
+        .get('/subscriptions')
+        .query({ customerId: activeCustomer.id })
+        .expect(200);
+
+      const customerPayload = filteredByCustomer.body as PaginatedSubscriptions;
+      expect(
+        customerPayload.data.every(
+          (item) => item.customerId === activeCustomer.id,
+        ),
+      ).toBe(true);
+      expect(
+        customerPayload.data.some((item) => item.id === activeSubscription.id),
+      ).toBe(true);
+      expect(
+        customerPayload.data.some(
+          (item) => item.id === canceledSubscription.id,
+        ),
+      ).toBe(false);
+
+      const filteredByPlan = await adminClient
+        .get('/subscriptions')
+        .query({ planId: canceledPlan.id })
+        .expect(200);
+
+      const planPayload = filteredByPlan.body as PaginatedSubscriptions;
+      expect(
+        planPayload.data.every((item) => item.planId === canceledPlan.id),
+      ).toBe(true);
+      expect(
+        planPayload.data.some((item) => item.id === canceledSubscription.id),
+      ).toBe(true);
+      expect(
+        planPayload.data.some((item) => item.id === activeSubscription.id),
+      ).toBe(false);
+
+      const paginated = await adminClient
+        .get('/subscriptions')
+        .query({ page: 1, pageSize: 1 })
+        .expect(200);
+
+      const paginatedPayload = paginated.body as PaginatedSubscriptions;
+      expect(paginatedPayload.page).toBe(1);
+      expect(paginatedPayload.pageSize).toBe(1);
+      expect(paginatedPayload.data).toHaveLength(1);
+      expect(paginatedPayload.total).toBeGreaterThanOrEqual(2);
+      expect(paginatedPayload.totalPages).toBeGreaterThanOrEqual(2);
+    });
+
     it('gets one subscription by id for the same tenant', async () => {
       const customer = await createTestCustomer(adminClient);
       const product = await createTestProduct(adminClient);
