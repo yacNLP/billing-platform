@@ -86,6 +86,25 @@ export class InvoicesService {
       );
     }
 
+    const overlappingInvoice = await this.prisma.invoice.findFirst({
+      where: {
+        tenantId,
+        subscriptionId: subscription.id,
+        periodStart: {
+          lt: periodEnd,
+        },
+        periodEnd: {
+          gt: periodStart,
+        },
+      },
+    });
+
+    if (overlappingInvoice) {
+      throw new ConflictException(
+        'Invoice period overlaps an existing invoice for this subscription',
+      );
+    }
+
     for (let attempt = 0; attempt < 3; attempt++) {
       const invoiceNumber = await this.generateInvoiceNumber(tenantId, attempt);
 
@@ -115,6 +134,19 @@ export class InvoicesService {
       } catch (e: unknown) {
         if (e instanceof Prisma.PrismaClientKnownRequestError) {
           if (e.code === 'P2002') {
+            const target = Array.isArray(e.meta?.target) ? e.meta.target : [];
+
+            if (
+              target.includes('tenantId') &&
+              target.includes('subscriptionId') &&
+              target.includes('periodStart') &&
+              target.includes('periodEnd')
+            ) {
+              throw new ConflictException(
+                'Invoice already exists for this subscription period',
+              );
+            }
+
             this.logger.warn(
               `duplicate invoiceNumber=${invoiceNumber} tenantId=${tenantId}`,
             );

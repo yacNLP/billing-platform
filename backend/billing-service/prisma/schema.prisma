@@ -180,6 +180,7 @@ model Invoice {
   payments       Payment[]
 
   @@unique([tenantId, invoiceNumber])
+  @@unique([tenantId, subscriptionId, periodStart, periodEnd])
   @@index([tenantId])
   @@index([subscriptionId])
   @@index([customerId])

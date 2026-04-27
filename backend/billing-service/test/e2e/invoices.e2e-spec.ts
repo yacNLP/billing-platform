@@ -236,6 +236,67 @@ describe('Invoices e2e', () => {
     expect(invoice.invoiceNumber).toContain(`INV-${invoice.tenantId}-`);
   });
 
+  it('POST /invoices should reject duplicate subscription period invoices', async () => {
+    const customer = await createTestCustomer(adminClient);
+    const product = await createTestProduct(adminClient);
+    const plan = await createTestPlan(adminClient, product.id);
+    const subscription = await createTestSubscription(
+      adminClient,
+      customer.id,
+      plan.id,
+    );
+
+    const invoice = await createTestInvoice(
+      adminClient,
+      customer.id,
+      subscription.id,
+    );
+
+    await adminClient
+      .post('/invoices', {
+        customerId: customer.id,
+        subscriptionId: subscription.id,
+        amountDue: 4900,
+        currency: 'EUR',
+        periodStart: invoice.periodStart,
+        periodEnd: invoice.periodEnd,
+        issuedAt: invoice.issuedAt,
+        dueAt: invoice.dueAt,
+      })
+      .expect(409);
+  });
+
+  it('POST /invoices should reject overlapping subscription period invoices', async () => {
+    const customer = await createTestCustomer(adminClient);
+    const product = await createTestProduct(adminClient);
+    const plan = await createTestPlan(adminClient, product.id);
+    const subscription = await createTestSubscription(
+      adminClient,
+      customer.id,
+      plan.id,
+    );
+
+    await createTestInvoice(adminClient, customer.id, subscription.id, {
+      periodStart: new Date('2026-01-01T00:00:00.000Z').toISOString(),
+      periodEnd: new Date('2026-02-01T00:00:00.000Z').toISOString(),
+      issuedAt: new Date('2026-01-01T00:00:00.000Z').toISOString(),
+      dueAt: new Date('2026-01-10T00:00:00.000Z').toISOString(),
+    });
+
+    await adminClient
+      .post('/invoices', {
+        customerId: customer.id,
+        subscriptionId: subscription.id,
+        amountDue: 4999,
+        currency: 'EUR',
+        periodStart: new Date('2026-01-15T00:00:00.000Z').toISOString(),
+        periodEnd: new Date('2026-02-15T00:00:00.000Z').toISOString(),
+        issuedAt: new Date('2026-01-15T00:00:00.000Z').toISOString(),
+        dueAt: new Date('2026-01-24T00:00:00.000Z').toISOString(),
+      })
+      .expect(409);
+  });
+
   it('GET /invoices should return paginated invoices', async () => {
     const customer = await createTestCustomer(adminClient);
     const product = await createTestProduct(adminClient);
@@ -582,6 +643,8 @@ describe('Invoices e2e', () => {
       customer.id,
       subscription.id,
       {
+        periodStart: new Date('2026-02-01T00:00:00.000Z').toISOString(),
+        periodEnd: new Date('2026-03-01T00:00:00.000Z').toISOString(),
         issuedAt: isoDaysFromNow(-1),
         dueAt: isoDaysFromNow(5),
       },
@@ -590,16 +653,28 @@ describe('Invoices e2e', () => {
       adminClient,
       customer.id,
       subscription.id,
+      {
+        periodStart: new Date('2026-03-01T00:00:00.000Z').toISOString(),
+        periodEnd: new Date('2026-04-01T00:00:00.000Z').toISOString(),
+      },
     );
     const voidInvoice = await createTestInvoice(
       adminClient,
       customer.id,
       subscription.id,
+      {
+        periodStart: new Date('2025-04-01T00:00:00.000Z').toISOString(),
+        periodEnd: new Date('2025-05-01T00:00:00.000Z').toISOString(),
+      },
     );
     const alreadyOverdue = await createTestInvoice(
       adminClient,
       customer.id,
       subscription.id,
+      {
+        periodStart: new Date('2025-05-01T00:00:00.000Z').toISOString(),
+        periodEnd: new Date('2025-06-01T00:00:00.000Z').toISOString(),
+      },
     );
 
     await adminClient.patch(`/invoices/${paidInvoice.id}/paid`).expect(200);
