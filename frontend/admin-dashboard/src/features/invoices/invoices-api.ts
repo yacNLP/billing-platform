@@ -1,6 +1,10 @@
 import { baseApi } from "@/store/api/base-api";
 
-import type { Invoice, InvoicesListResponse } from "@/features/invoices/types";
+import type {
+  Invoice,
+  InvoicesListResponse,
+  InvoicesQueryParams,
+} from "@/features/invoices/types";
 
 export const invoicesApi = baseApi
   .enhanceEndpoints({
@@ -8,11 +12,11 @@ export const invoicesApi = baseApi
   })
   .injectEndpoints({
     endpoints: (build) => ({
-      getInvoices: build.query<Invoice[], void>({
-        query: () => ({
+      getInvoices: build.query<InvoicesListResponse, InvoicesQueryParams | void>({
+        query: (params) => ({
           url: "/invoices",
+          ...(params ? { params } : {}),
         }),
-        transformResponse: (response: InvoicesListResponse) => response.data,
         providesTags: [{ type: "Invoices", id: "LIST" }],
       }),
       getInvoiceById: build.query<Invoice, number>({

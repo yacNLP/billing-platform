@@ -1,8 +1,17 @@
 "use client";
 
 import Link from "next/link";
+import { FormEvent } from "react";
+import {
+  usePathname,
+  useRouter,
+  useSearchParams,
+} from "next/navigation";
 
-import type { InvoiceStatus } from "@/features/invoices/types";
+import type {
+  InvoiceStatus,
+  InvoicesQueryParams,
+} from "@/features/invoices/types";
 import { useGetInvoicesQuery } from "@/features/invoices/invoices-api";
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", {
@@ -26,8 +35,109 @@ function formatMoney(cents: number, currency: string): string {
   return `${(cents / 100).toFixed(2)} ${currency}`;
 }
 
+const pageSizeOptions = [10, 20, 50];
+
+function parsePositiveInteger(value: string | null): number | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  const parsed = Number(value);
+
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    return undefined;
+  }
+
+  return parsed;
+}
+
+function getQueryParams(searchParams: URLSearchParams): InvoicesQueryParams {
+  const page = parsePositiveInteger(searchParams.get("page")) ?? 1;
+  const pageSize = parsePositiveInteger(searchParams.get("pageSize")) ?? 20;
+  const status = searchParams.get("status");
+
+  return {
+    page,
+    pageSize,
+    status:
+      status === "ISSUED" ||
+      status === "PAID" ||
+      status === "VOID" ||
+      status === "OVERDUE"
+        ? status
+        : undefined,
+    customerId: parsePositiveInteger(searchParams.get("customerId")),
+    subscriptionId: parsePositiveInteger(searchParams.get("subscriptionId")),
+  };
+}
+
 export function InvoicesList() {
-  const { data, error, isLoading, isFetching } = useGetInvoicesQuery();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  const queryParams = getQueryParams(searchParams);
+  const { data, error, isLoading, isFetching } = useGetInvoicesQuery(queryParams);
+
+  function replaceSearchParams(nextParams: URLSearchParams) {
+    const queryString = nextParams.toString();
+    router.replace(queryString ? `${pathname}?${queryString}` : pathname, {
+      scroll: false,
+    });
+  }
+
+  function handleFiltersSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const nextParams = new URLSearchParams(searchParams.toString());
+    const formData = new FormData(event.currentTarget);
+    const normalizedStatus = String(formData.get("status") ?? "").trim();
+    const normalizedCustomerId = String(formData.get("customerId") ?? "").trim();
+    const normalizedSubscriptionId = String(
+      formData.get("subscriptionId") ?? "",
+    ).trim();
+    const normalizedPageSize = String(formData.get("pageSize") ?? "").trim();
+
+    if (normalizedStatus) {
+      nextParams.set("status", normalizedStatus);
+    } else {
+      nextParams.delete("status");
+    }
+
+    if (normalizedCustomerId) {
+      nextParams.set("customerId", normalizedCustomerId);
+    } else {
+      nextParams.delete("customerId");
+    }
+
+    if (normalizedSubscriptionId) {
+      nextParams.set("subscriptionId", normalizedSubscriptionId);
+    } else {
+      nextParams.delete("subscriptionId");
+    }
+
+    if (normalizedPageSize) {
+      nextParams.set("pageSize", normalizedPageSize);
+    } else {
+      nextParams.delete("pageSize");
+    }
+
+    nextParams.set("page", "1");
+    replaceSearchParams(nextParams);
+  }
+
+  function handleResetFilters() {
+    const nextParams = new URLSearchParams();
+    nextParams.set("page", "1");
+    nextParams.set("pageSize", "20");
+    replaceSearchParams(nextParams);
+  }
+
+  function handlePageChange(nextPage: number) {
+    const nextParams = new URLSearchParams(searchParams.toString());
+    nextParams.set("page", String(nextPage));
+    replaceSearchParams(nextParams);
+  }
 
   if (isLoading) {
     return <StatePanel title="Invoices" message="Loading invoices..." />;
@@ -37,9 +147,12 @@ export function InvoicesList() {
     return <StatePanel title="Invoices" message="Unable to load invoices." />;
   }
 
-  if (!data || data.length === 0) {
+  if (!data || data.data.length === 0) {
     return <StatePanel title="Invoices" message="No invoices found." />;
   }
+
+  const hasPreviousPage = data.page > 1;
+  const hasNextPage = data.page < data.totalPages;
 
   return (
     <main className="px-6 py-16">
@@ -52,8 +165,8 @@ export function InvoicesList() {
             Listing
           </h2>
           <p className="max-w-3xl text-base leading-7 text-slate-600">
-            Read-only invoices listing wired to the protected billing invoices
-            endpoint.
+            Paginated invoices listing with backend-aligned filters and URL
+            state.
           </p>
         </div>
 
@@ -61,8 +174,110 @@ export function InvoicesList() {
           <p className="mt-6 text-sm text-slate-500">Refreshing invoices...</p>
         ) : null}
 
+        <form
+          key={searchParams.toString()}
+          className="mt-8 grid gap-4 rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] p-5 md:grid-cols-2 xl:grid-cols-4"
+          onSubmit={handleFiltersSubmit}
+        >
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-slate-700" htmlFor="invoice-status">
+              Status
+            </label>
+            <select
+              className="w-full rounded-xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm text-slate-950 outline-none transition focus:border-slate-400"
+              defaultValue={queryParams.status ?? ""}
+              id="invoice-status"
+              name="status"
+            >
+              <option value="">All statuses</option>
+              <option value="ISSUED">ISSUED</option>
+              <option value="PAID">PAID</option>
+              <option value="VOID">VOID</option>
+              <option value="OVERDUE">OVERDUE</option>
+            </select>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-slate-700" htmlFor="invoice-customer-id">
+              Customer ID
+            </label>
+            <input
+              className="w-full rounded-xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm text-slate-950 outline-none transition focus:border-slate-400"
+              defaultValue={
+                queryParams.customerId ? String(queryParams.customerId) : ""
+              }
+              id="invoice-customer-id"
+              inputMode="numeric"
+              min="1"
+              name="customerId"
+              placeholder="e.g. 12"
+              type="number"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label
+              className="text-sm font-medium text-slate-700"
+              htmlFor="invoice-subscription-id"
+            >
+              Subscription ID
+            </label>
+            <input
+              className="w-full rounded-xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm text-slate-950 outline-none transition focus:border-slate-400"
+              defaultValue={
+                queryParams.subscriptionId
+                  ? String(queryParams.subscriptionId)
+                  : ""
+              }
+              id="invoice-subscription-id"
+              inputMode="numeric"
+              min="1"
+              name="subscriptionId"
+              placeholder="e.g. 24"
+              type="number"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-slate-700" htmlFor="invoice-page-size">
+              Page size
+            </label>
+            <select
+              className="w-full rounded-xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm text-slate-950 outline-none transition focus:border-slate-400"
+              defaultValue={String(queryParams.pageSize ?? 20)}
+              id="invoice-page-size"
+              name="pageSize"
+            >
+              {pageSizeOptions.map((option) => (
+                <option key={option} value={option}>
+                  {option} / page
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3 md:col-span-2 xl:col-span-4">
+            <button
+              className="rounded-xl bg-slate-950 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800"
+              type="submit"
+            >
+              Apply filters
+            </button>
+            <button
+              className="rounded-xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+              onClick={handleResetFilters}
+              type="button"
+            >
+              Reset
+            </button>
+            <p className="text-sm text-slate-500">
+              {data.total} invoices found. Page {data.page} of {data.totalPages || 1}.
+            </p>
+          </div>
+        </form>
+
         <ul className="mt-8 space-y-4">
-          {data.map((invoice) => (
+          {data.data.map((invoice) => (
             <li
               className="rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4"
               key={invoice.id}
@@ -139,6 +354,31 @@ export function InvoicesList() {
             </li>
           ))}
         </ul>
+
+        <div className="mt-8 flex flex-col gap-3 border-t border-[var(--color-border)] pt-6 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-slate-500">
+            Showing page {data.page} with {data.data.length} result
+            {data.data.length > 1 ? "s" : ""}.
+          </p>
+          <div className="flex items-center gap-3">
+            <button
+              className="rounded-xl border border-[var(--color-border)] bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+              disabled={!hasPreviousPage}
+              onClick={() => handlePageChange(data.page - 1)}
+              type="button"
+            >
+              Previous
+            </button>
+            <button
+              className="rounded-xl border border-[var(--color-border)] bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+              disabled={!hasNextPage}
+              onClick={() => handlePageChange(data.page + 1)}
+              type="button"
+            >
+              Next
+            </button>
+          </div>
+        </div>
       </section>
     </main>
   );

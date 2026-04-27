@@ -169,6 +169,8 @@ export class InvoicesService {
     const where: Prisma.InvoiceWhereInput = {
       tenantId,
       ...(query.status ? { status: query.status } : {}),
+      ...(query.customerId ? { customerId: query.customerId } : {}),
+      ...(query.subscriptionId ? { subscriptionId: query.subscriptionId } : {}),
     };
 
     const [total, data] = await this.prisma.$transaction([

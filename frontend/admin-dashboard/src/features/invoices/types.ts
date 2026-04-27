@@ -1,5 +1,13 @@
 export type InvoiceStatus = "ISSUED" | "PAID" | "VOID" | "OVERDUE";
 
+export type InvoicesQueryParams = {
+  status?: InvoiceStatus;
+  customerId?: number;
+  subscriptionId?: number;
+  page?: number;
+  pageSize?: number;
+};
+
 export type Invoice = {
   id: number;
   tenantId: number;

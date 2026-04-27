@@ -263,6 +263,105 @@ describe('Invoices e2e', () => {
     expect(payload.data.some((item) => item.id === created.id)).toBe(true);
   });
 
+  it('GET /invoices should support status, customerId, subscriptionId, page, and pageSize filters', async () => {
+    const firstCustomer = await createTestCustomer(adminClient);
+    const secondCustomer = await createTestCustomer(adminClient);
+    const product = await createTestProduct(adminClient);
+    const plan = await createTestPlan(adminClient, product.id);
+    const firstSubscription = await createTestSubscription(
+      adminClient,
+      firstCustomer.id,
+      plan.id,
+    );
+    const secondSubscription = await createTestSubscription(
+      adminClient,
+      secondCustomer.id,
+      plan.id,
+    );
+
+    const firstInvoice = await createTestInvoice(
+      adminClient,
+      firstCustomer.id,
+      firstSubscription.id,
+    );
+    const secondInvoice = await createTestInvoice(
+      adminClient,
+      secondCustomer.id,
+      secondSubscription.id,
+    );
+
+    await adminClient.patch(`/invoices/${secondInvoice.id}/paid`).expect(200);
+
+    const filteredByStatus = await adminClient
+      .get('/invoices')
+      .query({ status: 'PAID' })
+      .expect(200);
+
+    const statusPayload = filteredByStatus.body as PaginatedInvoices;
+    expect(
+      statusPayload.data.every((invoice) => invoice.status === 'PAID'),
+    ).toBe(true);
+    expect(
+      statusPayload.data.some((invoice) => invoice.id === secondInvoice.id),
+    ).toBe(true);
+    expect(
+      statusPayload.data.some((invoice) => invoice.id === firstInvoice.id),
+    ).toBe(false);
+
+    const filteredByCustomer = await adminClient
+      .get('/invoices')
+      .query({ customerId: firstCustomer.id })
+      .expect(200);
+
+    const customerPayload = filteredByCustomer.body as PaginatedInvoices;
+    expect(
+      customerPayload.data.every(
+        (invoice) => invoice.customerId === firstCustomer.id,
+      ),
+    ).toBe(true);
+    expect(
+      customerPayload.data.some((invoice) => invoice.id === firstInvoice.id),
+    ).toBe(true);
+    expect(
+      customerPayload.data.some((invoice) => invoice.id === secondInvoice.id),
+    ).toBe(false);
+
+    const filteredBySubscription = await adminClient
+      .get('/invoices')
+      .query({ subscriptionId: secondSubscription.id })
+      .expect(200);
+
+    const subscriptionPayload =
+      filteredBySubscription.body as PaginatedInvoices;
+    expect(
+      subscriptionPayload.data.every(
+        (invoice) => invoice.subscriptionId === secondSubscription.id,
+      ),
+    ).toBe(true);
+    expect(
+      subscriptionPayload.data.some(
+        (invoice) => invoice.id === secondInvoice.id,
+      ),
+    ).toBe(true);
+    expect(
+      subscriptionPayload.data.some(
+        (invoice) => invoice.id === firstInvoice.id,
+      ),
+    ).toBe(false);
+
+    const paginated = await adminClient
+      .get('/invoices')
+      .query({ page: 1, pageSize: 1 })
+      .expect(200);
+
+    const paginatedPayload = paginated.body as PaginatedInvoices;
+    expect(paginatedPayload.page).toBe(1);
+    expect(paginatedPayload.pageSize).toBe(1);
+    expect(paginatedPayload.data).toHaveLength(1);
+    expect(paginatedPayload.total).toBeGreaterThanOrEqual(2);
+    expect(paginatedPayload.totalPages).toBeGreaterThanOrEqual(2);
+  });
+
   it('GET /invoices/:id should return one invoice', async () => {
     const customer = await createTestCustomer(adminClient);
     const product = await createTestProduct(adminClient);

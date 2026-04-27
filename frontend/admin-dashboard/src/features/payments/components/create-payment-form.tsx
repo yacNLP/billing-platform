@@ -48,7 +48,7 @@ export function CreatePaymentForm() {
     data: invoices,
     isLoading: isLoadingInvoices,
     error: invoicesError,
-  } = useGetInvoicesQuery();
+  } = useGetInvoicesQuery({ page: 1, pageSize: 100 });
   const { data: payments } = useGetPaymentsQuery();
 
   const payableInvoices = useMemo(() => {
@@ -58,7 +58,7 @@ export function CreatePaymentForm() {
         .map((payment) => payment.invoiceId),
     );
 
-    return (invoices || []).filter(
+    return (invoices?.data || []).filter(
       (invoice) =>
         (invoice.status === "ISSUED" || invoice.status === "OVERDUE") &&
         !usedInvoiceIds.has(invoice.id),
