@@ -16,12 +16,9 @@ import type {
   InvoicesQueryParams,
 } from "@/features/invoices/types";
 import { useGetInvoicesQuery } from "@/features/invoices/invoices-api";
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  year: "numeric",
-  month: "short",
-  day: "numeric",
-});
+import { formatDate, formatMoney } from "@/lib/formatters";
+import { pageSizeOptions } from "@/lib/pagination";
+import { parsePositiveInteger } from "@/lib/query-params";
 
 const statusClassNameMap: Record<InvoiceStatus, string> = {
   ISSUED:
@@ -33,26 +30,6 @@ const statusClassNameMap: Record<InvoiceStatus, string> = {
   OVERDUE:
     "inline-flex rounded-full border border-red-200 bg-red-50 px-3 py-1 text-sm font-medium text-red-700",
 };
-
-function formatMoney(cents: number, currency: string): string {
-  return `${(cents / 100).toFixed(2)} ${currency}`;
-}
-
-const pageSizeOptions = [10, 20, 50];
-
-function parsePositiveInteger(value: string | null): number | undefined {
-  if (!value) {
-    return undefined;
-  }
-
-  const parsed = Number(value);
-
-  if (!Number.isInteger(parsed) || parsed <= 0) {
-    return undefined;
-  }
-
-  return parsed;
-}
 
 function getQueryParams(searchParams: URLSearchParams): InvoicesQueryParams {
   const page = parsePositiveInteger(searchParams.get("page")) ?? 1;
@@ -330,35 +307,35 @@ export function InvoicesList() {
                 <dl className="grid gap-3 text-sm text-slate-600 sm:grid-cols-2 lg:min-w-[22rem]">
                   <div>
                     <dt className="font-medium text-slate-500">Period start</dt>
-                    <dd>{dateFormatter.format(new Date(invoice.periodStart))}</dd>
+                    <dd>{formatDate(invoice.periodStart)}</dd>
                   </div>
                   <div>
                     <dt className="font-medium text-slate-500">Period end</dt>
-                    <dd>{dateFormatter.format(new Date(invoice.periodEnd))}</dd>
+                    <dd>{formatDate(invoice.periodEnd)}</dd>
                   </div>
                   <div>
                     <dt className="font-medium text-slate-500">Issued</dt>
-                    <dd>{dateFormatter.format(new Date(invoice.issuedAt))}</dd>
+                    <dd>{formatDate(invoice.issuedAt)}</dd>
                   </div>
                   <div>
                     <dt className="font-medium text-slate-500">Due</dt>
-                    <dd>{dateFormatter.format(new Date(invoice.dueAt))}</dd>
+                    <dd>{formatDate(invoice.dueAt)}</dd>
                   </div>
                   {invoice.paidAt ? (
                     <div>
                       <dt className="font-medium text-slate-500">Paid at</dt>
-                      <dd>{dateFormatter.format(new Date(invoice.paidAt))}</dd>
+                      <dd>{formatDate(invoice.paidAt)}</dd>
                     </div>
                   ) : null}
                   {invoice.voidedAt ? (
                     <div>
                       <dt className="font-medium text-slate-500">Voided at</dt>
-                      <dd>{dateFormatter.format(new Date(invoice.voidedAt))}</dd>
+                      <dd>{formatDate(invoice.voidedAt)}</dd>
                     </div>
                   ) : null}
                   <div>
                     <dt className="font-medium text-slate-500">Created</dt>
-                    <dd>{dateFormatter.format(new Date(invoice.createdAt))}</dd>
+                    <dd>{formatDate(invoice.createdAt)}</dd>
                   </div>
                 </dl>
               </div>

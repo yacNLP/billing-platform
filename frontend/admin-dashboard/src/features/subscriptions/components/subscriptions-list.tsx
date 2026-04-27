@@ -19,12 +19,9 @@ import type {
   SubscriptionStatus,
 } from "@/features/subscriptions/types";
 import { useGetSubscriptionsQuery } from "@/features/subscriptions/subscriptions-api";
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  year: "numeric",
-  month: "short",
-  day: "numeric",
-});
+import { formatDate, formatMoney } from "@/lib/formatters";
+import { pageSizeOptions } from "@/lib/pagination";
+import { parsePositiveInteger } from "@/lib/query-params";
 
 const intervalLabelMap: Record<BillingInterval, string> = {
   DAY: "day",
@@ -44,10 +41,6 @@ const statusClassNameMap: Record<SubscriptionStatus, string> = {
     "inline-flex rounded-full border border-red-200 bg-red-50 px-3 py-1 text-sm font-medium text-red-700",
 };
 
-function formatMoney(cents: number, currency: string): string {
-  return `${(cents / 100).toFixed(2)} ${currency}`;
-}
-
 function formatInterval(interval: BillingInterval, count: number): string {
   const label = intervalLabelMap[interval];
 
@@ -56,22 +49,6 @@ function formatInterval(interval: BillingInterval, count: number): string {
   }
 
   return `Every ${count} ${label}s`;
-}
-
-const pageSizeOptions = [10, 20, 50];
-
-function parsePositiveInteger(value: string | null): number | undefined {
-  if (!value) {
-    return undefined;
-  }
-
-  const parsed = Number(value);
-
-  if (!Number.isInteger(parsed) || parsed <= 0) {
-    return undefined;
-  }
-
-  return parsed;
 }
 
 function getQueryParams(searchParams: URLSearchParams): SubscriptionsQueryParams {
@@ -390,34 +367,22 @@ export function SubscriptionsList() {
                     <dt className="font-medium text-slate-500">
                       Current period start
                     </dt>
-                    <dd>
-                      {dateFormatter.format(
-                        new Date(subscription.currentPeriodStart),
-                      )}
-                    </dd>
+                    <dd>{formatDate(subscription.currentPeriodStart)}</dd>
                   </div>
                   <div>
                     <dt className="font-medium text-slate-500">
                       Current period end
                     </dt>
-                    <dd>
-                      {dateFormatter.format(
-                        new Date(subscription.currentPeriodEnd),
-                      )}
-                    </dd>
+                    <dd>{formatDate(subscription.currentPeriodEnd)}</dd>
                   </div>
                   <div>
                     <dt className="font-medium text-slate-500">Created</dt>
-                    <dd>
-                      {dateFormatter.format(new Date(subscription.createdAt))}
-                    </dd>
+                    <dd>{formatDate(subscription.createdAt)}</dd>
                   </div>
                   {subscription.endedAt ? (
                     <div>
                       <dt className="font-medium text-slate-500">Ended</dt>
-                      <dd>
-                        {dateFormatter.format(new Date(subscription.endedAt))}
-                      </dd>
+                      <dd>{formatDate(subscription.endedAt)}</dd>
                     </div>
                   ) : null}
                 </dl>

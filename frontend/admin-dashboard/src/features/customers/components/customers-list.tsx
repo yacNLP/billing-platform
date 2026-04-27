@@ -13,28 +13,9 @@ import { PaginationControls } from "@/components/admin/pagination-controls";
 import { StatePanel } from "@/components/admin/state-panel";
 import { useGetCustomersQuery } from "@/features/customers/customers-api";
 import type { CustomersQueryParams } from "@/features/customers/types";
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  year: "numeric",
-  month: "short",
-  day: "numeric",
-});
-
-const pageSizeOptions = [10, 20, 50];
-
-function parsePositiveInteger(value: string | null): number | undefined {
-  if (!value) {
-    return undefined;
-  }
-
-  const parsed = Number(value);
-
-  if (!Number.isInteger(parsed) || parsed <= 0) {
-    return undefined;
-  }
-
-  return parsed;
-}
+import { formatDate } from "@/lib/formatters";
+import { pageSizeOptions } from "@/lib/pagination";
+import { parsePositiveInteger } from "@/lib/query-params";
 
 function getQueryParams(searchParams: URLSearchParams): CustomersQueryParams {
   const page = parsePositiveInteger(searchParams.get("page")) ?? 1;
@@ -288,7 +269,7 @@ export function CustomersList() {
 
                 {/* Keep the first version simple with a readable creation date only. */}
                 <p className="text-sm text-slate-500">
-                  Created {dateFormatter.format(new Date(customer.createdAt))}
+                  Created {formatDate(customer.createdAt)}
                 </p>
               </div>
             </li>

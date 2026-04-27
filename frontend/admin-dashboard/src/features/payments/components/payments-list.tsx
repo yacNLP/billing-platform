@@ -18,12 +18,9 @@ import type {
   PaymentsQueryParams,
   PaymentStatus,
 } from "@/features/payments/types";
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  year: "numeric",
-  month: "short",
-  day: "numeric",
-});
+import { formatDate, formatMoney } from "@/lib/formatters";
+import { pageSizeOptions } from "@/lib/pagination";
+import { parsePositiveInteger } from "@/lib/query-params";
 
 const statusClassNameMap: Record<PaymentStatus, string> = {
   SUCCESS:
@@ -31,26 +28,6 @@ const statusClassNameMap: Record<PaymentStatus, string> = {
   FAILED:
     "inline-flex rounded-full border border-red-200 bg-red-50 px-3 py-1 text-sm font-medium text-red-700",
 };
-
-const pageSizeOptions = [10, 20, 50];
-
-function formatMoney(cents: number, currency: string): string {
-  return `${(cents / 100).toFixed(2)} ${currency}`;
-}
-
-function parsePositiveInteger(value: string | null): number | undefined {
-  if (!value) {
-    return undefined;
-  }
-
-  const parsed = Number(value);
-
-  if (!Number.isInteger(parsed) || parsed <= 0) {
-    return undefined;
-  }
-
-  return parsed;
-}
 
 function getQueryParams(searchParams: URLSearchParams): PaymentsQueryParams {
   const page = parsePositiveInteger(searchParams.get("page")) ?? 1;
@@ -365,7 +342,7 @@ export function PaymentsList() {
                     {payment.paidAt ? (
                       <div>
                         <dt className="font-medium text-slate-500">Paid at</dt>
-                        <dd>{dateFormatter.format(new Date(payment.paidAt))}</dd>
+                        <dd>{formatDate(payment.paidAt)}</dd>
                       </div>
                     ) : null}
                     {payment.failureReason ? (
@@ -376,7 +353,7 @@ export function PaymentsList() {
                     ) : null}
                     <div>
                       <dt className="font-medium text-slate-500">Created</dt>
-                      <dd>{dateFormatter.format(new Date(payment.createdAt))}</dd>
+                      <dd>{formatDate(payment.createdAt)}</dd>
                     </div>
                   </dl>
                 </div>
