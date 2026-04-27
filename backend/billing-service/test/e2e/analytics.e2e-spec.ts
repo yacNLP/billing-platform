@@ -472,7 +472,10 @@ describe('Analytics e2e', () => {
       monthlySubscription.id,
       {
         amountDue: 900,
-        dueAt: futureDueAt,
+        periodStart: new Date('2026-06-01T00:00:00.000Z').toISOString(),
+        periodEnd: new Date('2026-07-01T00:00:00.000Z').toISOString(),
+        issuedAt: new Date('2026-06-01T00:00:00.000Z').toISOString(),
+        dueAt: new Date('2026-06-08T00:00:00.000Z').toISOString(),
       },
     );
     await createTestPayment(adminClient, failedInvoice, 'FAILED');

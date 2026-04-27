@@ -1,6 +1,11 @@
 import { baseApi } from "@/store/api/base-api";
 
-import type { Payment, PaymentStatus } from "@/features/payments/types";
+import type {
+  Payment,
+  PaymentsListResponse,
+  PaymentsQueryParams,
+  PaymentStatus,
+} from "@/features/payments/types";
 
 export const paymentsApi = baseApi
   .enhanceEndpoints({
@@ -8,9 +13,10 @@ export const paymentsApi = baseApi
   })
   .injectEndpoints({
     endpoints: (build) => ({
-      getPayments: build.query<Payment[], void>({
-        query: () => ({
+      getPayments: build.query<PaymentsListResponse, PaymentsQueryParams | void>({
+        query: (params) => ({
           url: "/payments",
+          ...(params ? { params } : {}),
         }),
         providesTags: [{ type: "Payments", id: "LIST" }],
       }),

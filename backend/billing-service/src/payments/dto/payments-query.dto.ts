@@ -17,11 +17,17 @@ export class PaymentsQueryDto {
   @Type((): NumberConstructor => Number)
   @IsInt()
   @IsPositive()
-  limit?: number;
+  customerId?: number;
 
   @IsOptional()
   @Type((): NumberConstructor => Number)
   @IsInt()
-  @Min(0)
-  offset?: number;
+  @Min(1)
+  page?: number = 1;
+
+  @IsOptional()
+  @Type((): NumberConstructor => Number)
+  @IsInt()
+  @Min(1)
+  pageSize?: number = 20;
 }

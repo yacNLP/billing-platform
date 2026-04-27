@@ -1,5 +1,13 @@
 export type PaymentStatus = "SUCCESS" | "FAILED";
 
+export type PaymentsQueryParams = {
+  status?: PaymentStatus;
+  invoiceId?: number;
+  customerId?: number;
+  page?: number;
+  pageSize?: number;
+};
+
 export type Payment = {
   id: number;
   tenantId: number;
@@ -13,4 +21,12 @@ export type Payment = {
   providerReference: string | null;
   createdAt: string;
   updatedAt: string;
+};
+
+export type PaymentsListResponse = {
+  data: Payment[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
 };

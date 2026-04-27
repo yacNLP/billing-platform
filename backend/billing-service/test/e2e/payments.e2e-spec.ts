@@ -75,6 +75,14 @@ interface PaymentResponse {
   updatedAt: string;
 }
 
+interface PaginatedPayments {
+  data: PaymentResponse[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
 interface PaymentFixture {
   customer: CustomerResponse;
   product: ProductResponse;
@@ -459,9 +467,14 @@ describe('Payments e2e', () => {
       );
 
       const res = await adminClient.get('/payments').expect(200);
-      const payments = res.body as PaymentResponse[];
+      const payload = res.body as PaginatedPayments;
+      const payments = payload.data;
 
       expect(Array.isArray(payments)).toBe(true);
+      expect(payload.page).toBeDefined();
+      expect(payload.pageSize).toBeDefined();
+      expect(payload.total).toBeDefined();
+      expect(payload.totalPages).toBeDefined();
       expect(payments.length).toBeGreaterThanOrEqual(2);
 
       const olderIndex = payments.findIndex(
@@ -504,7 +517,8 @@ describe('Payments e2e', () => {
       );
 
       const res = await adminClient.get('/payments?status=SUCCESS').expect(200);
-      const payments = res.body as PaymentResponse[];
+      const payload = res.body as PaginatedPayments;
+      const payments = payload.data;
 
       expect(payments.some((item) => item.id === successPayment.id)).toBe(true);
       expect(payments.some((item) => item.id === failedPayment.id)).toBe(false);
@@ -536,13 +550,62 @@ describe('Payments e2e', () => {
       const res = await adminClient
         .get(`/payments?invoiceId=${targetFixture.invoice.id}`)
         .expect(200);
-      const payments = res.body as PaymentResponse[];
+      const payload = res.body as PaginatedPayments;
+      const payments = payload.data;
 
       expect(payments.some((item) => item.id === targetPayment.id)).toBe(true);
       expect(payments.some((item) => item.id === otherPayment.id)).toBe(false);
       expect(
         payments.every((item) => item.invoiceId === targetFixture.invoice.id),
       ).toBe(true);
+    });
+
+    it('supports filtering by customerId and pagination', async () => {
+      const targetFixture = await createPaymentFixture(adminClient);
+      const otherFixture = await createPaymentFixture(adminClient);
+
+      const targetPayment = await createTestPayment(
+        adminClient,
+        targetFixture.invoice,
+        'FAILED',
+        {
+          providerReference: `payment_filter_customer_target_${uniqueSuffix()}`,
+        },
+      );
+
+      const otherPayment = await createTestPayment(
+        adminClient,
+        otherFixture.invoice,
+        'SUCCESS',
+        {
+          providerReference: `payment_filter_customer_other_${uniqueSuffix()}`,
+        },
+      );
+
+      const filteredByCustomer = await adminClient
+        .get('/payments')
+        .query({ customerId: targetFixture.customer.id })
+        .expect(200);
+
+      const customerPayload = filteredByCustomer.body as PaginatedPayments;
+      expect(
+        customerPayload.data.some((item) => item.id === targetPayment.id),
+      ).toBe(true);
+      expect(
+        customerPayload.data.some((item) => item.id === otherPayment.id),
+      ).toBe(false);
+
+      const paginated = await adminClient
+        .get('/payments')
+        .query({ page: 1, pageSize: 1 })
+        .expect(200);
+
+      const paginatedPayload = paginated.body as PaginatedPayments;
+      expect(paginatedPayload.page).toBe(1);
+      expect(paginatedPayload.pageSize).toBe(1);
+      expect(paginatedPayload.data).toHaveLength(1);
+      expect(paginatedPayload.total).toBeGreaterThanOrEqual(2);
+      expect(paginatedPayload.totalPages).toBeGreaterThanOrEqual(2);
     });
   });
 
@@ -583,7 +646,8 @@ describe('Payments e2e', () => {
         .expect(404);
 
       const res = await tenantBAdminClient.get('/payments').expect(200);
-      const payments = res.body as PaymentResponse[];
+      const payload = res.body as PaginatedPayments;
+      const payments = payload.data;
 
       expect(payments.some((item) => item.id === tenantAPayment.id)).toBe(
         false,

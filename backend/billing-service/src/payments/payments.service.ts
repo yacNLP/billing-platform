@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InvoiceStatus, Payment, PaymentStatus, Prisma } from '@prisma/client';
+import { Paginated } from '../common/dto/paginated.type';
 import { TenantContext } from '../common/tenant/tenant.context';
 import { PrismaService } from '../prisma.service';
 import { CreatePaymentDto } from './dto/create-payment.dto';
@@ -116,25 +117,48 @@ export class PaymentsService {
     return payment;
   }
 
-  async findAll(query: PaymentsQueryDto): Promise<Payment[]> {
+  async findAll(query: PaymentsQueryDto): Promise<Paginated<Payment>> {
     const tenantId = this.tenantContext.getTenantId();
+    const page = query.page ?? 1;
+    const pageSize = query.pageSize ?? 20;
+    const skip = (page - 1) * pageSize;
 
     this.logger.debug(
-      `list payments tenantId=${tenantId} status=${query.status ?? ''} invoiceId=${query.invoiceId ?? ''} limit=${query.limit ?? ''} offset=${query.offset ?? ''}`,
+      `list payments tenantId=${tenantId} status=${query.status ?? ''} invoiceId=${query.invoiceId ?? ''} customerId=${query.customerId ?? ''} page=${page} pageSize=${pageSize}`,
     );
 
     const where: Prisma.PaymentWhereInput = {
       tenantId,
       ...(query.status ? { status: query.status } : {}),
       ...(query.invoiceId ? { invoiceId: query.invoiceId } : {}),
+      ...(query.customerId
+        ? {
+            invoice: {
+              customerId: query.customerId,
+            },
+          }
+        : {}),
     };
 
-    return this.prisma.payment.findMany({
-      where,
-      orderBy: { createdAt: 'desc' },
-      ...(query.limit !== undefined ? { take: query.limit } : {}),
-      ...(query.offset !== undefined ? { skip: query.offset } : {}),
-    });
+    const [total, data] = await this.prisma.$transaction([
+      this.prisma.payment.count({ where }),
+      this.prisma.payment.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: pageSize,
+      }),
+    ]);
+
+    const totalPages = Math.ceil(total / pageSize);
+
+    return {
+      data,
+      total,
+      page,
+      pageSize,
+      totalPages,
+    };
   }
 
   async findOne(id: number): Promise<Payment> {

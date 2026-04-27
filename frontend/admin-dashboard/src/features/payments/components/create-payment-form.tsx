@@ -49,11 +49,11 @@ export function CreatePaymentForm() {
     isLoading: isLoadingInvoices,
     error: invoicesError,
   } = useGetInvoicesQuery({ page: 1, pageSize: 100 });
-  const { data: payments } = useGetPaymentsQuery();
+  const { data: payments } = useGetPaymentsQuery({ page: 1, pageSize: 100 });
 
   const payableInvoices = useMemo(() => {
     const usedInvoiceIds = new Set(
-      (payments || [])
+      (payments?.data || [])
         .filter((payment) => payment.status === "SUCCESS")
         .map((payment) => payment.invoiceId),
     );

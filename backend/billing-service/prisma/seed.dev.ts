@@ -1,7 +1,9 @@
 import bcrypt from 'bcrypt';
 import {
   BillingInterval,
+  Invoice,
   InvoiceStatus,
+  PaymentStatus,
   PrismaClient,
   Role,
   SubscriptionStatus,
@@ -317,6 +319,8 @@ async function main() {
   await syncSequence('Subscription');
   await syncSequence('Invoice');
 
+  const seededInvoices: Invoice[] = [];
+
   const subscriptionSeeds = [
     {
       customerId: customers[0].id,
@@ -392,7 +396,7 @@ async function main() {
       const dueAt = addDays(issuedAt, INITIAL_INVOICE_DUE_IN_DAYS);
       const invoiceNumber = await generateInvoiceNumber(tenant.id);
 
-      await prisma.invoice.create({
+      const invoice = await prisma.invoice.create({
         data: {
           tenantId: tenant.id,
           subscriptionId: subscription.id,
@@ -410,10 +414,105 @@ async function main() {
           voidedAt: null,
         },
       });
+
+      seededInvoices.push(invoice);
+    } else {
+      seededInvoices.push(existingInitialInvoice);
     }
   }
 
   console.log('Seeded subscriptions and initial invoices');
+
+  // 6. seed payments
+  await syncSequence('Payment');
+
+  const paymentSeeds = [
+    {
+      invoice: seededInvoices[0],
+      status: PaymentStatus.SUCCESS,
+      paidAt: new Date(Date.UTC(2026, 3, 21, 10, 30, 0)),
+      provider: 'stripe',
+      providerReference: `seed-success-invoice-${seededInvoices[0]?.id}`,
+    },
+    {
+      invoice: seededInvoices[1],
+      status: PaymentStatus.FAILED,
+      failureReason: 'Card declined',
+      provider: 'stripe',
+      providerReference: `seed-failed-invoice-${seededInvoices[1]?.id}`,
+    },
+  ];
+
+  for (const seed of paymentSeeds) {
+    if (!seed.invoice) {
+      continue;
+    }
+
+    const existingPayment = await prisma.payment.findFirst({
+      where: {
+        tenantId: tenant.id,
+        invoiceId: seed.invoice.id,
+        providerReference: seed.providerReference,
+      },
+    });
+
+    if (existingPayment) {
+      if (existingPayment.status === PaymentStatus.SUCCESS) {
+        await prisma.invoice.update({
+          where: { id: seed.invoice.id },
+          data: {
+            status: InvoiceStatus.PAID,
+            amountPaid: seed.invoice.amountDue,
+            paidAt: existingPayment.paidAt,
+          },
+        });
+      }
+
+      continue;
+    }
+
+    if (seed.status === PaymentStatus.SUCCESS) {
+      await prisma.$transaction([
+        prisma.payment.create({
+          data: {
+            tenantId: tenant.id,
+            invoiceId: seed.invoice.id,
+            status: seed.status,
+            amount: seed.invoice.amountDue,
+            currency: seed.invoice.currency,
+            paidAt: seed.paidAt,
+            provider: seed.provider,
+            providerReference: seed.providerReference,
+          },
+        }),
+        prisma.invoice.update({
+          where: { id: seed.invoice.id },
+          data: {
+            status: InvoiceStatus.PAID,
+            amountPaid: seed.invoice.amountDue,
+            paidAt: seed.paidAt,
+          },
+        }),
+      ]);
+
+      continue;
+    }
+
+    await prisma.payment.create({
+      data: {
+        tenantId: tenant.id,
+        invoiceId: seed.invoice.id,
+        status: seed.status,
+        amount: seed.invoice.amountDue,
+        currency: seed.invoice.currency,
+        failureReason: seed.failureReason,
+        provider: seed.provider,
+        providerReference: seed.providerReference,
+      },
+    });
+  }
+
+  console.log('Seeded payments');
 }
 
 main()
