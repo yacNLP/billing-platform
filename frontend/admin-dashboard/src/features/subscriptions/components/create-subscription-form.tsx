@@ -26,7 +26,7 @@ export function CreateSubscriptionForm() {
     data: customers,
     isLoading: isLoadingCustomers,
     error: customersError,
-  } = useGetCustomersQuery();
+  } = useGetCustomersQuery({ page: 1, pageSize: 100 });
   const {
     data: plans,
     isLoading: isLoadingPlans,
@@ -106,7 +106,7 @@ export function CreateSubscriptionForm() {
                 <option value="">
                   {isLoadingCustomers ? "Loading customers..." : "Select a customer"}
                 </option>
-                {(customers || []).map((customer) => (
+                {(customers?.data || []).map((customer) => (
                   <option key={customer.id} value={customer.id}>
                     {customer.name}
                   </option>

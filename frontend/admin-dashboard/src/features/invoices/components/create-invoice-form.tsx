@@ -45,7 +45,7 @@ export function CreateInvoiceForm() {
     data: customers,
     isLoading: isLoadingCustomers,
     error: customersError,
-  } = useGetCustomersQuery();
+  } = useGetCustomersQuery({ page: 1, pageSize: 100 });
   const {
     data: subscriptions,
     isLoading: isLoadingSubscriptions,
@@ -173,7 +173,7 @@ export function CreateInvoiceForm() {
                 <option value="">
                   {isLoadingCustomers ? "Loading customers..." : "Select a customer"}
                 </option>
-                {(customers || []).map((customer) => (
+                {(customers?.data || []).map((customer) => (
                   <option key={customer.id} value={customer.id}>
                     {customer.name}
                   </option>

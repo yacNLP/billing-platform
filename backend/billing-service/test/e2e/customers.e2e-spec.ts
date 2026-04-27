@@ -15,10 +15,10 @@ interface CustomerResponse {
 
 interface PaginatedCustomers {
   data: CustomerResponse[];
-  page?: number;
-  pageSize?: number;
-  total?: number;
-  hasNext?: boolean;
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
 }
 
 let uniqueCounter = 0;
@@ -114,6 +114,55 @@ describe('Customers e2e', () => {
       expect(Array.isArray(payload.data)).toBe(true);
       expect(payload.total).toBeDefined();
       expect(payload.data.length).toBeGreaterThanOrEqual(1);
+    });
+
+    it('GET /customers should support search, sorting, and pagination', async () => {
+      const suffix = uniqueSuffix();
+
+      const alpha = await createTestCustomer(adminClient, {
+        name: `Alpha Customer ${suffix}`,
+        email: `alpha_${suffix}@example.com`,
+      });
+      const beta = await createTestCustomer(adminClient, {
+        name: `Beta Customer ${suffix}`,
+        email: `beta_${suffix}@example.com`,
+      });
+
+      const searchRes = await userClient
+        .get('/customers')
+        .query({ search: `alpha_${suffix}` })
+        .expect(200);
+      const searchPayload = searchRes.body as PaginatedCustomers;
+
+      expect(searchPayload.data.some((item) => item.id === alpha.id)).toBe(
+        true,
+      );
+      expect(searchPayload.data.some((item) => item.id === beta.id)).toBe(
+        false,
+      );
+
+      const sortedRes = await userClient
+        .get('/customers')
+        .query({ search: suffix, sortBy: 'name', order: 'desc' })
+        .expect(200);
+      const sortedPayload = sortedRes.body as PaginatedCustomers;
+      const sortedIds = sortedPayload.data.map((item) => item.id);
+
+      expect(sortedIds.indexOf(beta.id)).toBeLessThan(
+        sortedIds.indexOf(alpha.id),
+      );
+
+      const paginatedRes = await userClient
+        .get('/customers')
+        .query({ search: suffix, page: 1, pageSize: 1 })
+        .expect(200);
+      const paginatedPayload = paginatedRes.body as PaginatedCustomers;
+
+      expect(paginatedPayload.page).toBe(1);
+      expect(paginatedPayload.pageSize).toBe(1);
+      expect(paginatedPayload.data).toHaveLength(1);
+      expect(paginatedPayload.total).toBe(2);
+      expect(paginatedPayload.totalPages).toBe(2);
     });
 
     it('GET /customers/:id should return a single customer', async () => {

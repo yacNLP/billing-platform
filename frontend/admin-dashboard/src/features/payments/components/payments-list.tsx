@@ -73,7 +73,7 @@ export function PaymentsList() {
   const { data, error, isLoading, isFetching } =
     useGetPaymentsQuery(queryParams);
   const { data: invoices } = useGetInvoicesQuery({ page: 1, pageSize: 100 });
-  const { data: customers } = useGetCustomersQuery();
+  const { data: customers } = useGetCustomersQuery({ page: 1, pageSize: 100 });
 
   function replaceSearchParams(nextParams: URLSearchParams) {
     const queryString = nextParams.toString();
@@ -209,7 +209,7 @@ export function PaymentsList() {
             >
               <option value="">All invoices</option>
               {(invoices?.data || []).map((invoice) => {
-                const customer = customers?.find(
+                const customer = customers?.data.find(
                   (item) => item.id === invoice.customerId,
                 );
 
@@ -240,7 +240,7 @@ export function PaymentsList() {
               name="customerId"
             >
               <option value="">All customers</option>
-              {(customers || []).map((customer) => (
+              {(customers?.data || []).map((customer) => (
                 <option key={customer.id} value={customer.id}>
                   {customer.name} · {customer.email}
                 </option>
@@ -296,7 +296,7 @@ export function PaymentsList() {
               (item) => item.id === payment.invoiceId,
             );
             const customer = invoice
-              ? customers?.find((item) => item.id === invoice.customerId)
+              ? customers?.data.find((item) => item.id === invoice.customerId)
               : undefined;
 
             return (

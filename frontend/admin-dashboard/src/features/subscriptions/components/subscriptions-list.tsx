@@ -99,7 +99,7 @@ export function SubscriptionsList() {
   const queryParams = getQueryParams(searchParams);
   const { data, error, isLoading, isFetching } =
     useGetSubscriptionsQuery(queryParams);
-  const { data: customers } = useGetCustomersQuery();
+  const { data: customers } = useGetCustomersQuery({ page: 1, pageSize: 100 });
   const { data: plans } = useGetPlansQuery();
 
   function replaceSearchParams(nextParams: URLSearchParams) {
@@ -241,7 +241,7 @@ export function SubscriptionsList() {
               name="customerId"
             >
               <option value="">All customers</option>
-              {(customers || []).map((customer) => (
+              {(customers?.data || []).map((customer) => (
                 <option key={customer.id} value={customer.id}>
                   {customer.name} · {customer.email}
                 </option>
@@ -315,7 +315,7 @@ export function SubscriptionsList() {
 
         <ul className="mt-8 space-y-4">
           {data.data.map((subscription) => {
-            const customer = customers?.find(
+            const customer = customers?.data.find(
               (item) => item.id === subscription.customerId,
             );
             const plan = plans?.find((item) => item.id === subscription.planId);
