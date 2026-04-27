@@ -11,11 +11,13 @@ import {
 import { PageHeader } from "@/components/admin/page-header";
 import { PaginationControls } from "@/components/admin/pagination-controls";
 import { StatePanel } from "@/components/admin/state-panel";
+import { useGetCustomersQuery } from "@/features/customers/customers-api";
 import type {
   InvoiceStatus,
   InvoicesQueryParams,
 } from "@/features/invoices/types";
 import { useGetInvoicesQuery } from "@/features/invoices/invoices-api";
+import { useGetSubscriptionsQuery } from "@/features/subscriptions/subscriptions-api";
 import { formatDate, formatMoney } from "@/lib/formatters";
 import { pageSizeOptions } from "@/lib/pagination";
 import { parsePositiveInteger } from "@/lib/query-params";
@@ -58,6 +60,11 @@ export function InvoicesList() {
 
   const queryParams = getQueryParams(searchParams);
   const { data, error, isLoading, isFetching } = useGetInvoicesQuery(queryParams);
+  const { data: customers } = useGetCustomersQuery({ page: 1, pageSize: 100 });
+  const { data: subscriptions } = useGetSubscriptionsQuery({
+    page: 1,
+    pageSize: 100,
+  });
 
   function replaceSearchParams(nextParams: URLSearchParams) {
     const queryString = nextParams.toString();
@@ -186,44 +193,57 @@ export function InvoicesList() {
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-700" htmlFor="invoice-customer-id">
-              Customer ID
+            <label className="text-sm font-medium text-slate-700" htmlFor="invoice-customer">
+              Customer
             </label>
-            <input
+            <select
               className="w-full rounded-xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm text-slate-950 outline-none transition focus:border-slate-400"
               defaultValue={
                 queryParams.customerId ? String(queryParams.customerId) : ""
               }
-              id="invoice-customer-id"
-              inputMode="numeric"
-              min="1"
+              id="invoice-customer"
               name="customerId"
-              placeholder="e.g. 12"
-              type="number"
-            />
+            >
+              <option value="">All customers</option>
+              {(customers?.data || []).map((customer) => (
+                <option key={customer.id} value={customer.id}>
+                  {customer.name} · {customer.email}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div className="space-y-2">
             <label
               className="text-sm font-medium text-slate-700"
-              htmlFor="invoice-subscription-id"
+              htmlFor="invoice-subscription"
             >
-              Subscription ID
+              Subscription
             </label>
-            <input
+            <select
               className="w-full rounded-xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm text-slate-950 outline-none transition focus:border-slate-400"
               defaultValue={
                 queryParams.subscriptionId
                   ? String(queryParams.subscriptionId)
                   : ""
               }
-              id="invoice-subscription-id"
-              inputMode="numeric"
-              min="1"
+              id="invoice-subscription"
               name="subscriptionId"
-              placeholder="e.g. 24"
-              type="number"
-            />
+            >
+              <option value="">All subscriptions</option>
+              {(subscriptions?.data || []).map((subscription) => {
+                const customer = customers?.data.find(
+                  (item) => item.id === subscription.customerId,
+                );
+
+                return (
+                  <option key={subscription.id} value={subscription.id}>
+                    Subscription #{subscription.id}
+                    {customer ? ` · ${customer.name}` : ""}
+                  </option>
+                );
+              })}
+            </select>
           </div>
 
           <div className="space-y-2">
@@ -265,11 +285,19 @@ export function InvoicesList() {
         </form>
 
         <ul className="mt-8 space-y-4">
-          {data.data.map((invoice) => (
-            <li
-              className="rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4"
-              key={invoice.id}
-            >
+          {data.data.map((invoice) => {
+            const customer = customers?.data.find(
+              (item) => item.id === invoice.customerId,
+            );
+            const subscription = subscriptions?.data.find(
+              (item) => item.id === invoice.subscriptionId,
+            );
+
+            return (
+              <li
+                className="rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4"
+                key={invoice.id}
+              >
               <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div className="space-y-3">
                   <div className="space-y-2">
@@ -283,8 +311,14 @@ export function InvoicesList() {
                     </div>
 
                     <p className="text-sm text-slate-600">
-                      Invoice #{invoice.id} · Customer ID {invoice.customerId} ·
-                      Subscription ID {invoice.subscriptionId}
+                      Invoice #{invoice.id} ·{" "}
+                      {customer
+                        ? `${customer.name} · ${customer.email}`
+                        : `Customer ID ${invoice.customerId}`}{" "}
+                      ·{" "}
+                      {subscription
+                        ? `Subscription #${subscription.id}`
+                        : `Subscription ID ${invoice.subscriptionId}`}
                     </p>
                     <Link
                       className="text-sm font-medium text-[var(--color-accent)] underline-offset-4 hover:underline"
@@ -339,8 +373,9 @@ export function InvoicesList() {
                   </div>
                 </dl>
               </div>
-            </li>
-          ))}
+              </li>
+            );
+          })}
         </ul>
 
         <PaginationControls
