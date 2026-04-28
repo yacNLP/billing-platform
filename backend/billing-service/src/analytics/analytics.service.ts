@@ -20,24 +20,20 @@ export class AnalyticsService {
 
   async getSummary(): Promise<AnalyticsSummaryDto> {
     const tenantId = this.tenantContext.getTenantId();
-    const now = new Date();
-    const monthStart = new Date(
-      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1),
-    );
-    const nextMonthStart = new Date(
-      Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1),
-    );
 
     this.logger.debug(`get analytics summary tenantId=${tenantId}`);
 
     const [
       totalCustomers,
       activeSubscriptions,
-      overdueInvoicesCount,
-      overdueAmounts,
-      successfulPaymentsCount,
-      failedPaymentsCount,
-      paidInvoicesThisMonth,
+      pastDueSubscriptions,
+      issuedInvoices,
+      paidInvoices,
+      overdueInvoices,
+      paidInvoiceAmounts,
+      dueInvoiceAmounts,
+      failedPayments,
+      successfulPayments,
       activeSubscriptionSnapshots,
     ] = await this.prisma.$transaction([
       this.prisma.customer.count({
@@ -49,6 +45,24 @@ export class AnalyticsService {
           status: SubscriptionStatus.ACTIVE,
         },
       }),
+      this.prisma.subscription.count({
+        where: {
+          tenantId,
+          status: SubscriptionStatus.PAST_DUE,
+        },
+      }),
+      this.prisma.invoice.count({
+        where: {
+          tenantId,
+          status: InvoiceStatus.ISSUED,
+        },
+      }),
+      this.prisma.invoice.count({
+        where: {
+          tenantId,
+          status: InvoiceStatus.PAID,
+        },
+      }),
       this.prisma.invoice.count({
         where: {
           tenantId,
@@ -58,7 +72,18 @@ export class AnalyticsService {
       this.prisma.invoice.aggregate({
         where: {
           tenantId,
-          status: InvoiceStatus.OVERDUE,
+          status: InvoiceStatus.PAID,
+        },
+        _sum: {
+          amountPaid: true,
+        },
+      }),
+      this.prisma.invoice.aggregate({
+        where: {
+          tenantId,
+          status: {
+            in: [InvoiceStatus.ISSUED, InvoiceStatus.OVERDUE],
+          },
         },
         _sum: {
           amountDue: true,
@@ -68,23 +93,13 @@ export class AnalyticsService {
       this.prisma.payment.count({
         where: {
           tenantId,
-          status: PaymentStatus.SUCCESS,
+          status: PaymentStatus.FAILED,
         },
       }),
       this.prisma.payment.count({
         where: {
           tenantId,
-          status: PaymentStatus.FAILED,
-        },
-      }),
-      this.prisma.invoice.count({
-        where: {
-          tenantId,
-          status: InvoiceStatus.PAID,
-          paidAt: {
-            gte: monthStart,
-            lt: nextMonthStart,
-          },
+          status: PaymentStatus.SUCCESS,
         },
       }),
       this.prisma.subscription.findMany({
@@ -100,13 +115,14 @@ export class AnalyticsService {
       }),
     ]);
 
-    const overdueAmount = Math.max(
+    const totalRevenuePaid = paidInvoiceAmounts._sum.amountPaid ?? 0;
+    const totalAmountDue = Math.max(
       0,
-      (overdueAmounts._sum.amountDue ?? 0) -
-        (overdueAmounts._sum.amountPaid ?? 0),
+      (dueInvoiceAmounts._sum.amountDue ?? 0) -
+        (dueInvoiceAmounts._sum.amountPaid ?? 0),
     );
 
-    const mrr = Math.round(
+    const estimatedMrr = Math.round(
       activeSubscriptionSnapshots.reduce((sum, subscription) => {
         return (
           sum +
@@ -122,12 +138,15 @@ export class AnalyticsService {
     return {
       totalCustomers,
       activeSubscriptions,
-      overdueInvoicesCount,
-      overdueAmount,
-      successfulPaymentsCount,
-      failedPaymentsCount,
-      mrr,
-      paidInvoicesThisMonth,
+      pastDueSubscriptions,
+      issuedInvoices,
+      paidInvoices,
+      overdueInvoices,
+      totalRevenuePaid,
+      totalAmountDue,
+      failedPayments,
+      successfulPayments,
+      estimatedMrr,
     };
   }
 

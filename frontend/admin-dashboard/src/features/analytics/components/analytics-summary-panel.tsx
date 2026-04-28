@@ -2,30 +2,33 @@
 
 import { useGetAnalyticsSummaryQuery } from "@/features/analytics/analytics-api";
 import type { AnalyticsSummary } from "@/features/analytics/types";
+import { formatMoney } from "@/lib/formatters";
 
 const numberFormatter = new Intl.NumberFormat("en-US");
-const currencyFormatter = new Intl.NumberFormat("en-US", {
-  style: "currency",
-  currency: "EUR",
-});
 
 const summaryCards: Array<{
   key: keyof AnalyticsSummary;
   label: string;
   description: string;
-  format?: "currency";
+  format?: "money";
 }> = [
   {
-    key: "mrr",
-    label: "Monthly recurring revenue",
-    description: "Current recurring revenue tracked by the platform.",
-    format: "currency",
+    key: "estimatedMrr",
+    label: "Estimated MRR",
+    description: "Monthly recurring revenue estimated from active subscriptions.",
+    format: "money",
   },
   {
-    key: "overdueAmount",
-    label: "Overdue amount",
-    description: "Total amount still overdue across unpaid invoices.",
-    format: "currency",
+    key: "totalRevenuePaid",
+    label: "Revenue paid",
+    description: "Total amount collected on paid invoices.",
+    format: "money",
+  },
+  {
+    key: "totalAmountDue",
+    label: "Amount due",
+    description: "Outstanding amount across issued and overdue invoices.",
+    format: "money",
   },
   {
     key: "totalCustomers",
@@ -38,22 +41,32 @@ const summaryCards: Array<{
     description: "Subscriptions currently active for this tenant.",
   },
   {
-    key: "overdueInvoicesCount",
+    key: "pastDueSubscriptions",
+    label: "Past due subscriptions",
+    description: "Subscriptions currently marked with payment issues.",
+  },
+  {
+    key: "issuedInvoices",
+    label: "Issued invoices",
+    description: "Invoices issued and still waiting for payment.",
+  },
+  {
+    key: "paidInvoices",
+    label: "Paid invoices",
+    description: "Invoices currently marked as paid.",
+  },
+  {
+    key: "overdueInvoices",
     label: "Overdue invoices",
     description: "Invoices that have passed their due date.",
   },
   {
-    key: "paidInvoicesThisMonth",
-    label: "Paid this month",
-    description: "Invoices marked as paid during the current month.",
-  },
-  {
-    key: "successfulPaymentsCount",
+    key: "successfulPayments",
     label: "Successful payments",
     description: "Payments completed successfully.",
   },
   {
-    key: "failedPaymentsCount",
+    key: "failedPayments",
     label: "Failed payments",
     description: "Payments that failed and may need follow-up.",
   },
@@ -91,8 +104,8 @@ export function AnalyticsSummaryPanel() {
               Summary
             </h2>
             <p className="max-w-3xl text-base leading-7 text-slate-600">
-              A first readable view of the protected analytics summary for the
-              admin dashboard.
+              Billing health, revenue, invoices, and subscription status for the
+              current tenant.
             </p>
           </div>
 
@@ -157,9 +170,9 @@ function MetricCard({ label, value, description }: MetricCardProps) {
   );
 }
 
-function formatMetricValue(value: number, format?: "currency") {
-  if (format === "currency") {
-    return currencyFormatter.format(value);
+function formatMetricValue(value: number, format?: "money") {
+  if (format === "money") {
+    return formatMoney(value, "EUR");
   }
 
   return numberFormatter.format(value);

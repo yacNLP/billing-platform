@@ -9,12 +9,15 @@ import { login, loginAsAdmin } from '../utils/e2e-auth';
 interface AnalyticsSummaryResponse {
   totalCustomers: number;
   activeSubscriptions: number;
-  overdueInvoicesCount: number;
-  overdueAmount: number;
-  successfulPaymentsCount: number;
-  failedPaymentsCount: number;
-  mrr: number;
-  paidInvoicesThisMonth: number;
+  pastDueSubscriptions: number;
+  issuedInvoices: number;
+  paidInvoices: number;
+  overdueInvoices: number;
+  totalRevenuePaid: number;
+  totalAmountDue: number;
+  failedPayments: number;
+  successfulPayments: number;
+  estimatedMrr: number;
 }
 
 interface CustomerResponse {
@@ -107,12 +110,15 @@ function uniqueSuffix(): string {
 function expectSummaryShape(summary: AnalyticsSummaryResponse): void {
   expect(typeof summary.totalCustomers).toBe('number');
   expect(typeof summary.activeSubscriptions).toBe('number');
-  expect(typeof summary.overdueInvoicesCount).toBe('number');
-  expect(typeof summary.overdueAmount).toBe('number');
-  expect(typeof summary.successfulPaymentsCount).toBe('number');
-  expect(typeof summary.failedPaymentsCount).toBe('number');
-  expect(typeof summary.mrr).toBe('number');
-  expect(typeof summary.paidInvoicesThisMonth).toBe('number');
+  expect(typeof summary.pastDueSubscriptions).toBe('number');
+  expect(typeof summary.issuedInvoices).toBe('number');
+  expect(typeof summary.paidInvoices).toBe('number');
+  expect(typeof summary.overdueInvoices).toBe('number');
+  expect(typeof summary.totalRevenuePaid).toBe('number');
+  expect(typeof summary.totalAmountDue).toBe('number');
+  expect(typeof summary.failedPayments).toBe('number');
+  expect(typeof summary.successfulPayments).toBe('number');
+  expect(typeof summary.estimatedMrr).toBe('number');
 }
 
 function expectSummaryDelta(
@@ -374,23 +380,29 @@ describe('Analytics e2e', () => {
     expectSummaryDelta(beforeA, afterA, {
       totalCustomers: 1,
       activeSubscriptions: 1,
-      overdueInvoicesCount: 1,
-      overdueAmount: 700,
-      failedPaymentsCount: 0,
-      successfulPaymentsCount: 0,
-      mrr: 3000,
-      paidInvoicesThisMonth: 0,
+      pastDueSubscriptions: 0,
+      issuedInvoices: 1,
+      paidInvoices: 0,
+      overdueInvoices: 1,
+      totalRevenuePaid: 0,
+      totalAmountDue: 3700,
+      failedPayments: 0,
+      successfulPayments: 0,
+      estimatedMrr: 3000,
     });
 
     expectSummaryDelta(beforeB, afterB, {
       totalCustomers: 1,
       activeSubscriptions: 1,
-      overdueInvoicesCount: 0,
-      overdueAmount: 0,
-      failedPaymentsCount: 1,
-      successfulPaymentsCount: 0,
-      mrr: 2000,
-      paidInvoicesThisMonth: 0,
+      pastDueSubscriptions: 0,
+      issuedInvoices: 2,
+      paidInvoices: 0,
+      overdueInvoices: 0,
+      totalRevenuePaid: 0,
+      totalAmountDue: 24900,
+      failedPayments: 1,
+      successfulPayments: 0,
+      estimatedMrr: 2000,
     });
   });
 
@@ -486,12 +498,15 @@ describe('Analytics e2e', () => {
     expectSummaryDelta(before, after, {
       totalCustomers: 2,
       activeSubscriptions: 2,
-      overdueInvoicesCount: 1,
-      overdueAmount: 700,
-      successfulPaymentsCount: 1,
-      failedPaymentsCount: 1,
-      mrr: 5000,
-      paidInvoicesThisMonth: 1,
+      pastDueSubscriptions: 0,
+      issuedInvoices: 3,
+      paidInvoices: 1,
+      overdueInvoices: 1,
+      totalRevenuePaid: 800,
+      totalAmountDue: 28600,
+      successfulPayments: 1,
+      failedPayments: 1,
+      estimatedMrr: 5000,
     });
   });
 });

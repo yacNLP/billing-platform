@@ -1,10 +1,13 @@
 export class AnalyticsSummaryDto {
   totalCustomers!: number;
   activeSubscriptions!: number;
-  overdueInvoicesCount!: number;
-  overdueAmount!: number;
-  successfulPaymentsCount!: number;
-  failedPaymentsCount!: number;
-  mrr!: number;
-  paidInvoicesThisMonth!: number;
+  pastDueSubscriptions!: number;
+  issuedInvoices!: number;
+  paidInvoices!: number;
+  overdueInvoices!: number;
+  totalRevenuePaid!: number;
+  totalAmountDue!: number;
+  failedPayments!: number;
+  successfulPayments!: number;
+  estimatedMrr!: number;
 }
