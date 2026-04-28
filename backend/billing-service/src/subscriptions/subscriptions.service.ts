@@ -99,37 +99,39 @@ export class SubscriptionsService {
       const created = await this.withInvoiceNumberRetry(
         `creating initial invoice tenantId=${tenantId} subscriptionCustomerId=${customer.id}`,
         (attempt) =>
-          this.prisma.$transaction(async (innerTx) => {
-            const subscription = await innerTx.subscription.create({
-              data: {
+          this.prisma.$transaction(
+            async (innerTx: Prisma.TransactionClient) => {
+              const subscription = await innerTx.subscription.create({
+                data: {
+                  tenantId,
+                  customerId: customer.id,
+                  planId: plan.id,
+                  status: SubscriptionStatus.ACTIVE,
+                  cancelAtPeriodEnd: dto.cancelAtPeriodEnd ?? false,
+                  amountSnapshot: plan.amount,
+                  currencySnapshot: plan.currency,
+                  intervalSnapshot: plan.interval,
+                  intervalCountSnapshot: plan.intervalCount,
+                  startDate,
+                  currentPeriodStart,
+                  currentPeriodEnd,
+                },
+              });
+
+              await this.ensureIssuedInvoiceForPeriod(innerTx, {
                 tenantId,
                 customerId: customer.id,
-                planId: plan.id,
-                status: SubscriptionStatus.ACTIVE,
-                cancelAtPeriodEnd: dto.cancelAtPeriodEnd ?? false,
-                amountSnapshot: plan.amount,
-                currencySnapshot: plan.currency,
-                intervalSnapshot: plan.interval,
-                intervalCountSnapshot: plan.intervalCount,
-                startDate,
-                currentPeriodStart,
-                currentPeriodEnd,
-              },
-            });
+                subscriptionId: subscription.id,
+                amountDue: subscription.amountSnapshot,
+                currency: subscription.currencySnapshot,
+                periodStart: subscription.currentPeriodStart,
+                periodEnd: subscription.currentPeriodEnd,
+                invoiceNumberOffset: attempt,
+              });
 
-            await this.createIssuedInvoiceForPeriod(innerTx, {
-              tenantId,
-              customerId: customer.id,
-              subscriptionId: subscription.id,
-              amountDue: subscription.amountSnapshot,
-              currency: subscription.currencySnapshot,
-              periodStart: subscription.currentPeriodStart,
-              periodEnd: subscription.currentPeriodEnd,
-              invoiceNumberOffset: attempt,
-            });
-
-            return subscription;
-          }),
+              return subscription;
+            },
+          ),
       );
 
       this.logger.log(
@@ -375,6 +377,47 @@ export class SubscriptionsService {
     };
   }
 
+  async runGenerateDueInvoicesJob(): Promise<JobSummary> {
+    const tenantId = this.tenantContext.getTenantId();
+    this.logger.debug(`generate due invoices tenantId=${tenantId}`);
+
+    const scanned = await this.prisma.subscription.count({
+      where: {
+        tenantId,
+        status: SubscriptionStatus.ACTIVE,
+      },
+    });
+
+    const subscriptions = await this.prisma.subscription.findMany({
+      where: {
+        tenantId,
+        status: SubscriptionStatus.ACTIVE,
+      },
+      orderBy: { currentPeriodEnd: 'asc' },
+    });
+
+    let createdCount = 0;
+
+    for (const subscription of subscriptions) {
+      const created =
+        await this.generateDueInvoiceForSubscription(subscription);
+
+      if (created) {
+        createdCount += 1;
+      }
+    }
+
+    this.logger.log(
+      `generated due invoices tenantId=${tenantId} createdCount=${createdCount}`,
+    );
+
+    return {
+      scanned,
+      updated: createdCount,
+      skipped: scanned - createdCount,
+    };
+  }
+
   async updatePastDueSubscriptions(): Promise<JobSummary> {
     const tenantId = this.tenantContext.getTenantId();
 
@@ -482,7 +525,7 @@ export class SubscriptionsService {
     const renewed = await this.withInvoiceNumberRetry(
       `renewing subscription tenantId=${tenantId} subscriptionId=${subscription.id}`,
       (attempt) =>
-        this.prisma.$transaction(async (innerTx) => {
+        this.prisma.$transaction(async (innerTx: Prisma.TransactionClient) => {
           const updated = await innerTx.subscription.update({
             where: {
               id: subscription.id,
@@ -494,7 +537,7 @@ export class SubscriptionsService {
             },
           });
 
-          await this.createIssuedInvoiceForPeriod(innerTx, {
+          await this.ensureIssuedInvoiceForPeriod(innerTx, {
             tenantId,
             customerId: subscription.customerId,
             subscriptionId: subscription.id,
@@ -516,7 +559,44 @@ export class SubscriptionsService {
     return renewed;
   }
 
-  private async createIssuedInvoiceForPeriod(
+  private async generateDueInvoiceForSubscription(
+    subscription: Subscription,
+  ): Promise<boolean> {
+    const tenantId = this.tenantContext.getTenantId();
+
+    if (subscription.status !== SubscriptionStatus.ACTIVE) {
+      return false;
+    }
+
+    const currentPeriodInvoiceCreated = await this.withInvoiceNumberRetry(
+      `generating current-period invoice tenantId=${tenantId} subscriptionId=${subscription.id}`,
+      (attempt) =>
+        this.prisma.$transaction((innerTx: Prisma.TransactionClient) =>
+          this.ensureIssuedInvoiceForPeriod(innerTx, {
+            tenantId,
+            customerId: subscription.customerId,
+            subscriptionId: subscription.id,
+            amountDue: subscription.amountSnapshot,
+            currency: subscription.currencySnapshot,
+            periodStart: subscription.currentPeriodStart,
+            periodEnd: subscription.currentPeriodEnd,
+            invoiceNumberOffset: attempt,
+          }),
+        ),
+    );
+
+    if (currentPeriodInvoiceCreated) {
+      this.logger.log(
+        `generated current-period invoice tenantId=${tenantId} subscriptionId=${subscription.id} periodStart=${subscription.currentPeriodStart.toISOString()} periodEnd=${subscription.currentPeriodEnd.toISOString()}`,
+      );
+
+      return true;
+    }
+
+    return false;
+  }
+
+  private async ensureIssuedInvoiceForPeriod(
     tx: Prisma.TransactionClient,
     params: {
       tenantId: number;
@@ -528,7 +608,40 @@ export class SubscriptionsService {
       periodEnd: Date;
       invoiceNumberOffset: number;
     },
-  ): Promise<void> {
+  ): Promise<boolean> {
+    const overlappingInvoice = await tx.invoice.findFirst({
+      where: {
+        tenantId: params.tenantId,
+        subscriptionId: params.subscriptionId,
+        periodStart: {
+          lt: params.periodEnd,
+        },
+        periodEnd: {
+          gt: params.periodStart,
+        },
+      },
+      select: {
+        id: true,
+        periodStart: true,
+        periodEnd: true,
+      },
+    });
+
+    if (overlappingInvoice) {
+      const samePeriod =
+        overlappingInvoice.periodStart.getTime() ===
+          params.periodStart.getTime() &&
+        overlappingInvoice.periodEnd.getTime() === params.periodEnd.getTime();
+
+      if (!samePeriod) {
+        this.logger.warn(
+          `skipping invoice generation tenantId=${params.tenantId} subscriptionId=${params.subscriptionId} because an overlapping invoice already exists`,
+        );
+      }
+
+      return false;
+    }
+
     const issuedAt = new Date();
     const dueAt = this.addDays(
       issuedAt,
@@ -540,22 +653,42 @@ export class SubscriptionsService {
       params.invoiceNumberOffset,
     );
 
-    await tx.invoice.create({
-      data: {
-        tenantId: params.tenantId,
-        customerId: params.customerId,
-        subscriptionId: params.subscriptionId,
-        invoiceNumber,
-        status: InvoiceStatus.ISSUED,
-        currency: params.currency,
-        amountDue: params.amountDue,
-        amountPaid: 0,
-        periodStart: params.periodStart,
-        periodEnd: params.periodEnd,
-        issuedAt,
-        dueAt,
-      },
-    });
+    try {
+      await tx.invoice.create({
+        data: {
+          tenantId: params.tenantId,
+          customerId: params.customerId,
+          subscriptionId: params.subscriptionId,
+          invoiceNumber,
+          status: InvoiceStatus.ISSUED,
+          currency: params.currency,
+          amountDue: params.amountDue,
+          amountPaid: 0,
+          periodStart: params.periodStart,
+          periodEnd: params.periodEnd,
+          issuedAt,
+          dueAt,
+        },
+      });
+    } catch (e: unknown) {
+      if (e instanceof Prisma.PrismaClientKnownRequestError) {
+        const target = Array.isArray(e.meta?.target) ? e.meta.target : [];
+
+        if (
+          e.code === 'P2002' &&
+          target.includes('tenantId') &&
+          target.includes('subscriptionId') &&
+          target.includes('periodStart') &&
+          target.includes('periodEnd')
+        ) {
+          return false;
+        }
+      }
+
+      throw e;
+    }
+
+    return true;
   }
 
   private async withInvoiceNumberRetry<T>(

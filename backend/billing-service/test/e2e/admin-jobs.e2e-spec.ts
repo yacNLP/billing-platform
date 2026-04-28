@@ -7,6 +7,8 @@ import { createE2eApp, TestApp } from '../utils/e2e-app';
 import { E2EClient } from '../utils/e2e-client';
 import { loginAsAdmin, loginAsUser } from '../utils/e2e-auth';
 
+jest.setTimeout(20_000);
+
 interface CustomerResponse {
   id: number;
   name: string;
@@ -106,6 +108,13 @@ async function createTestProduct(client: E2EClient): Promise<ProductResponse> {
 async function createTestPlan(
   client: E2EClient,
   productId: number,
+  overrides?: Partial<{
+    amount: number;
+    currency: string;
+    interval: BillingInterval;
+    intervalCount: number;
+    active: boolean;
+  }>,
 ): Promise<PlanResponse> {
   const suffix = uniqueSuffix();
   const res = await client
@@ -113,12 +122,12 @@ async function createTestPlan(
       code: `ADMIN_JOBS_PLAN_${suffix}`,
       name: `Admin Jobs Plan ${suffix}`,
       description: 'Admin jobs test plan',
-      amount: 4900,
-      currency: 'EUR',
-      interval: 'MONTH',
-      intervalCount: 1,
+      amount: overrides?.amount ?? 4900,
+      currency: overrides?.currency ?? 'EUR',
+      interval: overrides?.interval ?? 'MONTH',
+      intervalCount: overrides?.intervalCount ?? 1,
       trialDays: 0,
-      active: true,
+      active: overrides?.active ?? true,
       productId,
     })
     .expect(201);
@@ -130,11 +139,19 @@ async function createTestSubscription(
   client: E2EClient,
   customerId: number,
   planId: number,
+  overrides?: Partial<{
+    startDate: string;
+    cancelAtPeriodEnd: boolean;
+  }>,
 ): Promise<SubscriptionResponse> {
   const res = await client
     .post('/subscriptions', {
       customerId,
       planId,
+      ...(overrides?.startDate ? { startDate: overrides.startDate } : {}),
+      ...(overrides?.cancelAtPeriodEnd !== undefined
+        ? { cancelAtPeriodEnd: overrides.cancelAtPeriodEnd }
+        : {}),
     })
     .expect(201);
 
@@ -144,14 +161,28 @@ async function createTestSubscription(
 async function createSubscriptionFixture(
   client: E2EClient,
   prisma: PrismaService,
+  options?: {
+    plan?: Partial<{
+      amount: number;
+      currency: string;
+      interval: BillingInterval;
+      intervalCount: number;
+      active: boolean;
+    }>;
+    subscription?: Partial<{
+      startDate: string;
+      cancelAtPeriodEnd: boolean;
+    }>;
+  },
 ): Promise<SubscriptionFixture> {
   const customer = await createTestCustomer(client);
   const product = await createTestProduct(client);
-  const plan = await createTestPlan(client, product.id);
+  const plan = await createTestPlan(client, product.id, options?.plan);
   const subscription = await createTestSubscription(
     client,
     customer.id,
     plan.id,
+    options?.subscription,
   );
 
   const invoice = await prisma.invoice.findFirstOrThrow({
@@ -184,6 +215,63 @@ async function createSubscriptionFixture(
       voidedAt: invoice.voidedAt?.toISOString() ?? null,
     },
   };
+}
+
+function addDays(date: Date, days: number): Date {
+  const result = new Date(date);
+  result.setUTCDate(result.getUTCDate() + days);
+  return result;
+}
+
+function addMonthsClamped(date: Date, months: number): Date {
+  const result = new Date(date);
+  const dayOfMonth = result.getUTCDate();
+
+  result.setUTCDate(1);
+  result.setUTCMonth(result.getUTCMonth() + months);
+
+  const lastDayOfTargetMonth = new Date(
+    Date.UTC(result.getUTCFullYear(), result.getUTCMonth() + 1, 0),
+  ).getUTCDate();
+
+  result.setUTCDate(Math.min(dayOfMonth, lastDayOfTargetMonth));
+  return result;
+}
+
+function addYearsClamped(date: Date, years: number): Date {
+  const result = new Date(date);
+  const month = result.getUTCMonth();
+  const dayOfMonth = result.getUTCDate();
+
+  result.setUTCDate(1);
+  result.setUTCFullYear(result.getUTCFullYear() + years);
+  result.setUTCMonth(month);
+
+  const lastDayOfTargetMonth = new Date(
+    Date.UTC(result.getUTCFullYear(), month + 1, 0),
+  ).getUTCDate();
+
+  result.setUTCDate(Math.min(dayOfMonth, lastDayOfTargetMonth));
+  return result;
+}
+
+function computePeriodEnd(
+  startDate: Date,
+  interval: BillingInterval,
+  intervalCount: number,
+): Date {
+  switch (interval) {
+    case 'DAY':
+      return addDays(startDate, intervalCount);
+    case 'WEEK':
+      return addDays(startDate, intervalCount * 7);
+    case 'MONTH':
+      return addMonthsClamped(startDate, intervalCount);
+    case 'YEAR':
+      return addYearsClamped(startDate, intervalCount);
+    default:
+      throw new Error('Unsupported billing interval');
+  }
 }
 
 describe('Admin Jobs e2e', () => {
@@ -219,6 +307,7 @@ describe('Admin Jobs e2e', () => {
       .expect(403);
 
     await userClient.post('/admin/jobs/renew-due-subscriptions').expect(403);
+    await userClient.post('/admin/jobs/generate-due-invoices').expect(403);
   });
 
   it('POST /admin/jobs/mark-overdue-invoices updates only past-due issued invoices', async () => {
@@ -447,6 +536,10 @@ describe('Admin Jobs e2e', () => {
   it('POST /admin/jobs/renew-due-subscriptions runs the renewal batch', async () => {
     const renewable = await createSubscriptionFixture(adminClient, prisma);
     const nonRenewable = await createSubscriptionFixture(adminClient, prisma);
+    const preInvoicedRenewable = await createSubscriptionFixture(
+      adminClient,
+      prisma,
+    );
     const now = new Date();
 
     await prisma.subscription.update({
@@ -464,6 +557,54 @@ describe('Admin Jobs e2e', () => {
         currentPeriodEnd: new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000),
         cancelAtPeriodEnd: true,
         status: 'ACTIVE',
+      },
+    });
+
+    await prisma.subscription.update({
+      where: { id: preInvoicedRenewable.subscription.id },
+      data: {
+        currentPeriodEnd: new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000),
+        cancelAtPeriodEnd: false,
+        status: 'ACTIVE',
+      },
+    });
+
+    const preInvoicedRenewableSubscription =
+      await prisma.subscription.findUniqueOrThrow({
+        where: { id: preInvoicedRenewable.subscription.id },
+      });
+    const preCreatedNextInvoicePeriodStart =
+      preInvoicedRenewableSubscription.currentPeriodEnd;
+    const preCreatedNextInvoicePeriodEnd = computePeriodEnd(
+      preCreatedNextInvoicePeriodStart,
+      preInvoicedRenewableSubscription.intervalSnapshot,
+      preInvoicedRenewableSubscription.intervalCountSnapshot,
+    );
+
+    await prisma.invoice.create({
+      data: {
+        tenantId: 1,
+        customerId: preInvoicedRenewableSubscription.customerId,
+        subscriptionId: preInvoicedRenewableSubscription.id,
+        invoiceNumber: `INV-1-RENEW-${uniqueSuffix()}`,
+        status: 'ISSUED',
+        currency: preInvoicedRenewableSubscription.currencySnapshot,
+        amountDue: preInvoicedRenewableSubscription.amountSnapshot,
+        amountPaid: 0,
+        periodStart: preCreatedNextInvoicePeriodStart,
+        periodEnd: preCreatedNextInvoicePeriodEnd,
+        issuedAt: new Date(),
+        dueAt: addDays(new Date(), 7),
+      },
+    });
+
+    const preInvoicedInvoicesBefore = await prisma.invoice.findMany({
+      where: {
+        tenantId: 1,
+        subscriptionId: preInvoicedRenewableSubscription.id,
+      },
+      orderBy: {
+        id: 'asc',
       },
     });
 
@@ -502,11 +643,233 @@ describe('Admin Jobs e2e', () => {
     const refreshedNonRenewable = await prisma.subscription.findUniqueOrThrow({
       where: { id: nonRenewable.subscription.id },
     });
+    const refreshedPreInvoicedRenewable =
+      await prisma.subscription.findUniqueOrThrow({
+        where: { id: preInvoicedRenewable.subscription.id },
+      });
+    const preInvoicedInvoicesAfter = await prisma.invoice.findMany({
+      where: {
+        tenantId: 1,
+        subscriptionId: preInvoicedRenewableSubscription.id,
+      },
+      orderBy: {
+        id: 'asc',
+      },
+    });
 
     expect(
       new Date(refreshedRenewable.currentPeriodEnd).getTime(),
     ).toBeGreaterThan(new Date(now).getTime());
     expect(refreshedRenewable.status).toBe('ACTIVE');
     expect(refreshedNonRenewable.status).toBe('ACTIVE');
+    expect(refreshedPreInvoicedRenewable.currentPeriodStart.toISOString()).toBe(
+      preCreatedNextInvoicePeriodStart.toISOString(),
+    );
+    expect(refreshedPreInvoicedRenewable.currentPeriodEnd.toISOString()).toBe(
+      preCreatedNextInvoicePeriodEnd.toISOString(),
+    );
+    expect(preInvoicedInvoicesAfter).toHaveLength(
+      preInvoicedInvoicesBefore.length,
+    );
+  });
+
+  it('POST /admin/jobs/generate-due-invoices generates only missing due invoices and is idempotent', async () => {
+    const currentMissing = await createSubscriptionFixture(
+      adminClient,
+      prisma,
+      {
+        plan: {
+          interval: 'DAY',
+          intervalCount: 1,
+        },
+        subscription: {
+          startDate: new Date(
+            Date.now() - 3 * 24 * 60 * 60 * 1000,
+          ).toISOString(),
+          cancelAtPeriodEnd: false,
+        },
+      },
+    );
+    const alreadyBilledCurrent = await createSubscriptionFixture(
+      adminClient,
+      prisma,
+      {
+        plan: {
+          interval: 'DAY',
+          intervalCount: 1,
+        },
+        subscription: {
+          startDate: new Date(
+            Date.now() - 3 * 24 * 60 * 60 * 1000,
+          ).toISOString(),
+          cancelAtPeriodEnd: false,
+        },
+      },
+    );
+    const canceledDue = await createSubscriptionFixture(adminClient, prisma, {
+      plan: {
+        interval: 'DAY',
+        intervalCount: 1,
+      },
+      subscription: {
+        startDate: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+        cancelAtPeriodEnd: false,
+      },
+    });
+    const expiredDue = await createSubscriptionFixture(adminClient, prisma, {
+      plan: {
+        interval: 'DAY',
+        intervalCount: 1,
+      },
+      subscription: {
+        startDate: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+        cancelAtPeriodEnd: false,
+      },
+    });
+
+    await prisma.subscription.update({
+      where: { id: canceledDue.subscription.id },
+      data: {
+        status: 'CANCELED',
+        canceledAt: new Date(),
+      },
+    });
+
+    await prisma.subscription.update({
+      where: { id: expiredDue.subscription.id },
+      data: {
+        status: 'EXPIRED',
+        endedAt: new Date(),
+      },
+    });
+
+    await prisma.invoice.delete({
+      where: { id: currentMissing.invoice.id },
+    });
+
+    const currentMissingSubscription =
+      await prisma.subscription.findUniqueOrThrow({
+        where: { id: currentMissing.subscription.id },
+      });
+    const alreadyBilledCurrentSubscription =
+      await prisma.subscription.findUniqueOrThrow({
+        where: { id: alreadyBilledCurrent.subscription.id },
+      });
+
+    const activeSubscriptions = await prisma.subscription.findMany({
+      where: {
+        tenantId: 1,
+        status: 'ACTIVE',
+      },
+      orderBy: {
+        id: 'asc',
+      },
+    });
+    const invoicesBefore = await prisma.invoice.findMany({
+      where: {
+        tenantId: 1,
+      },
+      orderBy: {
+        id: 'asc',
+      },
+    });
+
+    const expectedScanned = activeSubscriptions.length;
+
+    const currentMissingInvoicesBefore = invoicesBefore.filter(
+      (invoice) => invoice.subscriptionId === currentMissingSubscription.id,
+    );
+    const alreadyBilledCurrentInvoicesBefore = invoicesBefore.filter(
+      (invoice) =>
+        invoice.subscriptionId === alreadyBilledCurrentSubscription.id,
+    );
+    const canceledInvoicesBefore = invoicesBefore.filter(
+      (invoice) => invoice.subscriptionId === canceledDue.subscription.id,
+    );
+    const expiredInvoicesBefore = invoicesBefore.filter(
+      (invoice) => invoice.subscriptionId === expiredDue.subscription.id,
+    );
+
+    const res = await adminClient
+      .post('/admin/jobs/generate-due-invoices')
+      .expect(201);
+
+    const payload = res.body as JobSummaryResponse;
+
+    const invoicesAfterFirstRun = await prisma.invoice.findMany({
+      where: {
+        tenantId: 1,
+      },
+      orderBy: {
+        id: 'asc',
+      },
+    });
+    const createdInvoicesCount =
+      invoicesAfterFirstRun.length - invoicesBefore.length;
+
+    expect(payload).toEqual({
+      scanned: expectedScanned,
+      updated: createdInvoicesCount,
+      skipped: expectedScanned - createdInvoicesCount,
+    });
+
+    const currentMissingInvoicesAfter = invoicesAfterFirstRun.filter(
+      (invoice) => invoice.subscriptionId === currentMissingSubscription.id,
+    );
+    const alreadyBilledCurrentInvoicesAfter = invoicesAfterFirstRun.filter(
+      (invoice) =>
+        invoice.subscriptionId === alreadyBilledCurrentSubscription.id,
+    );
+    const canceledInvoicesAfter = invoicesAfterFirstRun.filter(
+      (invoice) => invoice.subscriptionId === canceledDue.subscription.id,
+    );
+    const expiredInvoicesAfter = invoicesAfterFirstRun.filter(
+      (invoice) => invoice.subscriptionId === expiredDue.subscription.id,
+    );
+
+    expect(currentMissingInvoicesAfter).toHaveLength(
+      currentMissingInvoicesBefore.length + 1,
+    );
+    expect(alreadyBilledCurrentInvoicesAfter).toHaveLength(
+      alreadyBilledCurrentInvoicesBefore.length,
+    );
+    expect(canceledInvoicesAfter).toHaveLength(canceledInvoicesBefore.length);
+    expect(expiredInvoicesAfter).toHaveLength(expiredInvoicesBefore.length);
+
+    const generatedCurrentInvoice = currentMissingInvoicesAfter.find(
+      (invoice) =>
+        !currentMissingInvoicesBefore.some((item) => item.id === invoice.id),
+    );
+    expect(generatedCurrentInvoice).toBeDefined();
+    expect(generatedCurrentInvoice?.periodStart.toISOString()).toBe(
+      currentMissingSubscription.currentPeriodStart.toISOString(),
+    );
+    expect(generatedCurrentInvoice?.periodEnd.toISOString()).toBe(
+      currentMissingSubscription.currentPeriodEnd.toISOString(),
+    );
+    expect(
+      currentMissingInvoicesAfter.some(
+        (invoice) =>
+          invoice.periodStart.getTime() ===
+            currentMissingSubscription.currentPeriodEnd.getTime() &&
+          invoice.periodEnd.getTime() ===
+            computePeriodEnd(
+              currentMissingSubscription.currentPeriodEnd,
+              currentMissingSubscription.intervalSnapshot,
+              currentMissingSubscription.intervalCountSnapshot,
+            ).getTime(),
+      ),
+    ).toBe(false);
+
+    const secondRes = await adminClient
+      .post('/admin/jobs/generate-due-invoices')
+      .expect(201);
+
+    const secondPayload = secondRes.body as JobSummaryResponse;
+    expect(secondPayload).toEqual({
+      scanned: expectedScanned,
+      updated: 0,
+      skipped: expectedScanned,
+    });
   });
 });

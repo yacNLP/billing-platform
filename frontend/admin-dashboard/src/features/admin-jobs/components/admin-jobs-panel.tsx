@@ -2,6 +2,7 @@
 
 import { PageHeader } from "@/components/admin/page-header";
 import {
+  useRunGenerateDueInvoicesJobMutation,
   useRunMarkOverdueInvoicesJobMutation,
   useRunRenewDueSubscriptionsJobMutation,
   useRunUpdatePastDueSubscriptionsJobMutation,
@@ -33,6 +34,14 @@ export function AdminJobsPanel() {
       isLoading: isRunningRenewal,
     },
   ] = useRunRenewDueSubscriptionsJobMutation();
+  const [
+    runGenerateDueInvoicesJob,
+    {
+      data: generationResult,
+      error: generationError,
+      isLoading: isRunningGeneration,
+    },
+  ] = useRunGenerateDueInvoicesJobMutation();
 
   return (
     <main className="px-6 py-16">
@@ -45,7 +54,7 @@ export function AdminJobsPanel() {
           />
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-3">
+        <div className="grid gap-6 xl:grid-cols-2">
           <JobCard
             actionLabel="Run job"
             description="Find issued invoices whose due date is already in the past and mark them as overdue."
@@ -72,6 +81,15 @@ export function AdminJobsPanel() {
             onRun={() => runRenewDueSubscriptionsJob()}
             result={renewalResult}
             title="Renew due subscriptions"
+          />
+          <JobCard
+            actionLabel="Run job"
+            description="Generate the missing invoice for the current subscription period without duplicating an already billed period."
+            error={generationError}
+            isLoading={isRunningGeneration}
+            onRun={() => runGenerateDueInvoicesJob()}
+            result={generationResult}
+            title="Generate due invoices"
           />
         </div>
       </section>

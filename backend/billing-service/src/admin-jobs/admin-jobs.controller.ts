@@ -31,4 +31,10 @@ export class AdminJobsController {
   renewDueSubscriptions() {
     return this.subscriptionsService.runRenewDueSubscriptionsJob();
   }
+
+  @Roles(Role.ADMIN)
+  @Post('generate-due-invoices')
+  generateDueInvoices() {
+    return this.subscriptionsService.runGenerateDueInvoicesJob();
+  }
 }

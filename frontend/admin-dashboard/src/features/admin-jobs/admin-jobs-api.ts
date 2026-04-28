@@ -22,10 +22,17 @@ export const adminJobsApi = baseApi.injectEndpoints({
         method: "POST",
       }),
     }),
+    runGenerateDueInvoicesJob: build.mutation<JobSummary, void>({
+      query: () => ({
+        url: "/admin/jobs/generate-due-invoices",
+        method: "POST",
+      }),
+    }),
   }),
 });
 
 export const {
+  useRunGenerateDueInvoicesJobMutation,
   useRunMarkOverdueInvoicesJobMutation,
   useRunRenewDueSubscriptionsJobMutation,
   useRunUpdatePastDueSubscriptionsJobMutation,
