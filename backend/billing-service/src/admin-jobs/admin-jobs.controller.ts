@@ -5,35 +5,30 @@ import { Roles } from '../auth/roles.decorator';
 import { InvoicesService } from '../invoices/invoices.service';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 
-@ApiTags('admin-billing')
+@ApiTags('admin-jobs')
 @ApiBearerAuth()
-@Controller('admin/billing')
-export class AdminBillingController {
+@Controller('admin/jobs')
+export class AdminJobsController {
   constructor(
     private readonly invoicesService: InvoicesService,
     private readonly subscriptionsService: SubscriptionsService,
   ) {}
 
   @Roles(Role.ADMIN)
-  @Post('run-overdue')
-  async runOverdue() {
-    const updatedCount = await this.invoicesService.markOverdueInvoices();
-
-    return {
-      action: 'run-overdue',
-      updatedCount,
-    };
+  @Post('mark-overdue-invoices')
+  markOverdueInvoices() {
+    return this.invoicesService.runMarkOverdueInvoicesJob();
   }
 
   @Roles(Role.ADMIN)
-  @Post('run-renewal')
-  async runRenewal() {
-    const renewedCount =
-      await this.subscriptionsService.renewDueSubscriptions();
+  @Post('update-past-due-subscriptions')
+  updatePastDueSubscriptions() {
+    return this.subscriptionsService.updatePastDueSubscriptions();
+  }
 
-    return {
-      action: 'run-renewal',
-      renewedCount,
-    };
+  @Roles(Role.ADMIN)
+  @Post('renew-due-subscriptions')
+  renewDueSubscriptions() {
+    return this.subscriptionsService.runRenewDueSubscriptionsJob();
   }
 }

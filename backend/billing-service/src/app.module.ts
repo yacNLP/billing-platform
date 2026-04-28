@@ -11,7 +11,7 @@ import { PrismaModule } from './prisma.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { InvoicesModule } from './invoices/invoices.module';
 import { PaymentsModule } from './payments/payments.module';
-import { AdminBillingModule } from './admin-billing/admin-billing.module';
+import { AdminJobsModule } from './admin-jobs/admin-jobs.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 
 import { JwtAuthGuard } from './auth/jwt.guard';
@@ -29,7 +29,7 @@ import { RolesGuard } from './auth/roles.guard';
     SubscriptionsModule,
     InvoicesModule,
     PaymentsModule,
-    AdminBillingModule,
+    AdminJobsModule,
     AnalyticsModule,
   ],
   controllers: [AppController],

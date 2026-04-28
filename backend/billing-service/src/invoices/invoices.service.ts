@@ -10,6 +10,7 @@ import { Paginated } from '../common/dto/paginated.type';
 import { errorMessage } from '../common/error.util';
 import { TenantContext } from '../common/tenant/tenant.context';
 import { PrismaService } from '../prisma.service';
+import type { JobSummary } from '../admin-jobs/job-summary.type';
 import { CreateInvoiceDto } from './dto/create-invoice.dto';
 import { InvoicesQueryDto } from './dto/invoices-query.dto';
 
@@ -380,10 +381,22 @@ export class InvoicesService {
   }
 
   async markOverdueInvoices(): Promise<number> {
+    const summary = await this.runMarkOverdueInvoicesJob();
+    return summary.updated;
+  }
+
+  async runMarkOverdueInvoicesJob(): Promise<JobSummary> {
     const tenantId = this.tenantContext.getTenantId();
     const now = new Date();
 
     this.logger.debug(`mark overdue invoices tenantId=${tenantId}`);
+
+    const scanned = await this.prisma.invoice.count({
+      where: {
+        tenantId,
+        status: InvoiceStatus.ISSUED,
+      },
+    });
 
     const result = await this.prisma.invoice.updateMany({
       where: {
@@ -402,7 +415,11 @@ export class InvoicesService {
       `marked overdue invoices tenantId=${tenantId} updatedCount=${result.count}`,
     );
 
-    return result.count;
+    return {
+      scanned,
+      updated: result.count,
+      skipped: scanned - result.count,
+    };
   }
 
   private async findInvoiceOrThrow(

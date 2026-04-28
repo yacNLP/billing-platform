@@ -1,10 +1,10 @@
 import { Module } from '@nestjs/common';
 import { InvoicesModule } from '../invoices/invoices.module';
 import { SubscriptionsModule } from '../subscriptions/subscriptions.module';
-import { AdminBillingController } from './admin-billing.controller';
+import { AdminJobsController } from './admin-jobs.controller';
 
 @Module({
   imports: [InvoicesModule, SubscriptionsModule],
-  controllers: [AdminBillingController],
+  controllers: [AdminJobsController],
 })
-export class AdminBillingModule {}
+export class AdminJobsModule {}

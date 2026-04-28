@@ -12,6 +12,7 @@ import {
   Subscription,
   SubscriptionStatus,
 } from '@prisma/client';
+import type { JobSummary } from '../admin-jobs/job-summary.type';
 import { Paginated } from '../common/dto/paginated.type';
 import { TenantContext } from '../common/tenant/tenant.context';
 import { PrismaService } from '../prisma.service';
@@ -326,10 +327,23 @@ export class SubscriptionsService {
   }
 
   async renewDueSubscriptions(): Promise<number> {
+    const summary = await this.runRenewDueSubscriptionsJob();
+    return summary.updated;
+  }
+
+  async runRenewDueSubscriptionsJob(): Promise<JobSummary> {
     const tenantId = this.tenantContext.getTenantId();
     const now = new Date();
 
     this.logger.debug(`renew due subscriptions tenantId=${tenantId}`);
+
+    const scanned = await this.prisma.subscription.count({
+      where: {
+        tenantId,
+        status: SubscriptionStatus.ACTIVE,
+        cancelAtPeriodEnd: false,
+      },
+    });
 
     const subscriptions = await this.prisma.subscription.findMany({
       where: {
@@ -354,7 +368,75 @@ export class SubscriptionsService {
       `renewed due subscriptions tenantId=${tenantId} renewedCount=${renewedCount}`,
     );
 
-    return renewedCount;
+    return {
+      scanned,
+      updated: renewedCount,
+      skipped: scanned - renewedCount,
+    };
+  }
+
+  async updatePastDueSubscriptions(): Promise<JobSummary> {
+    const tenantId = this.tenantContext.getTenantId();
+
+    this.logger.debug(`update past-due subscriptions tenantId=${tenantId}`);
+
+    const scanned = await this.prisma.subscription.count({
+      where: {
+        tenantId,
+        status: SubscriptionStatus.ACTIVE,
+      },
+    });
+
+    const overdueInvoices = await this.prisma.invoice.findMany({
+      where: {
+        tenantId,
+        status: InvoiceStatus.OVERDUE,
+      },
+      select: {
+        subscriptionId: true,
+        amountDue: true,
+        amountPaid: true,
+      },
+    });
+
+    const pastDueSubscriptionIds = [
+      ...new Set(
+        overdueInvoices
+          .filter((invoice) => invoice.amountPaid < invoice.amountDue)
+          .map((invoice) => invoice.subscriptionId),
+      ),
+    ];
+
+    if (pastDueSubscriptionIds.length === 0) {
+      return {
+        scanned,
+        updated: 0,
+        skipped: scanned,
+      };
+    }
+
+    const result = await this.prisma.subscription.updateMany({
+      where: {
+        tenantId,
+        status: SubscriptionStatus.ACTIVE,
+        id: {
+          in: pastDueSubscriptionIds,
+        },
+      },
+      data: {
+        status: SubscriptionStatus.PAST_DUE,
+      },
+    });
+
+    this.logger.log(
+      `updated past-due subscriptions tenantId=${tenantId} updatedCount=${result.count}`,
+    );
+
+    return {
+      scanned,
+      updated: result.count,
+      skipped: scanned - result.count,
+    };
   }
 
   async evaluateSubscriptionsLifecycle(): Promise<void> {
