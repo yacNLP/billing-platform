@@ -41,10 +41,10 @@ export function CreatePlanForm() {
     data: products,
     isLoading: isLoadingProducts,
     error: productsError,
-  } = useGetProductsQuery();
+  } = useGetProductsQuery({ page: 1, pageSize: 100, isActive: "true" });
 
   const activeProducts = useMemo(
-    () => (products || []).filter((product) => product.isActive),
+    () => products?.data || [],
     [products],
   );
 

@@ -80,7 +80,7 @@ export function SubscriptionsList() {
   const { data, error, isLoading, isFetching } =
     useGetSubscriptionsQuery(queryParams);
   const { data: customers } = useGetCustomersQuery({ page: 1, pageSize: 100 });
-  const { data: plans } = useGetPlansQuery();
+  const { data: plans } = useGetPlansQuery({ page: 1, pageSize: 100 });
 
   function replaceSearchParams(nextParams: URLSearchParams) {
     const queryString = nextParams.toString();
@@ -249,7 +249,7 @@ export function SubscriptionsList() {
               name="planId"
             >
               <option value="">All plans</option>
-              {(plans || []).map((plan) => (
+              {(plans?.data || []).map((plan) => (
                 <option key={plan.id} value={plan.id}>
                   {plan.name} · {plan.code}
                 </option>
@@ -304,7 +304,9 @@ export function SubscriptionsList() {
             const customer = customers?.data.find(
               (item) => item.id === subscription.customerId,
             );
-            const plan = plans?.find((item) => item.id === subscription.planId);
+            const plan = plans?.data.find(
+              (item) => item.id === subscription.planId,
+            );
 
             return (
               <li

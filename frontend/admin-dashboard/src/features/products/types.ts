@@ -13,3 +13,12 @@ export type ProductsListResponse = {
   pageSize: number;
   totalPages: number;
 };
+
+export type ProductsQueryParams = {
+  page?: number;
+  pageSize?: number;
+  q?: string;
+  isActive?: "true" | "false";
+  sortBy?: "name" | "createdAt" | "updatedAt";
+  order?: "asc" | "desc";
+};

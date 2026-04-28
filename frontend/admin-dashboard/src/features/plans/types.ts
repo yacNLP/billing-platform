@@ -23,3 +23,13 @@ export type PlansListResponse = {
   pageSize: number;
   totalPages: number;
 };
+
+export type PlansQueryParams = {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+  active?: "true" | "false";
+  currency?: string;
+  sort?: "id" | "code" | "name" | "amount" | "createdAt";
+  order?: "asc" | "desc";
+};

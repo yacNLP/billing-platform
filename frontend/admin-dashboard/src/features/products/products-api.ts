@@ -1,6 +1,10 @@
 import { baseApi } from "@/store/api/base-api";
 
-import type { Product, ProductsListResponse } from "@/features/products/types";
+import type {
+  Product,
+  ProductsListResponse,
+  ProductsQueryParams,
+} from "@/features/products/types";
 
 export const productsApi = baseApi
   .enhanceEndpoints({
@@ -8,11 +12,11 @@ export const productsApi = baseApi
   })
   .injectEndpoints({
     endpoints: (build) => ({
-      getProducts: build.query<Product[], void>({
-        query: () => ({
+      getProducts: build.query<ProductsListResponse, ProductsQueryParams | void>({
+        query: (params) => ({
           url: "/products",
+          ...(params ? { params } : {}),
         }),
-        transformResponse: (response: ProductsListResponse) => response.data,
         providesTags: [{ type: "Products", id: "LIST" }],
       }),
       getProductById: build.query<Product, number>({

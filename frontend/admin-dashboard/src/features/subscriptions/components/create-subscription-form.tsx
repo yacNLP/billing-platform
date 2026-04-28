@@ -31,12 +31,9 @@ export function CreateSubscriptionForm() {
     data: plans,
     isLoading: isLoadingPlans,
     error: plansError,
-  } = useGetPlansQuery();
+  } = useGetPlansQuery({ page: 1, pageSize: 100, active: "true" });
 
-  const activePlans = useMemo(
-    () => (plans || []).filter((plan) => plan.active),
-    [plans],
-  );
+  const activePlans = useMemo(() => plans?.data || [], [plans]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

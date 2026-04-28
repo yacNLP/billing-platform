@@ -4,6 +4,7 @@ import type {
   BillingInterval,
   Plan,
   PlansListResponse,
+  PlansQueryParams,
 } from "@/features/plans/types";
 
 export const plansApi = baseApi
@@ -12,11 +13,11 @@ export const plansApi = baseApi
   })
   .injectEndpoints({
     endpoints: (build) => ({
-      getPlans: build.query<Plan[], void>({
-        query: () => ({
+      getPlans: build.query<PlansListResponse, PlansQueryParams | void>({
+        query: (params) => ({
           url: "/plans",
+          ...(params ? { params } : {}),
         }),
-        transformResponse: (response: PlansListResponse) => response.data,
         providesTags: [{ type: "Plans", id: "LIST" }],
       }),
       getPlanById: build.query<Plan, number>({
