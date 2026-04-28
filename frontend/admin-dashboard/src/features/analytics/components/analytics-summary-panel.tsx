@@ -7,15 +7,16 @@ import { formatMoney } from "@/lib/formatters";
 const numberFormatter = new Intl.NumberFormat("en-US");
 
 const summaryCards: Array<{
-  key: keyof AnalyticsSummary;
+  key: Exclude<keyof AnalyticsSummary, "subscriptionsByPlan">;
   label: string;
   description: string;
-  format?: "money";
+  format?: "money" | "percent";
 }> = [
   {
     key: "estimatedMrr",
     label: "Estimated MRR",
-    description: "Monthly recurring revenue estimated from active subscriptions.",
+    description:
+      "Monthly recurring revenue estimated from active subscriptions.",
     format: "money",
   },
   {
@@ -25,9 +26,21 @@ const summaryCards: Array<{
     format: "money",
   },
   {
+    key: "revenueThisMonth",
+    label: "Revenue this month",
+    description: "Paid invoice revenue collected during the current month.",
+    format: "money",
+  },
+  {
     key: "totalAmountDue",
     label: "Amount due",
     description: "Outstanding amount across issued and overdue invoices.",
+    format: "money",
+  },
+  {
+    key: "overdueAmount",
+    label: "Overdue amount",
+    description: "Outstanding amount across overdue invoices.",
     format: "money",
   },
   {
@@ -66,6 +79,12 @@ const summaryCards: Array<{
     description: "Payments completed successfully.",
   },
   {
+    key: "paymentSuccessRate",
+    label: "Payment success rate",
+    description: "Share of completed payment attempts that succeeded.",
+    format: "percent",
+  },
+  {
     key: "failedPayments",
     label: "Failed payments",
     description: "Payments that failed and may need follow-up.",
@@ -76,7 +95,9 @@ export function AnalyticsSummaryPanel() {
   const { data, error, isLoading, isFetching } = useGetAnalyticsSummaryQuery();
 
   if (isLoading) {
-    return <StatePanel title="Dashboard" message="Loading analytics summary..." />;
+    return (
+      <StatePanel title="Dashboard" message="Loading analytics summary..." />
+    );
   }
 
   if (error) {
@@ -89,7 +110,9 @@ export function AnalyticsSummaryPanel() {
   }
 
   if (!data) {
-    return <StatePanel title="Dashboard" message="No analytics data available." />;
+    return (
+      <StatePanel title="Dashboard" message="No analytics data available." />
+    );
   }
 
   return (
@@ -110,7 +133,9 @@ export function AnalyticsSummaryPanel() {
           </div>
 
           {isFetching ? (
-            <p className="mt-6 text-sm text-slate-500">Refreshing analytics...</p>
+            <p className="mt-6 text-sm text-slate-500">
+              Refreshing analytics...
+            </p>
           ) : null}
         </div>
 
@@ -124,6 +149,44 @@ export function AnalyticsSummaryPanel() {
             />
           ))}
         </dl>
+
+        <section className="rounded-[1.75rem] border border-[var(--color-border)] bg-white/90 p-6 shadow-[0_18px_50px_rgba(15,23,42,0.06)]">
+          <div>
+            <h3 className="text-xl font-semibold tracking-tight text-slate-950">
+              Subscriptions by plan
+            </h3>
+            <p className="mt-2 text-sm leading-6 text-slate-500">
+              Active subscriptions grouped by their current plan.
+            </p>
+          </div>
+
+          <div className="mt-6 divide-y divide-[var(--color-border)]">
+            {data.subscriptionsByPlan.length > 0 ? (
+              data.subscriptionsByPlan.map((item) => (
+                <div
+                  className="flex items-center justify-between gap-4 py-4 first:pt-0 last:pb-0"
+                  key={item.planId}
+                >
+                  <div>
+                    <p className="font-medium text-slate-950">
+                      {item.planName}
+                    </p>
+                    <p className="mt-1 text-sm text-slate-500">
+                      {item.planCode}
+                    </p>
+                  </div>
+                  <p className="text-2xl font-semibold tracking-tight text-slate-950">
+                    {numberFormatter.format(item.activeSubscriptions)}
+                  </p>
+                </div>
+              ))
+            ) : (
+              <p className="text-sm text-slate-500">
+                No active subscriptions by plan yet.
+              </p>
+            )}
+          </div>
+        </section>
       </section>
     </main>
   );
@@ -170,9 +233,13 @@ function MetricCard({ label, value, description }: MetricCardProps) {
   );
 }
 
-function formatMetricValue(value: number, format?: "money") {
+function formatMetricValue(value: number, format?: "money" | "percent") {
   if (format === "money") {
     return formatMoney(value, "EUR");
+  }
+
+  if (format === "percent") {
+    return `${numberFormatter.format(value)}%`;
   }
 
   return numberFormatter.format(value);

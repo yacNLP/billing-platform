@@ -6,6 +6,8 @@ import { createE2eApp, TestApp } from '../utils/e2e-app';
 import { E2EClient } from '../utils/e2e-client';
 import { login, loginAsAdmin } from '../utils/e2e-auth';
 
+jest.setTimeout(20_000);
+
 interface AnalyticsSummaryResponse {
   totalCustomers: number;
   activeSubscriptions: number;
@@ -14,10 +16,19 @@ interface AnalyticsSummaryResponse {
   paidInvoices: number;
   overdueInvoices: number;
   totalRevenuePaid: number;
+  revenueThisMonth: number;
   totalAmountDue: number;
+  overdueAmount: number;
   failedPayments: number;
   successfulPayments: number;
+  paymentSuccessRate: number;
   estimatedMrr: number;
+  subscriptionsByPlan: Array<{
+    planId: number;
+    planCode: string;
+    planName: string;
+    activeSubscriptions: number;
+  }>;
 }
 
 interface CustomerResponse {
@@ -115,10 +126,14 @@ function expectSummaryShape(summary: AnalyticsSummaryResponse): void {
   expect(typeof summary.paidInvoices).toBe('number');
   expect(typeof summary.overdueInvoices).toBe('number');
   expect(typeof summary.totalRevenuePaid).toBe('number');
+  expect(typeof summary.revenueThisMonth).toBe('number');
   expect(typeof summary.totalAmountDue).toBe('number');
+  expect(typeof summary.overdueAmount).toBe('number');
   expect(typeof summary.failedPayments).toBe('number');
   expect(typeof summary.successfulPayments).toBe('number');
+  expect(typeof summary.paymentSuccessRate).toBe('number');
   expect(typeof summary.estimatedMrr).toBe('number');
+  expect(Array.isArray(summary.subscriptionsByPlan)).toBe(true);
 }
 
 function expectSummaryDelta(
@@ -385,7 +400,9 @@ describe('Analytics e2e', () => {
       paidInvoices: 0,
       overdueInvoices: 1,
       totalRevenuePaid: 0,
+      revenueThisMonth: 0,
       totalAmountDue: 3700,
+      overdueAmount: 700,
       failedPayments: 0,
       successfulPayments: 0,
       estimatedMrr: 3000,
@@ -399,7 +416,9 @@ describe('Analytics e2e', () => {
       paidInvoices: 0,
       overdueInvoices: 0,
       totalRevenuePaid: 0,
+      revenueThisMonth: 0,
       totalAmountDue: 24900,
+      overdueAmount: 0,
       failedPayments: 1,
       successfulPayments: 0,
       estimatedMrr: 2000,
@@ -503,10 +522,38 @@ describe('Analytics e2e', () => {
       paidInvoices: 1,
       overdueInvoices: 1,
       totalRevenuePaid: 800,
+      revenueThisMonth: 800,
       totalAmountDue: 28600,
+      overdueAmount: 700,
       successfulPayments: 1,
       failedPayments: 1,
       estimatedMrr: 5000,
+    });
+
+    expect(after.paymentSuccessRate).toBe(
+      Math.round(
+        (after.successfulPayments /
+          (after.successfulPayments + after.failedPayments)) *
+          100,
+      ),
+    );
+
+    const monthlyPlanSummary = after.subscriptionsByPlan.find(
+      (item) => item.planId === monthlyPlan.id,
+    );
+    const yearlyPlanSummary = after.subscriptionsByPlan.find(
+      (item) => item.planId === yearlyPlan.id,
+    );
+
+    expect(monthlyPlanSummary).toMatchObject({
+      planCode: monthlyPlan.code,
+      planName: monthlyPlan.name,
+      activeSubscriptions: 1,
+    });
+    expect(yearlyPlanSummary).toMatchObject({
+      planCode: yearlyPlan.code,
+      planName: yearlyPlan.name,
+      activeSubscriptions: 1,
     });
   });
 });

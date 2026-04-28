@@ -20,6 +20,13 @@ export class AnalyticsService {
 
   async getSummary(): Promise<AnalyticsSummaryDto> {
     const tenantId = this.tenantContext.getTenantId();
+    const now = new Date();
+    const monthStart = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1),
+    );
+    const nextMonthStart = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1),
+    );
 
     this.logger.debug(`get analytics summary tenantId=${tenantId}`);
 
@@ -31,7 +38,9 @@ export class AnalyticsService {
       paidInvoices,
       overdueInvoices,
       paidInvoiceAmounts,
+      paidInvoiceAmountsThisMonth,
       dueInvoiceAmounts,
+      overdueInvoiceAmounts,
       failedPayments,
       successfulPayments,
       activeSubscriptionSnapshots,
@@ -81,9 +90,32 @@ export class AnalyticsService {
       this.prisma.invoice.aggregate({
         where: {
           tenantId,
+          status: InvoiceStatus.PAID,
+          paidAt: {
+            gte: monthStart,
+            lt: nextMonthStart,
+          },
+        },
+        _sum: {
+          amountPaid: true,
+        },
+      }),
+      this.prisma.invoice.aggregate({
+        where: {
+          tenantId,
           status: {
             in: [InvoiceStatus.ISSUED, InvoiceStatus.OVERDUE],
           },
+        },
+        _sum: {
+          amountDue: true,
+          amountPaid: true,
+        },
+      }),
+      this.prisma.invoice.aggregate({
+        where: {
+          tenantId,
+          status: InvoiceStatus.OVERDUE,
         },
         _sum: {
           amountDue: true,
@@ -111,16 +143,34 @@ export class AnalyticsService {
           amountSnapshot: true,
           intervalSnapshot: true,
           intervalCountSnapshot: true,
+          planId: true,
+          plan: {
+            select: {
+              code: true,
+              name: true,
+            },
+          },
         },
       }),
     ]);
 
     const totalRevenuePaid = paidInvoiceAmounts._sum.amountPaid ?? 0;
+    const revenueThisMonth = paidInvoiceAmountsThisMonth._sum.amountPaid ?? 0;
     const totalAmountDue = Math.max(
       0,
       (dueInvoiceAmounts._sum.amountDue ?? 0) -
         (dueInvoiceAmounts._sum.amountPaid ?? 0),
     );
+    const overdueAmount = Math.max(
+      0,
+      (overdueInvoiceAmounts._sum.amountDue ?? 0) -
+        (overdueInvoiceAmounts._sum.amountPaid ?? 0),
+    );
+    const totalPayments = successfulPayments + failedPayments;
+    const paymentSuccessRate =
+      totalPayments > 0
+        ? Math.round((successfulPayments / totalPayments) * 100)
+        : 0;
 
     const estimatedMrr = Math.round(
       activeSubscriptionSnapshots.reduce((sum, subscription) => {
@@ -134,6 +184,35 @@ export class AnalyticsService {
         );
       }, 0),
     );
+    const subscriptionsByPlanMap = new Map<
+      number,
+      {
+        planId: number;
+        planCode: string;
+        planName: string;
+        activeSubscriptions: number;
+      }
+    >();
+
+    for (const subscription of activeSubscriptionSnapshots) {
+      const existing = subscriptionsByPlanMap.get(subscription.planId);
+
+      if (existing) {
+        existing.activeSubscriptions += 1;
+        continue;
+      }
+
+      subscriptionsByPlanMap.set(subscription.planId, {
+        planId: subscription.planId,
+        planCode: subscription.plan.code,
+        planName: subscription.plan.name,
+        activeSubscriptions: 1,
+      });
+    }
+
+    const subscriptionsByPlan = [...subscriptionsByPlanMap.values()].sort(
+      (a, b) => b.activeSubscriptions - a.activeSubscriptions,
+    );
 
     return {
       totalCustomers,
@@ -143,10 +222,14 @@ export class AnalyticsService {
       paidInvoices,
       overdueInvoices,
       totalRevenuePaid,
+      revenueThisMonth,
       totalAmountDue,
+      overdueAmount,
       failedPayments,
       successfulPayments,
+      paymentSuccessRate,
       estimatedMrr,
+      subscriptionsByPlan,
     };
   }
 

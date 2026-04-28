@@ -1,3 +1,10 @@
+export type SubscriptionsByPlan = {
+  planId: number;
+  planCode: string;
+  planName: string;
+  activeSubscriptions: number;
+};
+
 export type AnalyticsSummary = {
   totalCustomers: number;
   activeSubscriptions: number;
@@ -6,8 +13,12 @@ export type AnalyticsSummary = {
   paidInvoices: number;
   overdueInvoices: number;
   totalRevenuePaid: number;
+  revenueThisMonth: number;
   totalAmountDue: number;
+  overdueAmount: number;
   failedPayments: number;
   successfulPayments: number;
+  paymentSuccessRate: number;
   estimatedMrr: number;
+  subscriptionsByPlan: SubscriptionsByPlan[];
 };
