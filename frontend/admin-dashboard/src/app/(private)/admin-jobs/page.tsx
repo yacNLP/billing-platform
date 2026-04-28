@@ -1,5 +1,5 @@
-import { AdminPagePlaceholder } from "@/components/placeholders/admin-page-placeholder";
+import { AdminJobsPanel } from "@/features/admin-jobs/components/admin-jobs-panel";
 
 export default function AdminJobsPage() {
-  return <AdminPagePlaceholder title="Admin Jobs" />;
+  return <AdminJobsPanel />;
 }
