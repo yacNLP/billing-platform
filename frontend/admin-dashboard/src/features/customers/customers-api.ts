@@ -8,7 +8,7 @@ import type {
 
 export const customersApi = baseApi
   .enhanceEndpoints({
-    addTagTypes: ["Customers"],
+    addTagTypes: ["Analytics", "Customers"],
   })
   .injectEndpoints({
     endpoints: (build) => ({
@@ -34,7 +34,10 @@ export const customersApi = baseApi
           method: "POST",
           body,
         }),
-        invalidatesTags: [{ type: "Customers", id: "LIST" }],
+        invalidatesTags: [
+          { type: "Analytics", id: "SUMMARY" },
+          { type: "Customers", id: "LIST" },
+        ],
       }),
       updateCustomer: build.mutation<
         Customer,
@@ -56,6 +59,7 @@ export const customersApi = baseApi
           method: "DELETE",
         }),
         invalidatesTags: (_result, _error, id) => [
+          { type: "Analytics", id: "SUMMARY" },
           { type: "Customers", id: "LIST" },
           { type: "Customers", id },
         ],

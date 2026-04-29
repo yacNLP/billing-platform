@@ -8,7 +8,7 @@ import type {
 
 export const subscriptionsApi = baseApi
   .enhanceEndpoints({
-    addTagTypes: ["Subscriptions"],
+    addTagTypes: ["Analytics", "Invoices", "Subscriptions"],
   })
   .injectEndpoints({
     endpoints: (build) => ({
@@ -42,7 +42,11 @@ export const subscriptionsApi = baseApi
           method: "POST",
           body,
         }),
-        invalidatesTags: [{ type: "Subscriptions", id: "LIST" }],
+        invalidatesTags: [
+          { type: "Analytics", id: "SUMMARY" },
+          { type: "Invoices", id: "LIST" },
+          { type: "Subscriptions", id: "LIST" },
+        ],
       }),
       cancelSubscription: build.mutation<
         Subscription,
@@ -54,6 +58,7 @@ export const subscriptionsApi = baseApi
           body,
         }),
         invalidatesTags: (_result, _error, { id }) => [
+          { type: "Analytics", id: "SUMMARY" },
           { type: "Subscriptions", id: "LIST" },
           { type: "Subscriptions", id },
         ],

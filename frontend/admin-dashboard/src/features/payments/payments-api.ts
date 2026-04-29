@@ -9,7 +9,7 @@ import type {
 
 export const paymentsApi = baseApi
   .enhanceEndpoints({
-    addTagTypes: ["Payments", "Invoices"],
+    addTagTypes: ["Analytics", "Payments", "Invoices"],
   })
   .injectEndpoints({
     endpoints: (build) => ({
@@ -45,6 +45,7 @@ export const paymentsApi = baseApi
           body,
         }),
         invalidatesTags: (_result, _error, { invoiceId }) => [
+          { type: "Analytics", id: "SUMMARY" },
           { type: "Payments", id: "LIST" },
           { type: "Invoices", id: "LIST" },
           { type: "Invoices", id: invoiceId },

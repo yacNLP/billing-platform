@@ -8,7 +8,7 @@ import type {
 
 export const invoicesApi = baseApi
   .enhanceEndpoints({
-    addTagTypes: ["Invoices"],
+    addTagTypes: ["Analytics", "Invoices"],
   })
   .injectEndpoints({
     endpoints: (build) => ({
@@ -43,7 +43,10 @@ export const invoicesApi = baseApi
           method: "POST",
           body,
         }),
-        invalidatesTags: [{ type: "Invoices", id: "LIST" }],
+        invalidatesTags: [
+          { type: "Analytics", id: "SUMMARY" },
+          { type: "Invoices", id: "LIST" },
+        ],
       }),
       markInvoicePaid: build.mutation<Invoice, number>({
         query: (id) => ({
@@ -51,6 +54,7 @@ export const invoicesApi = baseApi
           method: "PATCH",
         }),
         invalidatesTags: (_result, _error, id) => [
+          { type: "Analytics", id: "SUMMARY" },
           { type: "Invoices", id: "LIST" },
           { type: "Invoices", id },
         ],
@@ -61,6 +65,7 @@ export const invoicesApi = baseApi
           method: "PATCH",
         }),
         invalidatesTags: (_result, _error, id) => [
+          { type: "Analytics", id: "SUMMARY" },
           { type: "Invoices", id: "LIST" },
           { type: "Invoices", id },
         ],
@@ -71,6 +76,7 @@ export const invoicesApi = baseApi
           method: "PATCH",
         }),
         invalidatesTags: (_result, _error, id) => [
+          { type: "Analytics", id: "SUMMARY" },
           { type: "Invoices", id: "LIST" },
           { type: "Invoices", id },
         ],

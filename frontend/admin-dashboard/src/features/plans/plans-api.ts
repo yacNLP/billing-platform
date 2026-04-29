@@ -9,7 +9,7 @@ import type {
 
 export const plansApi = baseApi
   .enhanceEndpoints({
-    addTagTypes: ["Plans"],
+    addTagTypes: ["Analytics", "Plans"],
   })
   .injectEndpoints({
     endpoints: (build) => ({
@@ -46,7 +46,10 @@ export const plansApi = baseApi
           method: "POST",
           body,
         }),
-        invalidatesTags: [{ type: "Plans", id: "LIST" }],
+        invalidatesTags: [
+          { type: "Analytics", id: "SUMMARY" },
+          { type: "Plans", id: "LIST" },
+        ],
       }),
       updatePlan: build.mutation<
         Plan,
@@ -69,6 +72,7 @@ export const plansApi = baseApi
           body,
         }),
         invalidatesTags: (_result, _error, { id }) => [
+          { type: "Analytics", id: "SUMMARY" },
           { type: "Plans", id: "LIST" },
           { type: "Plans", id },
         ],
@@ -79,6 +83,7 @@ export const plansApi = baseApi
           method: "DELETE",
         }),
         invalidatesTags: (_result, _error, id) => [
+          { type: "Analytics", id: "SUMMARY" },
           { type: "Plans", id: "LIST" },
           { type: "Plans", id },
         ],
