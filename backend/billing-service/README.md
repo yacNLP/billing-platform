@@ -1,173 +1,285 @@
 # Billing Service
 
-Billing Service is the core backend of the **Billing Platform**.
+Billing Service is the backend API of the **Revenue & Billing Platform**.
 
-It exposes a secure, multi-tenant REST API to manage **customers**, **products**, and **subscription plans**.  
-The service is built as a **modular monolith** using **NestJS** and **Prisma**, with a strong focus on clean architecture and production-ready practices.
+It exposes a secure multi-tenant REST API for managing the core revenue lifecycle of a subscription business: customers, products, plans, subscriptions, invoices, payments, manual billing jobs, and analytics.
 
-This service is Docker-first and production-oriented.
+The service is built as a **modular monolith** with **NestJS**, **Prisma**, and **PostgreSQL**. It is intentionally kept as one deployable backend while preserving clear domain boundaries.
 
----
+## Current Scope
 
-## Architecture
+Implemented backend domains:
 
-The application follows a modular structure:
+- **auth** — JWT login, token validation, ADMIN / USER roles
+- **tenant** — request-scoped tenant resolution and data isolation
+- **customers** — customer CRUD, search, pagination
+- **products** — product CRUD, active/inactive state, search, pagination
+- **plans** — pricing plans, billing interval, soft delete, filters, pagination
+- **subscriptions** — subscription creation, periods, cancellation, renewal logic
+- **invoices** — invoice creation, numbering, statuses, paid/void/overdue actions
+- **payments** — success/failed payment recording linked to invoices
+- **admin-jobs** — manual billing orchestration jobs
+- **analytics** — billing metrics, MRR estimation, revenue and overdue KPIs
+- **common** — shared DTOs, transformers, logging, tenant utilities
 
-- **auth** — JWT authentication and role-based access control  
-- **tenant** — request-scoped tenant resolution  
-- **customers** — customer management  
-- **products** — product catalog  
-- **plans** — subscription plans  
-- **common** — shared utilities and DTOs  
+## Main Business Rules
 
-### Key characteristics
+- Each authenticated user belongs to one tenant.
+- All business data is scoped by `tenantId`.
+- A customer can have only one `ACTIVE` subscription at a time.
+- Creating a subscription creates the initial invoice for the current period.
+- A successful payment marks the linked invoice as `PAID`.
+- Issued invoices past their due date can be marked `OVERDUE`.
+- Subscriptions with unpaid overdue invoices can move to `PAST_DUE`.
+- Due subscriptions can be renewed manually through admin jobs.
+- Invoice generation is idempotent for a subscription period.
 
-- Modular monolith (NestJS)
-- PostgreSQL database
-- Prisma ORM with migrations
-- JWT authentication
-- ADMIN / USER roles
-- Automatic tenant-based data scoping
-- Docker-ready setup
-- End-to-end test coverage for critical flows
+## API Documentation
 
----
+Swagger / OpenAPI is available when the API is running:
+
+```text
+http://localhost:3000/docs
+```
+
+The API is JSON-based and uses:
+
+- Bearer JWT authentication
+- DTO validation with `class-validator`
+- Pagination for list endpoints
+- Standard HTTP errors: `400`, `401`, `403`, `404`, `409`
 
 ## Environment Configuration
 
-The service supports multiple environments:
+The service uses environment-specific files:
 
-- `.env` → local development (non-Docker)
-- `.env.docker` → Docker runtime
-- `.env.test` → end-to-end tests
-- `.env.example` → template file (committed)
+- `.env` — local development
+- `.env.docker` — Docker runtime
+- `.env.test` — e2e test database
+- `.env.example` — committed template
 
-### Local setup (without Docker)
+Create a local env file:
 
-Copy the example file:
-
-```
+```bash
 cp .env.example .env
 ```
 
+Main variables:
 
-Adjust values if needed.
+- `DATABASE_URL`
+- `SHADOW_DATABASE_URL`
+- `PORT`
+- `NODE_ENV`
 
-Docker automatically uses `.env.docker`.
+## Running With Docker
 
----
+From the repository root:
 
-
-## Running the Service (Docker — Recommended)
-From the project root:
-
-```
+```bash
 docker compose up --build
 ```
 
-This will:
+This starts PostgreSQL, applies Prisma migrations, and starts the API.
 
-- Start PostgreSQL
-- Apply Prisma migrations (`migrate deploy`)
-- Start the API
+API URLs:
 
-The API will be available at:
+```text
+http://localhost:3000
+http://localhost:3000/docs
+```
 
-- http://localhost:3000  
-- http://localhost:3000/docs
-
-## Running Without Docker (Optional)
+## Running Locally Without Docker
 
 Inside `backend/billing-service`:
 
-- Install dependencies
-
-```
+```bash
 npm install
-```
-
-- Generate Prisma client:
-
-```
 npx prisma generate
-```
-
-- Apply migrations:
-
-```
 npx prisma migrate dev
-```
-
-- Start the server:
-
-```
 npm run start:dev
 ```
 
----
+## Database Commands
 
+Apply production-safe migrations:
 
-##  Database Migrations : 
-Production-safe migrations:
-```
+```bash
 npx prisma migrate deploy
 ```
 
-### Seed (Development Only)
-```
+Seed development data:
+
+```bash
 npm run db:seed:dev
 ```
 
----
-## Testing
-End-to-end tests run against a dedicated test database.
-- Start the test database:
+Reset and reseed a local development database:
 
+```bash
+npx prisma migrate reset
+npm run db:seed:dev
 ```
+
+Use reset only in development or test environments. It deletes existing data.
+
+## Testing
+
+End-to-end tests run against a dedicated PostgreSQL test database.
+
+Start the test database from the repository root:
+
+```bash
 docker compose up -d postgres-test
 ```
 
-- Apply test migrations:
-```
+Apply test migrations:
+
+```bash
 npm run db:test:deploy
 ```
-- Run e2e tests:
-```
+
+Run e2e tests:
+
+```bash
 npm run test:e2e
 ```
-- To reset the test database:
-```
+
+Reset the test database:
+
+```bash
 npm run db:test:reset
 ```
 
+Current e2e suites cover:
 
----
-
-## Security & Multi-Tenancy
-
-- JWT-based authentication
-- Role-based access control (ADMIN / USER)
-- Tenant resolved per request
-- Automatic data isolation at the service layer
-- Multi-tenant isolation verified through e2e tests
-
----
+- customers
+- products
+- plans
+- subscriptions
+- invoices
+- payments
+- admin jobs
+- analytics
+- multi-tenant isolation
 
 ## Code Quality
 
-- ESLint + Prettier
-- DTO validation with `class-validator`
-- Jest (unit & e2e)
-- Prisma schema-driven modeling
+Run lint:
 
----
+```bash
+npm run lint
+```
+
+Build the backend:
+
+```bash
+npm run build
+```
+
+The project uses:
+
+- ESLint
+- Prettier
+- Prisma schema and migrations
+- NestJS global `ValidationPipe`
+- Jest and Supertest for e2e tests
+
+## Security & Multi-Tenancy
+
+Security is enforced through global guards:
+
+- `JwtAuthGuard`
+- `TenantGuard`
+- `RolesGuard`
+
+Tenant isolation is handled by:
+
+- tenant-aware JWT payloads
+- request-scoped `TenantContext`
+- tenant-scoped Prisma queries in services
+- e2e tests validating cross-tenant isolation
+
+## Admin Jobs
+
+Admin jobs are manual operations exposed under:
+
+```text
+POST /admin/jobs/mark-overdue-invoices
+POST /admin/jobs/update-past-due-subscriptions
+POST /admin/jobs/renew-due-subscriptions
+POST /admin/jobs/generate-due-invoices
+```
+
+They are restricted to `ADMIN` users.
+
+These are not cron jobs yet. They are triggered from the admin dashboard or directly through the API.
+
+## Analytics
+
+The analytics endpoint exposes a tenant-scoped billing summary:
+
+```text
+GET /analytics/summary
+```
+
+Tracked metrics include:
+
+- total customers
+- active subscriptions
+- past due subscriptions
+- issued / paid / overdue invoices
+- total paid revenue
+- revenue this month
+- total amount due
+- overdue amount
+- successful / failed payments
+- payment success rate
+- estimated MRR
+- subscriptions by plan
+
+## Frontend Integration
+
+This backend is consumed by:
+
+```text
+frontend/admin-dashboard
+```
+
+The frontend provides protected admin pages for:
+
+- dashboard
+- customers
+- products
+- plans
+- subscriptions
+- invoices
+- payments
+- admin jobs
+
+## Explicit Non-Goals For The Current Version
+
+The backend does not currently implement:
+
+- real Stripe integration
+- webhooks
+- automatic cron scheduling
+- email reminders
+- coupons or discounts
+- advanced tax/VAT handling
+- refunds
+- accounting export
+- invoice PDF generation
+- advanced revenue forecasting
+- full audit log
+
+Payment provider fields are stored as metadata only.
 
 ## Documentation
 
-More detailed technical documentation (architecture decisions, domain model, roadmap) is available in:
+More backend documentation is available in:
 
-```
+```text
 docs/
 ```
 
-
+Some documentation files are still being updated to match the current product scope.

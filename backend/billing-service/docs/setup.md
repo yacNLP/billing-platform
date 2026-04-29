@@ -1,118 +1,119 @@
-# Setup & Environment — Billing Service
+# Setup — Billing Service
 
-## 1. Overview
+This document explains how to run the backend locally, seed development data, and run the test database.
 
-The Billing Service supports multiple environments:
+## Environments
 
-- Development (local)
-- Docker runtime
-- Test environment (e2e)
-- Production (future)
+The backend uses separate environment files:
 
-Environment configuration is managed via `.env` files.
+- `.env` — local backend development
+- `.env.docker` — Docker runtime
+- `.env.test` — e2e tests
+- `.env.example` — committed template
 
----
+Main variables:
 
-## 2. Environment Files
+- `DATABASE_URL`
+- `SHADOW_DATABASE_URL`
+- `PORT`
+- `NODE_ENV`
 
-The project uses:
+## Docker Setup
 
-- `.env` → local development
-- `.env.docker` → Docker runtime
-- `.env.test` → E2E testing
-- `.env.example` → template (committed)
+From the repository root:
 
-Each environment defines:
-
-- DATABASE_URL
-- SHADOW_DATABASE_URL (Prisma migrations)
-- PORT
-- NODE_ENV
-
----
-
-## 3. Running with Docker (Recommended)
-
-From project root:
-
-```
+```bash
 docker compose up --build
 ```
 
-This will:
+This starts:
 
-- Start PostgreSQL
-- Apply Prisma migrations (`migrate deploy`)
-- Start the API
+- `postgres` on port `5432`
+- `api` on port `3000`
 
-The API will be available at:
+The API is available at:
 
-- http://localhost:3000  
-- http://localhost:3000/docs
+```text
+http://localhost:3000
+http://localhost:3000/docs
+```
 
-## Running Without Docker (Optional)
+The Docker API startup command applies Prisma migrations before starting the NestJS application.
+
+## Local Backend Setup
 
 Inside `backend/billing-service`:
 
-- Install dependencies
-
-```
+```bash
+cp .env.example .env
 npm install
-```
-
-- Generate Prisma client:
-
-```
 npx prisma generate
-```
-
-- Apply migrations:
-
-```
 npx prisma migrate dev
-```
-
-- Start the server:
-
-```
 npm run start:dev
 ```
 
----
+## Development Seed
 
+Seed realistic development data:
 
-##  Database Migrations : 
-Production-safe migrations:
-```
-npx prisma migrate deploy
-```
-
-### Seed (Development Only)
-```
+```bash
 npm run db:seed:dev
 ```
 
----
-## Testing
-End-to-end tests run against a dedicated test database.
-- Start the test database:
+For a clean local database, reset before seeding:
 
+```bash
+npx prisma migrate reset
+npm run db:seed:dev
 ```
+
+Use reset only in development or test environments. It deletes existing data.
+
+The dev seed creates representative data for:
+
+- tenant
+- users
+- customers
+- products
+- plans
+- subscriptions
+- initial invoices
+- payments
+
+## Test Database
+
+Start the dedicated test database from the repository root:
+
+```bash
 docker compose up -d postgres-test
 ```
 
-- Apply test migrations:
-```
+Apply migrations to the test database:
+
+```bash
 npm run db:test:deploy
 ```
-- Run e2e tests:
-```
+
+Run e2e tests:
+
+```bash
 npm run test:e2e
 ```
-- To reset the test database:
-```
+
+Reset the test database:
+
+```bash
 npm run db:test:reset
 ```
 
+## Frontend Integration
 
----
+The backend is consumed by `frontend/admin-dashboard`.
+
+The frontend expects:
+
+```text
+NEXT_PUBLIC_API_BASE_URL=http://localhost:3000
+```
+
+If the backend runs on `3000`, Next.js usually starts the admin dashboard on `3001`.

@@ -1,95 +1,130 @@
 # Roadmap — Billing Service
 
-## 1. Current State (MVP Completed)
+This roadmap reflects the current state of the backend and the next pragmatic steps.
 
-The following components are implemented and validated:
+## Completed
 
-- Multi-tenant architecture (database-level isolation via tenantId)
+Core platform:
+
+- modular NestJS backend
+- Prisma + PostgreSQL
+- Docker Compose local environment
 - JWT authentication
-- Role-based access control (ADMIN / USER)
-- Customers module (CRUD)
-- Products module (CRUD + business constraints)
-- Plans module (CRUD + soft delete)
-- Composite unique constraints per tenant
-- End-to-end testing (including tenant isolation)
-- Docker-based environment setup
+- ADMIN / USER roles
+- tenant-scoped data isolation
+- global validation
+- Swagger / OpenAPI at `/docs`
 
-The system provides a secure SaaS-ready foundation.
+Business domains:
 
----
+- customers
+- products
+- plans
+- subscriptions
+- invoices
+- payments
+- admin billing jobs
+- analytics
 
-## 2. Short-Term Improvements
+Frontend integration:
 
-Planned technical improvements:
+- backend consumed by the admin dashboard
+- paginated/filterable list contracts used by frontend
 
-- Structured E2E architecture (test harness, actors, builders)
-- Additional isolation tests (update / delete scope validation)
-- API versioning strategy (/v1)
-- Improved error normalization
-- Code coverage reporting
+Quality:
 
----
+- e2e tests for core modules
+- multi-tenant isolation tests
+- backend CI with build and e2e tests
 
-## 3. Business Domain Expansion
+## Current Version
 
-Next major domain features:
+The current version is a functional Revenue & Billing Platform backend.
 
-### Subscriptions
+It supports:
 
-- Customer → Plan linkage
-- Subscription lifecycle (active, canceled, expired)
-- Status management
-- Business constraints on Plan deletion
+- creating customer/product/plan records
+- creating one active subscription per customer
+- generating initial invoices
+- recording payments
+- marking invoices paid/void/overdue
+- running manual billing jobs
+- computing billing analytics
 
-### Invoices
+Admin jobs are manual, not scheduled.
 
-- Invoice generation from subscriptions
-- Status tracking (draft, pending, paid, failed)
-- Historical records
+Payment provider fields are stored as metadata only. There is no real Stripe integration yet.
 
-### Payments
+## Short-Term Documentation Work
 
-- Payment provider integration (e.g. Stripe)
-- Webhook handling
-- Payment intent validation
-- Failure handling logic
+The current priority is documentation alignment:
 
----
+- keep root README product-oriented
+- keep backend README operational
+- update API documentation
+- update domain model
+- document billing lifecycle
+- document current limits and next steps
 
-## 4. DevOps & Infrastructure
+## Short-Term Engineering Improvements
 
-Planned improvements:
+High-value next improvements:
 
-- CI pipeline (GitHub Actions)
-- Automatic migration execution in CI
+- add frontend lint/build to CI
+- add clearer demo credentials documentation
+- add smoke test checklist
+- improve error normalization
+- add confirmation UX for destructive/admin actions if missing
+- review old `admin-billing` folder if still unused
+
+## Product Next Steps
+
+Potential product improvements:
+
+- automated cron scheduling for billing jobs
+- email reminders for overdue invoices
+- invoice PDF generation
+- real payment provider integration
+- webhook handling
+- refunds
+- coupons or discounts
+- tax/VAT handling
+- audit log
+- richer revenue analytics
+
+## DevOps Next Steps
+
+Potential delivery improvements:
+
+- frontend CI checks
 - Docker image publishing
-- Environment-based configuration validation
-- Secrets management
-- Observability (structured logs, health checks)
-- Metrics & monitoring
+- production-like Docker Compose profile
+- environment validation
+- deployment documentation
+- structured logs and monitoring
+- metrics endpoint
 
----
+## Explicit Non-Goals For Now
 
-## 5. Long-Term Architecture Evolution
+Not part of the current version:
 
-As the domain grows, potential architectural evolutions:
+- microservices
+- real Stripe integration
+- webhooks
+- cron automation
+- full accounting system
+- marketplace flows
+- advanced revenue forecasting
 
-- Extraction of subscription domain into separate module
-- Event-driven architecture (internal domain events)
-- Webhook support for external integrations
-- API versioning & backward compatibility strategy
+## Architecture Direction
 
-Microservices are not planned unless domain complexity justifies it.
+The project should stay a modular monolith until domain complexity justifies extraction.
 
----
+Possible future extraction candidates:
 
-## 6. Design Philosophy Going Forward
+- payment integration
+- notification service
+- analytics service
+- billing job runner
 
-The system will continue to prioritize:
-
-- Strict tenant isolation
-- Database-level integrity
-- Clear domain boundaries
-- Production-safe migration strategy
-- Scalable testing architecture
-- Clean, maintainable modular design
+For now, keeping one backend is the correct tradeoff.

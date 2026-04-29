@@ -1,177 +1,190 @@
 # Architecture — Billing Service
 
-## 1. Overview
+Billing Service is the backend API of the Revenue & Billing Platform.
 
-Billing Service is the core backend component of the Billing Platform.
+It is implemented as a **modular monolith**: one NestJS application, split into clear business modules, backed by PostgreSQL through Prisma.
 
-It is implemented as a **modular monolith** using NestJS and Prisma,
-designed to support a secure multi-tenant B2B SaaS architecture.
+## High-Level Flow
 
-The service exposes a REST API used by:
-- Frontend applications (future admin panel)
-- Internal tools
-- Potential future external integrations
-
----
-
-## 2. High-Level System Architecture
-
-Simplified flow:
-
-Client (HTTP)
-    ↓
-NestJS Application
-    ↓
-Controllers
-    ↓
-Guards (JWT / Roles)
-    ↓
-Tenant Resolution
-    ↓
-Services (Business Logic)
-    ↓
+```text
+Admin Dashboard / API Client
+        |
+        v
+NestJS Controllers
+        |
+        v
+Global Guards
+JWT -> Tenant -> Roles
+        |
+        v
+DTO Validation
+        |
+        v
+Domain Services
+        |
+        v
 Prisma ORM
-    ↓
+        |
+        v
 PostgreSQL
+```
 
-The service runs in Docker with PostgreSQL as the primary database.
+## Why Modular Monolith
 
----
+The project intentionally avoids microservices at this stage.
 
-## 3. Architectural Style
+Reasons:
 
-The application follows a **modular monolith architecture**.
+- simpler local development
+- simpler deployment
+- easier transactions across billing entities
+- lower operational complexity
+- still allows clean domain boundaries
 
-Each domain is isolated inside its own NestJS module:
+Future extraction remains possible for domains such as payments, analytics, notifications, or billing orchestration if the product grows.
 
-- auth
-- tenant
-- customers
-- products
-- plans
-- common
+## Modules
 
-Each module typically contains:
-- Controller (HTTP layer)
-- Service (business logic)
-- DTOs (validation)
-- Prisma-based data access
+Current backend modules:
 
-This approach was chosen over microservices to:
-- Reduce operational complexity
-- Keep deployment simple
-- Maintain clear domain separation
-- Enable future extraction if needed
+- `auth` — login, JWT strategy, role model, public routes
+- `common/tenant` — request-scoped tenant resolution
+- `customers` — customer CRUD and search
+- `products` — product catalog
+- `plans` — pricing plans and billing cadence
+- `subscriptions` — recurring commercial relationship and lifecycle
+- `invoices` — financial documents and statuses
+- `payments` — payment records and invoice settlement
+- `admin-jobs` — manual billing orchestration endpoints
+- `analytics` — tenant-scoped billing metrics
+- `common` — shared DTOs, transformers, interceptors, utilities
+- `prisma` — Prisma service and database access
 
----
+Each business module typically contains:
 
-## 4. Multi-Tenancy Strategy
+- controller
+- service
+- DTOs
+- e2e tests
+- Prisma-backed persistence
 
-The system implements **logical multi-tenancy**.
+## Multi-Tenancy
 
-Key principles:
+The system uses logical multi-tenancy in a shared PostgreSQL database.
 
-- Each request is associated with a tenant
-- Tenant context is resolved per request
-- Data is scoped automatically at the service layer
-- Cross-tenant access is prevented
-- Isolation is validated via end-to-end tests
+Core approach:
 
-Multi-tenancy is implemented without database-per-tenant,
-keeping the infrastructure simple for MVP.
+- users belong to one tenant
+- JWT payload contains `tenantId`
+- `TenantGuard` attaches tenant context to the request
+- `TenantContext` exposes tenantId to services
+- services add tenant filters to Prisma queries
+- schema constraints use tenant-scoped uniqueness where needed
 
----
+Tenant isolation is validated by dedicated e2e tests.
 
-## 5. Authentication & Authorization
+## Authentication And Authorization
 
 Authentication:
-- JWT-based authentication
-- Stateless tokens
-- Guards validate token presence and integrity
+
+- JWT-based
+- stateless access tokens
+- global `JwtAuthGuard`
+- public login route
 
 Authorization:
-- Role-based access control (RBAC)
-- Supported roles: `ADMIN`, `USER`
-- Guards enforce role restrictions at route level
 
-Security is enforced before reaching business logic.
+- `ADMIN`
+- `USER`
+- global `RolesGuard`
+- write/admin operations restricted through `@Roles(Role.ADMIN)`
 
----
+Tenant resolution:
 
-## 6. Request Lifecycle
+- global `TenantGuard`
+- request-scoped tenant context
 
-Typical request flow:
+## Validation
 
-1. HTTP request reaches controller
-2. JWT Guard validates token
-3. Tenant context is resolved
-4. Role Guard verifies permissions
-5. Service layer executes business logic
-6. Prisma executes scoped database query
-7. Response returned as JSON
+Validation is handled globally with NestJS `ValidationPipe`:
 
-Validation is performed globally via NestJS `ValidationPipe`.
+- `whitelist: true`
+- `forbidNonWhitelisted: true`
+- `transform: true`
 
----
+DTOs use `class-validator` and `class-transformer` to validate and normalize input.
 
-## 7. Data Access Layer
+## Data Model And Persistence
 
-Data access is handled through Prisma ORM.
+Prisma is used as the data access layer.
 
 Design decisions:
 
-- Schema-driven modeling
-- Type-safe queries
-- Centralized PrismaService
-- Production-safe migrations (`migrate deploy`)
-- Development migrations (`migrate dev`)
+- PostgreSQL as primary database
+- schema-driven modeling
+- migrations managed by Prisma
+- monetary values stored in minor units
+- tenant-scoped entities include `tenantId`
+- plans use soft delete
+- most other entities preserve financial history through domain rules rather than hard deletion
 
-Soft delete is used selectively (Plans).
-Hard delete is used where safe (Customers, Products).
+## Billing Orchestration
 
----
+Billing orchestration is currently exposed through manual Admin Jobs:
 
-## 8. Error Handling Strategy
+- mark overdue invoices
+- update past due subscriptions
+- renew due subscriptions
+- generate due invoices
 
-The API follows consistent HTTP semantics:
+These jobs are ADMIN-only and return a summary:
 
-- 400 — Validation error
-- 401 — Unauthorized
-- 403 — Forbidden
-- 404 — Resource not found
-- 409 — Business conflict (unique constraints, dependencies)
+```ts
+{
+  scanned: number;
+  updated: number;
+  skipped: number;
+}
+```
 
-Errors are normalized at controller/service level.
+There is no automatic cron scheduling yet.
 
----
+## Analytics
 
-## 9. Non-Functional Considerations
+Analytics is computed from tenant-scoped billing data.
 
-Current focus:
-- Code clarity
-- Strong validation
-- Isolation guarantees
-- Docker-based reproducibility
-- End-to-end test coverage
+The service aggregates:
 
-Future improvements:
-- Refresh tokens
-- Audit logs
-- Rate limiting
-- Observability & monitoring
-- CI/CD pipeline
+- customers
+- subscriptions
+- invoices
+- payments
+- MRR estimate
+- revenue
+- overdue exposure
+- subscriptions by plan
 
----
+## Error Semantics
 
-## 10. Deployment Model
+The API uses standard HTTP errors:
 
-The service runs in Docker Compose:
+- `400` — invalid input or invalid business request
+- `401` — missing or invalid auth
+- `403` — insufficient role or tenant missing
+- `404` — resource not found
+- `409` — unique constraint or business conflict
 
-- PostgreSQL container
-- API container
+## Delivery Model
 
-On startup:
-- Prisma migrations are applied
-- Application boots with environment-specific configuration
+Local delivery:
 
-The system is designed to be easily portable to a cloud environment.
+- Docker Compose for PostgreSQL and API runtime
+- separate PostgreSQL test database
+- Prisma migrations
+- dev seed script
+
+CI:
+
+- GitHub Actions for backend install, Prisma generation, migrations, build, and e2e tests
+
+Frontend CI is still a next step.

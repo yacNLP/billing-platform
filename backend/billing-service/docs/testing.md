@@ -1,161 +1,115 @@
 # Testing Strategy — Billing Service
 
-## 1. Overview
+The backend test strategy is centered on end-to-end tests because most value in this project comes from validating real billing flows, tenant isolation, guards, database constraints, and Prisma transactions together.
 
-The Billing Service relies primarily on **end-to-end (e2e) tests**
-to validate critical business flows.
-
-The objective is to ensure:
-
-- API correctness
-- Multi-tenant isolation
-- Business rule enforcement
-- Database integrity
-
-The project prioritizes realistic integration testing over isolated unit testing.
-
----
-
-## 2. Test Types
-
-### 2.1 End-to-End Tests (Primary Strategy)
+## Primary Test Type
 
 E2E tests:
 
-- Boot a full NestJS application instance
-- Use real controllers, guards, services
-- Interact with a real PostgreSQL test database
-- Validate real HTTP requests and responses
+- boot a real NestJS application
+- use real controllers, guards, services, and pipes
+- run against a dedicated PostgreSQL test database
+- execute real HTTP requests through Supertest
+- apply Prisma migrations before the suite
 
-This approach ensures that:
+This is intentional. Billing bugs often happen at integration boundaries: auth, tenant scoping, transactions, status transitions, and unique constraints.
 
-- Authentication works
-- RBAC works
-- Multi-tenancy isolation works
-- Database constraints behave correctly
+## Current E2E Coverage
 
-E2E tests are located in:
-- test/e2e/
+Current test suites cover:
 
+- `customers.e2e-spec.ts`
+- `products.e2e-spec.ts`
+- `plans.e2e-spec.ts`
+- `subscriptions.e2e-spec.ts`
+- `invoices.e2e-spec.ts`
+- `payments.e2e-spec.ts`
+- `admin-jobs.e2e-spec.ts`
+- `analytics.e2e-spec.ts`
+- `multi-tenant-isolation.e2e-spec.ts`
 
+Recent smoke run:
 
-### 2.2 Unit Tests
+- 9 suites passed
+- 95 tests passed
 
-The current MVP does not include isolated unit tests.
-Given the size of the project and the strong integration focus,
-e2e tests provide sufficient coverage for core flows.
+## What The Tests Validate
 
-Unit testing may be introduced later for :
-- Complex business logic
-- Subscription lifecycle logic
-- Billing calculations
+The e2e suite validates:
 
+- JWT authentication
+- ADMIN / USER authorization
+- tenant isolation
+- DTO validation
+- pagination and filtering
+- customer/product/plan CRUD
+- plan soft delete
+- subscription creation and cancellation
+- one active subscription per customer
+- initial invoice creation
+- invoice paid / void / overdue actions
+- anti-overlap invoice generation
+- payment success and failure flows
+- admin jobs summaries and idempotence
+- analytics summary metrics
 
----
+## Test Database
 
-## 3. Multi-Tenant Isolation Testing
+Tests use a separate PostgreSQL database configured through `.env.test`.
 
-The project includes a dedicated multi-tenant isolation test suite.
+Start it from the repository root:
 
-This ensures:
-
-- Tenant A cannot access Tenant B data
-- Resources created under one tenant are invisible to others
-- Tenant scoping is consistently enforced at service level
-
-Isolation is validated through **multi-tenant-isolation.e2e-spec.ts**:
-
-Isolation tests protect against regressions where tenant scoping
-might be accidentally removed during refactoring.
-
----
-
-## 4. Database Strategy for Tests
-
-E2E tests run against a **dedicated PostgreSQL test database**.
-
-The test workflow:
-
-1. Start test database (Docker container)
-2. Apply Prisma migrations
-3. Optionally seed minimal required data
-4. Run tests
-5. Reset database when needed
-
-This ensures:
-
-- Test reproducibility
-- Isolation from development data
-- Deterministic behavior
-
-The test database is strictly separated from development and production environments.
-
----
-
-## 5. How to Run Tests
-
-Start the test database:
-```
+```bash
 docker compose up -d postgres-test
 ```
 
+Apply migrations:
 
-Apply test migrations:
-```
+```bash
 npm run db:test:deploy
 ```
 
-Run e2e tests:
-```
+Run tests:
+
+```bash
 npm run test:e2e
 ```
 
-Reset test database:
-```
+Reset the test database:
+
+```bash
 npm run db:test:reset
 ```
 
+## CI
 
----
+The repository includes a GitHub Actions workflow for the backend.
 
-## 6. Quality Criteria per Module
+The CI pipeline currently runs:
 
-Each core module (Customers, Products, Plans) includes tests for:
+- dependency install
+- Prisma client generation
+- migrations
+- backend build
+- backend e2e tests
 
-- POST success
-- Validation failure (400)
-- Unique constraint conflict (409)
-- GET by id success
-- GET by id not found (404)
-- Listing with pagination
-- Delete success
+Frontend lint/build is not yet part of CI.
 
-For Products and Plans:
+## Unit Tests
 
-- Business constraint enforcement (e.g. deletion blocked if referenced)
+The project currently prioritizes e2e tests over isolated unit tests.
 
----
+Unit tests may be added later for:
 
-## 7. Design Philosophy
+- pure date calculation helpers
+- billing interval calculations
+- analytics calculations
+- complex renewal edge cases
 
-Testing focuses on validating real system behavior rather than mocking internal layers.
+## Testing Principles
 
-Key principles:
-
-- Tests express business intent clearly
-- No cross-tenant assumptions
-- Database constraints are validated through real queries
-- Security checks occur before database interaction
-- Isolation is explicitly tested
-
-This strategy ensures the system behaves correctly as a SaaS multi-tenant backend.
-
----
-
-## 8. Future Improvements
-
-- Selective unit tests for complex domain logic
-- Code coverage reporting
-- CI-based automatic test execution
-- Structured E2E architecture (test harness, actors, builders)
-- Load and performance testing
+- Prefer realistic behavior over mocks.
+- Test business rules at API level.
+- Keep tenant isolation explicit.
+- Cover idempotent jobs and financial state transitions.
+- Use database-backed tests for constraints and transactional flows.

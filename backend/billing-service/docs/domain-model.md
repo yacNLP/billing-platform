@@ -1,222 +1,257 @@
 # Domain Model — Billing Service
 
-## 1. Overview
+The domain model represents a multi-tenant billing platform for subscription businesses.
 
-The Billing Service domain model represents a multi-tenant B2B billing foundation.
+Each tenant manages its own customers, catalog, subscriptions, invoices, payments, jobs, and analytics data. Tenant isolation is the top-level rule.
 
-Each tenant (organization) manages:
+## Multi-Tenancy
 
-- Its own users
-- Its own customers
-- Its own products
-- Its own subscription plans
-
-All business entities are strictly isolated per tenant.
-
----
-
-## 2. Multi-Tenancy at Data Level
-
-Multi-tenancy is implemented directly at the database level.
-
-Each core entity contains:
+Most business entities include:
 
 - `tenantId`
-- A foreign key relation to `Tenant`
+- a relation to `Tenant`
 
 Isolation is enforced through:
 
-- Composite unique constraints scoped by `tenantId`
-- Indexed `tenantId` on all tenant-scoped entities
-- Application-level scoping in services
+- tenant-scoped Prisma queries
+- request-scoped `TenantContext`
+- composite unique constraints where needed
+- e2e tests covering cross-tenant access
 
-Example:
-- Customer email is unique **per tenant**, not globally.
-- Product SKU is unique **per tenant**, not globally.
-- Plan code is unique **per tenant**, not globally.
+Examples:
 
-This design enables safe logical isolation inside a single PostgreSQL database.
+- customer email is unique per tenant
+- plan code is unique per tenant
+- invoice numbers are tenant-scoped
 
----
+## Core Entities
 
-## 3. Core Entities
+### Tenant
 
-### 3.1 Tenant
+Represents an organization using the platform.
 
-Represents an organization using the Billing Platform.
+Owns:
 
-Fields:
-- `id`
-- `name`
-- `createdAt`
+- users
+- customers
+- products
+- plans
+- subscriptions
+- invoices
+- payments
 
-Relations:
-- 1 → N Users
-- 1 → N Customers
-- 1 → N Products
-- 1 → N Plans
+### User
 
-The Tenant is the top-level isolation boundary.
+Represents an authenticated user.
 
----
+Important fields:
 
-### 3.2 User
-
-Represents an authenticated user belonging to a Tenant.
-
-Fields:
-- `email` (globally unique)
-- `password` (hashed)
-- `role` (ADMIN / USER)
+- `email`
+- `password`
+- `role`
 - `tenantId`
 
-Users are scoped to exactly one tenant.
+Supported roles:
 
-Roles are enforced via RBAC at the application layer.
+- `ADMIN`
+- `USER`
 
----
+### Customer
 
-### 3.3 Customer
+Represents a client of the tenant.
 
-Represents a client of a Tenant’s business.
+Important fields:
 
-Fields:
 - `name`
 - `email`
 - `tenantId`
-- timestamps
 
-Constraints:
-- `email` unique per tenant (`@@unique([tenantId, email])`)
+Rules:
 
-Customers are hard-deleted in the MVP.
+- email is unique per tenant
+- a customer can have at most one `ACTIVE` subscription at a time
 
----
+### Product
 
-### 3.4 Product
+Represents a sellable product family or service category.
 
-Represents a SaaS commercial offer family.
+Important fields:
 
-Fields:
 - `name`
 - `description`
 - `isActive`
 - `tenantId`
 
 Relations:
-- 1 → N Plans
 
-Products are hard-deleted if not referenced by plans.
+- one product can have many plans
 
----
+### Plan
 
-### 3.5 Plan
+Represents a pricing offer attached to a product.
 
-Represents a subscription pricing model attached to a Product.
+Important fields:
 
-Fields:
 - `code`
 - `name`
 - `productId`
-- `tenantId`
 - `amount`
 - `currency`
 - `interval`
 - `intervalCount`
 - `trialDays`
 - `active`
-- `deletedAt` (soft delete)
+- `deletedAt`
 
-Pricing belongs here, not on Product.
+Rules:
 
-Constraints:
-- Code unique per tenant (`@@unique([tenantId, code])`)
+- code is unique per tenant
+- `productId` is immutable after creation
+- plans use soft delete
+- deleted plans are excluded from normal list queries
+- pricing lives on the plan, not on the product
 
-Soft delete:
-- Plans are not physically removed.
-- `deletedAt` is set.
-- Queries exclude soft-deleted plans.
+`trialDays` exists as plan metadata, but the current subscription lifecycle does not implement a full trial flow.
 
-Plans must always reference a Product of the same tenant.
+### Subscription
 
----
+Represents the recurring commercial relationship between a customer and a plan.
 
-## 4. Enums
+Important fields:
 
-### BillingInterval
+- `customerId`
+- `planId`
+- `status`
+- `currentPeriodStart`
+- `currentPeriodEnd`
+- `cancelAtPeriodEnd`
+- `endedAt`
+- pricing snapshots
 
-Defines subscription cadence:
+Statuses:
 
-- DAY
-- WEEK
-- MONTH
-- YEAR
+- `ACTIVE`
+- `CANCELED`
+- `EXPIRED`
+- `PAST_DUE`
 
-Used to calculate billing cycles.
+Rules:
 
----
+- one customer can have only one `ACTIVE` subscription
+- plan price, currency, interval, and interval count are snapshotted at creation
+- creating a subscription creates the initial invoice
+- subscriptions can be canceled immediately or scheduled for period end
+- due subscriptions can be renewed by admin job
 
-### Role
+### Invoice
 
-Defines access control:
+Represents a financial document for a subscription period.
 
-- ADMIN
-- USER
+Important fields:
 
-Used by RBAC guards.
+- `invoiceNumber`
+- `customerId`
+- `subscriptionId`
+- `status`
+- `amountDue`
+- `amountPaid`
+- `currency`
+- `periodStart`
+- `periodEnd`
+- `issuedAt`
+- `dueAt`
+- `paidAt`
+- `voidedAt`
 
----
+Statuses:
 
-## 5. Relationships Overview
+- `ISSUED`
+- `PAID`
+- `VOID`
+- `OVERDUE`
 
-Tenant (1)
- ├── Users (N)
- ├── Customers (N)
- ├── Products (N)
- │       └── Plans (N)
+Rules:
 
-Key constraints:
+- invoice numbers are tenant-scoped
+- no duplicate invoice should be created for the same subscription period
+- overlapping invoice periods for a subscription are blocked
+- paid and void invoices are not changed by overdue jobs
 
-- A Product belongs to exactly one Tenant.
-- A Plan belongs to exactly one Product.
-- A Plan belongs to exactly one Tenant.
-- Cross-tenant relations are impossible at DB level.
+### Payment
 
----
+Represents a payment attempt or payment record linked to an invoice.
 
-## 6. Business Rules
+Important fields:
 
-Core rules enforced in the MVP:
+- `invoiceId`
+- `status`
+- `amount`
+- `currency`
+- `provider`
+- `providerReference`
+- `paidAt`
+- `failureReason`
 
-- A Plan cannot exist without a Product.
-- A Plan code is immutable after creation.
-- A Product cannot be deleted if it has Plans.
-- Monetary values are stored in minor units (cents).
-- Currency uses ISO codes (e.g. EUR).
-- All tenant-scoped entities must include tenantId.
-- Cross-tenant access is forbidden by design.
+Statuses:
 
----
+- `SUCCESS`
+- `FAILED`
 
-## 7. Deletion Strategy
+Rules:
 
-- Customers → Hard delete
-- Products → Hard delete (if no plans reference them)
-- Plans → Soft delete via `deletedAt`
+- currency must match the invoice currency
+- successful payments mark the invoice as `PAID`
+- failed payments are recorded without marking the invoice paid
 
-Soft delete ensures:
-- Historical integrity
-- Future subscription compatibility
-- Safer business evolution
+## Relationship Overview
 
----
+```text
+Tenant
+ ├── Users
+ ├── Customers
+ │    ├── Subscriptions
+ │    ├── Invoices
+ │    └── Payments through invoices
+ ├── Products
+ │    └── Plans
+ │         └── Subscriptions
+ ├── Invoices
+ └── Payments
+```
 
-## 8. Design Principles
+## Billing Intervals
 
-The domain model is designed to:
+Supported billing intervals:
 
-- Support strict tenant isolation
-- Prevent cross-organization data leaks
-- Remain extensible for subscriptions & invoicing
-- Keep infrastructure simple (single DB)
-- Enable future domain expansion without refactoring core entities
+- `DAY`
+- `WEEK`
+- `MONTH`
+- `YEAR`
+
+`intervalCount` allows cadences such as every 1 month, every 3 months, or every 1 year.
+
+## Analytics Model
+
+Analytics is derived from tenant-scoped operational data.
+
+Current metrics include:
+
+- total customers
+- active subscriptions
+- past due subscriptions
+- issued / paid / overdue invoices
+- paid revenue
+- revenue this month
+- total amount due
+- overdue amount
+- payment counts and success rate
+- estimated MRR
+- subscriptions by plan
+
+## Deletion Strategy
+
+- Plans use soft delete.
+- Products can be deleted only when not blocked by plan references.
+- Financial records should be preserved through domain rules.
+
+The model favors preserving billing history over destructive cleanup.
