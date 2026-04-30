@@ -22,6 +22,8 @@ Implemented modules:
 - Analytics dashboard
 - Admin frontend dashboard
 
+The `USER` role exists in the backend authorization model, but the current frontend scope is admin-only. A customer/user portal is not implemented yet.
+
 Main business flows:
 
 - Create customers, products, and pricing plans

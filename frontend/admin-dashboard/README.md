@@ -6,6 +6,8 @@ It is not a customer-facing billing portal. It is an internal dashboard used by 
 
 The frontend is built with **Next.js**, **React**, **Redux Toolkit**, and **RTK Query**. The application follows production-oriented frontend practices: authenticated API calls, paginated resources, URL-driven filters, and predictable cache refresh after mutations, while keeping the codebase readable and maintainable.
 
+The backend already has an `ADMIN / USER` role model, but this frontend only implements the admin side. There is no customer portal yet for users to view their own subscriptions, invoices, or payments.
+
 ## Current Scope
 
 The dashboard currently contains:

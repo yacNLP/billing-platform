@@ -55,6 +55,8 @@ Admin jobs are manual, not scheduled.
 
 Payment provider fields are stored as metadata only. There is no real Stripe integration yet.
 
+The `USER` role exists for authorization and tenant-scoped access, but there is no customer/user portal implemented yet. The current frontend is an admin dashboard.
+
 ## Short-Term Documentation Work
 
 The current priority is documentation alignment:
@@ -81,6 +83,7 @@ High-value next improvements:
 
 Potential product improvements:
 
+- customer/user portal for viewing subscriptions, invoices, and payments
 - automated cron scheduling for billing jobs
 - email reminders for overdue invoices
 - invoice PDF generation
