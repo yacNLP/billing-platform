@@ -7,9 +7,10 @@ This document explains how to run the backend locally, seed development data, an
 The backend uses separate environment files:
 
 - `.env` — local backend development
-- `.env.docker` — Docker runtime
 - `.env.test` — e2e tests
 - `.env.example` — committed template
+
+Docker Compose defines its local development variables directly in `docker-compose.yml`, so a fresh clone does not need a `.env.docker` file.
 
 Main variables:
 

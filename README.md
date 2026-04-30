@@ -77,6 +77,12 @@ Start PostgreSQL and the backend API with Docker:
 docker compose up --build
 ```
 
+Docker applies migrations automatically. To log in to the admin dashboard, seed the development data once from `backend/billing-service`:
+
+```bash
+npm run db:seed:dev
+```
+
 The API is available at:
 
 ```text
@@ -93,13 +99,13 @@ npm install
 npm run dev
 ```
 
-If the backend is already running on port `3000`, Next.js usually starts on:
+Start the backend first. Since the backend uses port `3000`, Next.js will usually start the dashboard on:
 
 ```text
 http://localhost:3001
 ```
 
-If the frontend is started without the backend occupying `3000`, it may use `http://localhost:3000`.
+If the frontend is started before the backend, Next.js may take port `3000`. In that case, stop it, start the backend, then restart the frontend.
 
 ## Local Backend Development
 

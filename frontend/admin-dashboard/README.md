@@ -39,6 +39,8 @@ The app runs on:
 http://localhost:3001
 ```
 
+Start the backend first. Next.js uses port `3000` by default, so it will usually move the dashboard to `3001` only when the backend is already using `3000`.
+
 The backend API is expected on:
 
 ```text
@@ -70,6 +72,8 @@ npm run start:dev
 ```
 
 You do not need to reseed every time you start the frontend. Reseed when you want to restore predictable local demo data.
+
+Without the seed, the API can run, but the demo admin login below will not exist yet.
 
 ## Login
 

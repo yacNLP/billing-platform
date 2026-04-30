@@ -54,9 +54,10 @@ The API is JSON-based and uses:
 The service uses environment-specific files:
 
 - `.env` — local development
-- `.env.docker` — Docker runtime
 - `.env.test` — e2e test database
 - `.env.example` — committed template
+
+Docker Compose defines its local development variables directly in `docker-compose.yml`, so no `.env.docker` file is required for a fresh clone.
 
 Create a local env file:
 

@@ -5,8 +5,10 @@ services:
     build:
       context: ./backend/billing-service
     container_name: billing-api
-    env_file:
-      - ./backend/billing-service/.env.docker
+    environment:
+      DATABASE_URL: postgresql://admin:admin@postgres:5432/billingdb?schema=public
+      SHADOW_DATABASE_URL: postgresql://admin:admin@postgres:5432/billingdb_shadow?schema=shadow
+      PORT: 3000
     ports:
       - "3000:3000"
     depends_on:
