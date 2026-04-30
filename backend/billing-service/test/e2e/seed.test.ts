@@ -15,8 +15,6 @@ async function hashPassword() {
  * Multi-tenant aware.
  */
 export async function seedTestData() {
-  console.log('seed db url:', process.env.DATABASE_URL);
-
   // =============================
   // TENANTS
   // =============================
@@ -84,8 +82,6 @@ export async function seedTestData() {
     }
   }
 
-  console.log('seeded products');
-
   // =============================
   // USERS
   // =============================
@@ -126,8 +122,6 @@ export async function seedTestData() {
       tenantId: tenant2.id,
     },
   });
-
-  console.log('seeded users:', await prisma.user.findMany());
 }
 
 export async function disconnectPrisma() {

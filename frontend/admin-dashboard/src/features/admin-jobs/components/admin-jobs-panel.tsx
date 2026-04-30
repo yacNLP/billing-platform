@@ -1,5 +1,8 @@
 "use client";
 
+import { useState } from "react";
+
+import { ConfirmActionPanel } from "@/components/admin/confirm-action-panel";
 import { PageHeader } from "@/components/admin/page-header";
 import {
   useRunGenerateDueInvoicesJobMutation,
@@ -57,6 +60,7 @@ export function AdminJobsPanel() {
         <div className="grid gap-6 xl:grid-cols-2">
           <JobCard
             actionLabel="Run job"
+            confirmationMessage="This will mark eligible issued invoices as overdue."
             description="Find issued invoices whose due date is already in the past and mark them as overdue."
             error={overdueError}
             isLoading={isRunningOverdueInvoices}
@@ -66,6 +70,7 @@ export function AdminJobsPanel() {
           />
           <JobCard
             actionLabel="Run job"
+            confirmationMessage="This will move eligible active subscriptions to PAST_DUE."
             description="Find active subscriptions that still have an unpaid overdue invoice and move them to PAST_DUE."
             error={pastDueError}
             isLoading={isRunningPastDueSubscriptions}
@@ -75,6 +80,7 @@ export function AdminJobsPanel() {
           />
           <JobCard
             actionLabel="Run job"
+            confirmationMessage="This will renew eligible due subscriptions and create the next-period invoice when needed."
             description="Renew active subscriptions whose current period already ended and are still eligible for normal renewal."
             error={renewalError}
             isLoading={isRunningRenewal}
@@ -84,6 +90,7 @@ export function AdminJobsPanel() {
           />
           <JobCard
             actionLabel="Run job"
+            confirmationMessage="This will generate missing invoices for current subscription periods."
             description="Generate the missing invoice for the current subscription period without duplicating an already billed period."
             error={generationError}
             isLoading={isRunningGeneration}
@@ -100,6 +107,7 @@ export function AdminJobsPanel() {
 type JobCardProps = {
   title: string;
   description: string;
+  confirmationMessage: string;
   actionLabel: string;
   isLoading: boolean;
   result?: JobSummary;
@@ -110,12 +118,20 @@ type JobCardProps = {
 function JobCard({
   title,
   description,
+  confirmationMessage,
   actionLabel,
   isLoading,
   result,
   error,
   onRun,
 }: JobCardProps) {
+  const [isConfirming, setIsConfirming] = useState(false);
+
+  function handleConfirmRun() {
+    onRun();
+    setIsConfirming(false);
+  }
+
   return (
     <section className="rounded-[1.75rem] border border-[var(--color-border)] bg-white/90 p-6 shadow-[0_18px_50px_rgba(15,23,42,0.06)]">
       <div className="space-y-3">
@@ -125,16 +141,30 @@ function JobCard({
         <p className="text-sm leading-6 text-slate-600">{description}</p>
       </div>
 
-      <div className="mt-6 flex items-center gap-3">
-        <button
-          className="rounded-xl bg-slate-950 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
-          disabled={isLoading}
-          onClick={onRun}
-          type="button"
-        >
-          {isLoading ? "Running..." : actionLabel}
-        </button>
-      </div>
+      {isConfirming ? (
+        <div className="mt-6">
+          <ConfirmActionPanel
+            confirmLabel="Confirm run"
+            isLoading={isLoading}
+            message={confirmationMessage}
+            onCancel={() => setIsConfirming(false)}
+            onConfirm={handleConfirmRun}
+            title={`Run ${title.toLowerCase()}?`}
+            variant="warning"
+          />
+        </div>
+      ) : (
+        <div className="mt-6 flex items-center gap-3">
+          <button
+            className="rounded-xl bg-slate-950 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={isLoading}
+            onClick={() => setIsConfirming(true)}
+            type="button"
+          >
+            {isLoading ? "Running..." : actionLabel}
+          </button>
+        </div>
+      )}
 
       {result ? (
         <dl className="mt-6 grid gap-3 rounded-[1.25rem] border border-emerald-200 bg-emerald-50 p-4 sm:grid-cols-3">

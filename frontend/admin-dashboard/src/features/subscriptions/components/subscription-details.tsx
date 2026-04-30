@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 
+import { ConfirmActionPanel } from "@/components/admin/confirm-action-panel";
 import type {
   BillingInterval,
   SubscriptionStatus,
@@ -210,42 +211,27 @@ export function SubscriptionDetails({ id }: SubscriptionDetailsProps) {
         ) : null}
 
         {cancelMode ? (
-          <section className="mt-6 rounded-[1.5rem] border border-red-200 bg-red-50 p-6">
-            <div className="space-y-2">
-              <h3 className="text-xl font-semibold tracking-tight text-red-900">
-                {cancelMode === "period_end"
-                  ? "Cancel at period end"
-                  : "Cancel subscription immediately"}
-              </h3>
-              <p className="text-sm leading-6 text-red-800">
-                {cancelMode === "period_end"
+          <div className="mt-6">
+            <ConfirmActionPanel
+              confirmLabel="Confirm"
+              isLoading={isCanceling}
+              message={
+                cancelMode === "period_end"
                   ? "The subscription will stay active until the current billing period ends."
-                  : "The subscription will be canceled now and its status will become canceled immediately."}
-              </p>
-            </div>
-
-            <div className="mt-4 flex flex-col gap-3 sm:flex-row">
-              <button
-                className="rounded-xl bg-red-700 px-4 py-3 text-sm font-medium text-white transition hover:bg-red-800 disabled:cursor-not-allowed disabled:opacity-60"
-                disabled={isCanceling}
-                onClick={() =>
-                  handleCancelSubscription(cancelMode === "period_end")
-                }
-                type="button"
-              >
-                {isCanceling ? "Saving..." : "Confirm"}
-              </button>
-
-              <button
-                className="rounded-xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
-                disabled={isCanceling}
-                onClick={() => setCancelMode(null)}
-                type="button"
-              >
-                Cancel
-              </button>
-            </div>
-          </section>
+                  : "The subscription will be canceled now and its status will become canceled immediately."
+              }
+              onCancel={() => setCancelMode(null)}
+              onConfirm={() =>
+                handleCancelSubscription(cancelMode === "period_end")
+              }
+              title={
+                cancelMode === "period_end"
+                  ? "Cancel at period end"
+                  : "Cancel subscription immediately"
+              }
+              variant="danger"
+            />
+          </div>
         ) : showCancelActions ? (
           <section className="mt-6 rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
             <div className="space-y-2">
