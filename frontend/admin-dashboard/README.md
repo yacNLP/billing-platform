@@ -343,6 +343,15 @@ Build the frontend:
 npm run build
 ```
 
+Run the browser smoke test:
+
+```bash
+npx playwright install chromium
+npm run test:e2e
+```
+
+The smoke test expects the backend to be running on `http://localhost:3000` with development seed data available.
+
 Before considering the frontend stable, also make sure the backend is running and manually check the main pages:
 
 ```text
