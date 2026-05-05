@@ -497,16 +497,22 @@ describe('Analytics e2e', () => {
       paidAt,
     });
 
+    const failedPeriodStart = new Date(monthlySubscription.currentPeriodEnd);
+    const failedPeriodEnd = new Date(failedPeriodStart);
+    failedPeriodEnd.setUTCMonth(failedPeriodEnd.getUTCMonth() + 1);
+    const failedDueAt = new Date(failedPeriodStart);
+    failedDueAt.setUTCDate(failedDueAt.getUTCDate() + 7);
+
     const failedInvoice = await createTestInvoice(
       adminClient,
       monthlyCustomer.id,
       monthlySubscription.id,
       {
         amountDue: 900,
-        periodStart: new Date('2026-06-01T00:00:00.000Z').toISOString(),
-        periodEnd: new Date('2026-07-01T00:00:00.000Z').toISOString(),
-        issuedAt: new Date('2026-06-01T00:00:00.000Z').toISOString(),
-        dueAt: new Date('2026-06-08T00:00:00.000Z').toISOString(),
+        periodStart: failedPeriodStart.toISOString(),
+        periodEnd: failedPeriodEnd.toISOString(),
+        issuedAt: failedPeriodStart.toISOString(),
+        dueAt: failedDueAt.toISOString(),
       },
     );
     await createTestPayment(adminClient, failedInvoice, 'FAILED');
