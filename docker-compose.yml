@@ -1,12 +1,16 @@
+name: revenueops-platform
+
 services:
   api:
     build:
       context: ./backend/billing-service
-    container_name: billing-api
+    container_name: revenueops-api
     environment:
-      DATABASE_URL: postgresql://admin:admin@postgres:5432/billingdb?schema=public
-      SHADOW_DATABASE_URL: postgresql://admin:admin@postgres:5432/billingdb_shadow?schema=shadow
+      DATABASE_URL: postgresql://admin:admin@postgres:5432/revenueops?schema=public
+      SHADOW_DATABASE_URL: postgresql://admin:admin@postgres:5432/revenueops_shadow?schema=shadow
       PORT: 3000
+      JWT_SECRET: dev-secret
+      CORS_ORIGIN: http://localhost:3001,http://localhost:3000
     ports:
       - "3000:3000"
     depends_on:
@@ -21,12 +25,12 @@ services:
 
   postgres:
     image: postgres:15
-    container_name: billing-postgres
+    container_name: revenueops-postgres
     restart: always
     environment:
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: admin
-      POSTGRES_DB: billingdb
+      POSTGRES_DB: revenueops
     ports:
       - "5432:5432"
     volumes:
@@ -34,15 +38,15 @@ services:
 
   postgres-test:
     image: postgres:16
-    container_name: postgres-test
+    container_name: revenueops-postgres-test
     environment:
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: admin
-      POSTGRES_DB: billingdb_test
+      POSTGRES_DB: revenueops_test
     ports:
       - "5433:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U admin -d billingdb_test"]
+      test: ["CMD-SHELL", "pg_isready -U admin -d revenueops_test"]
       interval: 5s
       timeout: 5s
       retries: 5

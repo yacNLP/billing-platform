@@ -1,6 +1,6 @@
-# Domain Model — Billing Service
+# Domain Model — RevenueOps Backend
 
-The domain model represents a multi-tenant billing platform for subscription businesses.
+The domain model represents a multi-tenant revenue operations platform for subscription businesses.
 
 Each tenant manages its own customers, catalog, subscriptions, invoices, payments, jobs, and analytics data. Tenant isolation is the top-level rule.
 

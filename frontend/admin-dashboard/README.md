@@ -1,6 +1,6 @@
 # Admin Dashboard
 
-This is the frontend admin application for the **Revenue & Billing Platform**.
+This is the frontend admin application for **RevenueOps Platform**.
 
 It is not a customer-facing billing portal. It is an internal dashboard used by an admin to manage the billing lifecycle: customers, products, plans, subscriptions, invoices, payments, manual jobs, and analytics.
 

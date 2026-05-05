@@ -1,6 +1,6 @@
-# Billing Service
+# RevenueOps Backend
 
-Billing Service is the backend API of the **Revenue & Billing Platform**.
+RevenueOps Backend is the backend API of the **RevenueOps Platform**.
 
 It exposes a secure multi-tenant REST API for managing the core revenue lifecycle of a subscription business: customers, products, plans, subscriptions, invoices, payments, manual billing jobs, and analytics.
 
@@ -71,6 +71,10 @@ Main variables:
 - `SHADOW_DATABASE_URL`
 - `PORT`
 - `NODE_ENV`
+- `JWT_SECRET`
+- `CORS_ORIGIN`
+
+For deployed environments, set `JWT_SECRET` to a strong private value and set `CORS_ORIGIN` to the deployed frontend URL. Multiple origins can be comma-separated.
 
 ## Running With Docker
 

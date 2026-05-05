@@ -1,6 +1,6 @@
-# API — Billing Service
+# API — RevenueOps Backend
 
-The Billing Service exposes a REST JSON API for the Revenue & Billing Platform.
+The RevenueOps Backend exposes a REST JSON API for RevenueOps Platform.
 
 Swagger / OpenAPI is available at:
 

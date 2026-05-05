@@ -64,7 +64,7 @@ Infrastructure:
 ## Repository Structure
 
 ```text
-backend/billing-service      NestJS billing API
+backend/billing-service      NestJS RevenueOps API
 frontend/admin-dashboard     Next.js admin dashboard
 docker-compose.yml           Local PostgreSQL/API setup
 ```

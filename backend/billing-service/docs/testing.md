@@ -1,4 +1,4 @@
-# Testing Strategy — Billing Service
+# Testing Strategy — RevenueOps Backend
 
 The backend test strategy is centered on end-to-end tests because most value in this project comes from validating real billing flows, tenant isolation, guards, database constraints, and Prisma transactions together.
 

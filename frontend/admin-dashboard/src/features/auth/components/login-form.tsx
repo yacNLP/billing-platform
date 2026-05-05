@@ -49,7 +49,7 @@ export function LoginForm({ nextPath }: LoginFormProps) {
     <div className="w-full max-w-md rounded-3xl border border-[var(--color-border)] bg-white p-8 shadow-[0_24px_80px_rgba(15,23,42,0.08)]">
       <div className="space-y-3">
         <p className="text-sm font-medium uppercase tracking-[0.24em] text-[var(--color-accent)]">
-          Revenue & Billing Platform
+          RevenueOps Platform
         </p>
         <h1 className="text-3xl font-semibold tracking-tight text-slate-950">
           Admin sign in

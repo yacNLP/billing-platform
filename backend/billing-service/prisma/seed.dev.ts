@@ -168,7 +168,7 @@ async function main() {
   await syncSequence('Product');
   for (const productData of [
     {
-      name: 'Billing Platform',
+      name: 'RevenueOps Platform',
       description:
         'Core billing engine for subscriptions, invoices and payments',
       isActive: true,
@@ -213,7 +213,7 @@ async function main() {
   const product = await prisma.product.findFirst({
     where: {
       tenantId: tenant.id,
-      name: 'Billing Platform',
+      name: 'RevenueOps Platform',
     },
   });
 

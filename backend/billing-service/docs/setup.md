@@ -1,4 +1,4 @@
-# Setup — Billing Service
+# Setup — RevenueOps Backend
 
 This document explains how to run the backend locally, seed development data, and run the test database.
 
@@ -18,6 +18,10 @@ Main variables:
 - `SHADOW_DATABASE_URL`
 - `PORT`
 - `NODE_ENV`
+- `JWT_SECRET`
+- `CORS_ORIGIN`
+
+For deployed environments, set `JWT_SECRET` to a strong private value and set `CORS_ORIGIN` to the deployed frontend URL. Multiple origins can be comma-separated.
 
 ## Docker Setup
 

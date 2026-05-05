@@ -1,6 +1,6 @@
-# Architecture — Billing Service
+# Architecture — RevenueOps Backend
 
-Billing Service is the backend API of the Revenue & Billing Platform.
+RevenueOps Backend is the backend API of RevenueOps Platform.
 
 It is implemented as a **modular monolith**: one NestJS application, split into clear business modules, backed by PostgreSQL through Prisma.
 

@@ -1,4 +1,4 @@
-# Roadmap — Billing Service
+# Roadmap — RevenueOps Backend
 
 This roadmap reflects the current state of the backend and the next pragmatic steps.
 
@@ -39,7 +39,7 @@ Quality:
 
 ## Current Version
 
-The current version is a functional Revenue & Billing Platform backend.
+The current version is a functional RevenueOps Platform backend.
 
 It supports:
 
