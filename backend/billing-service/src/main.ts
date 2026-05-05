@@ -4,11 +4,24 @@ import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 
+function getCorsOrigins(): string[] {
+  const configuredOrigins = process.env.CORS_ORIGIN;
+
+  if (!configuredOrigins) {
+    return ['http://localhost:3001', 'http://localhost:3000'];
+  }
+
+  return configuredOrigins
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+}
+
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   app.enableCors({
-    origin: ['http://localhost:3001', 'http://localhost:3000'],
+    origin: getCorsOrigins(),
   });
 
   // apply global validation
@@ -22,8 +35,8 @@ async function bootstrap() {
 
   // swagger configuration
   const config = new DocumentBuilder()
-    .setTitle('Billing Platform API')
-    .setDescription('API documentation for Billing Platform backend')
+    .setTitle('RevenueOps Platform API')
+    .setDescription('API documentation for RevenueOps Platform backend')
     .setVersion('1.0.0')
     .addBearerAuth()
     .build();

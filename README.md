@@ -1,6 +1,6 @@
-# Revenue & Billing Platform
+# RevenueOps Platform
 
-Revenue & Billing Platform is a B2B SaaS application for managing the revenue lifecycle of a subscription business.
+RevenueOps Platform is a B2B SaaS application for managing subscription lifecycles, billing workflows, payments, admin operations, and revenue analytics.
 
 It covers customers, products, plans, subscriptions, invoices, payments, manual billing jobs, and business analytics in a secure multi-tenant architecture.
 
