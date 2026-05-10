@@ -118,6 +118,12 @@ Seed development data:
 npm run db:seed:dev
 ```
 
+Create a real admin user without demo data:
+
+```bash
+ADMIN_EMAIL="admin@example.com" ADMIN_PASSWORD="<strong-password>" TENANT_NAME="RevenueOps" npm run db:create-admin
+```
+
 Reset and reseed a local development database:
 
 ```bash
@@ -126,6 +132,44 @@ npm run db:seed:dev
 ```
 
 Use reset only in development or test environments. It deletes existing data.
+
+Do not run `npm run db:seed:dev` against a production database. It creates demo billing data and the local demo admin.
+
+## Production Deployment
+
+The backend can be deployed as a Render Web Service.
+
+Recommended Render settings:
+
+```text
+Root Directory: backend/billing-service
+Runtime: Node
+Build Command: npm ci --include=dev && npx prisma generate && npm run build
+Start Command: npx prisma migrate deploy && npm run start:prod
+```
+
+Required production variables:
+
+```env
+NODE_ENV=production
+DATABASE_URL=postgresql://...
+JWT_SECRET=<long-random-secret>
+CORS_ORIGIN=https://<frontend-domain>
+```
+
+`JWT_SECRET` must be a private random value. Do not use `dev-secret` in production.
+
+`CORS_ORIGIN` must match the deployed frontend URL exactly, including `https://` and without a trailing slash. Multiple origins can be comma-separated.
+
+Production deployment should run migrations only. Demo seeding is intentionally manual and development-only.
+
+After deployment, verify:
+
+```text
+GET /healthz
+GET /docs
+POST /auth/login with the production admin
+```
 
 ## Testing
 

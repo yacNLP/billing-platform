@@ -159,6 +159,56 @@ Recent smoke checks passed:
 - Frontend build
 - Development seed
 
+## Deployment
+
+The current deployment target is:
+
+- **Database**: Neon PostgreSQL
+- **Backend**: Render Web Service
+- **Frontend**: Vercel
+
+Recommended backend production variables:
+
+```env
+NODE_ENV=production
+DATABASE_URL=postgresql://...
+JWT_SECRET=<long-random-secret>
+CORS_ORIGIN=https://<frontend-domain>
+```
+
+Recommended frontend production variable:
+
+```env
+NEXT_PUBLIC_API_BASE_URL=https://<backend-domain>
+```
+
+The backend production start command should apply migrations and then start the compiled API:
+
+```bash
+npx prisma migrate deploy && npm run start:prod
+```
+
+Do not run the development seed in production:
+
+```bash
+npm run db:seed:dev
+```
+
+The dev seed creates demo customers, products, plans, subscriptions, invoices, payments, and the local demo admin. Production should use a real admin created with:
+
+```bash
+ADMIN_EMAIL="admin@example.com" ADMIN_PASSWORD="<strong-password>" TENANT_NAME="RevenueOps" npm run db:create-admin
+```
+
+After deployment, verify:
+
+```text
+GET /healthz
+GET /docs
+Frontend login
+Main dashboard navigation
+```
+
 ## Admin Dashboard Pages
 
 Current protected admin pages:

@@ -92,6 +92,36 @@ Authorization: Bearer <token>
 
 If the dashboard suddenly shows API errors after reseeding or restarting things, the first simple fix is to log out and log in again.
 
+## Production Deployment
+
+The dashboard can be deployed on Vercel.
+
+Recommended Vercel settings:
+
+```text
+Root Directory: frontend/admin-dashboard
+Framework Preset: Next.js
+Install Command: npm ci
+Build Command: npm run build
+Output Directory: leave empty
+```
+
+Required production variable:
+
+```env
+NEXT_PUBLIC_API_BASE_URL=https://<backend-domain>
+```
+
+After the frontend URL is known, update the backend `CORS_ORIGIN` with the exact Vercel URL:
+
+```env
+CORS_ORIGIN=https://<frontend-domain>
+```
+
+Use `https://` and do not add a trailing slash.
+
+The production dashboard should use a real admin created by the backend `db:create-admin` script. Do not use the development seed credentials in production.
+
 ## Project Structure
 
 The useful folders are:
