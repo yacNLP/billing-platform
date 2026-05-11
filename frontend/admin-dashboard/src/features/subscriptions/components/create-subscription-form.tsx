@@ -4,7 +4,10 @@ import { FormEvent, useMemo, useState } from "react";
 
 import { useGetCustomersQuery } from "@/features/customers/customers-api";
 import { useGetPlansQuery } from "@/features/plans/plans-api";
+import type { BillingInterval } from "@/features/plans/types";
+import { useGetProductsQuery } from "@/features/products/products-api";
 import { useCreateSubscriptionMutation } from "@/features/subscriptions/subscriptions-api";
+import { formatDate, formatMoney } from "@/lib/formatters";
 
 function toIsoDateString(dateValue: string): string | undefined {
   if (!dateValue) {
@@ -14,8 +17,26 @@ function toIsoDateString(dateValue: string): string | undefined {
   return new Date(`${dateValue}T00:00:00.000Z`).toISOString();
 }
 
+const intervalLabelMap: Record<BillingInterval, string> = {
+  DAY: "day",
+  WEEK: "week",
+  MONTH: "month",
+  YEAR: "year",
+};
+
+function formatInterval(interval: BillingInterval, intervalCount: number): string {
+  const label = intervalLabelMap[interval];
+
+  if (intervalCount === 1) {
+    return label;
+  }
+
+  return `${intervalCount} ${label}s`;
+}
+
 export function CreateSubscriptionForm() {
   const [customerId, setCustomerId] = useState("");
+  const [productId, setProductId] = useState("");
   const [planId, setPlanId] = useState("");
   const [startDate, setStartDate] = useState("");
   const [cancelAtPeriodEnd, setCancelAtPeriodEnd] = useState(false);
@@ -32,8 +53,35 @@ export function CreateSubscriptionForm() {
     isLoading: isLoadingPlans,
     error: plansError,
   } = useGetPlansQuery({ page: 1, pageSize: 100, active: "true" });
+  const {
+    data: products,
+    isLoading: isLoadingProducts,
+    error: productsError,
+  } = useGetProductsQuery({ page: 1, pageSize: 100, isActive: "true" });
 
+  const activeProducts = useMemo(() => products?.data || [], [products]);
   const activePlans = useMemo(() => plans?.data || [], [plans]);
+  const filteredPlans = useMemo(() => {
+    const parsedProductId = Number(productId);
+
+    if (!Number.isInteger(parsedProductId) || parsedProductId <= 0) {
+      return [];
+    }
+
+    return activePlans.filter((plan) => plan.productId === parsedProductId);
+  }, [activePlans, productId]);
+  const selectedCustomer = useMemo(
+    () => customers?.data.find((customer) => customer.id === Number(customerId)),
+    [customerId, customers],
+  );
+  const selectedProduct = useMemo(
+    () => activeProducts.find((product) => product.id === Number(productId)),
+    [activeProducts, productId],
+  );
+  const selectedPlan = useMemo(
+    () => activePlans.find((plan) => plan.id === Number(planId)),
+    [activePlans, planId],
+  );
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -61,6 +109,7 @@ export function CreateSubscriptionForm() {
       }).unwrap();
 
       setCustomerId("");
+      setProductId("");
       setPlanId("");
       setStartDate("");
       setCancelAtPeriodEnd(false);
@@ -77,13 +126,13 @@ export function CreateSubscriptionForm() {
             Create subscription
           </h2>
           <p className="text-sm text-slate-600">
-            Attach a customer to an active plan and optionally schedule it to end
-            at period close.
+            Choose the customer, product, and plan before confirming the
+            subscription that will generate the first invoice.
           </p>
         </div>
 
         <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-4 md:grid-cols-3">
             <div className="space-y-2">
               <label
                 className="text-sm font-medium text-slate-700"
@@ -105,7 +154,37 @@ export function CreateSubscriptionForm() {
                 </option>
                 {(customers?.data || []).map((customer) => (
                   <option key={customer.id} value={customer.id}>
-                    {customer.name}
+                    {customer.name} · {customer.email}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="space-y-2">
+              <label
+                className="text-sm font-medium text-slate-700"
+                htmlFor="subscription-product"
+              >
+                Product *
+              </label>
+              <select
+                className="w-full rounded-xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm text-slate-950 outline-none transition focus:border-slate-400"
+                disabled={isLoading || isLoadingProducts}
+                id="subscription-product"
+                name="productId"
+                onChange={(event) => {
+                  setProductId(event.target.value);
+                  setPlanId("");
+                }}
+                required
+                value={productId}
+              >
+                <option value="">
+                  {isLoadingProducts ? "Loading products..." : "Select a product"}
+                </option>
+                {activeProducts.map((product) => (
+                  <option key={product.id} value={product.id}>
+                    {product.name}
                   </option>
                 ))}
               </select>
@@ -120,7 +199,7 @@ export function CreateSubscriptionForm() {
               </label>
               <select
                 className="w-full rounded-xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm text-slate-950 outline-none transition focus:border-slate-400"
-                disabled={isLoading || isLoadingPlans}
+                disabled={isLoading || isLoadingPlans || !productId}
                 id="subscription-plan"
                 name="planId"
                 onChange={(event) => setPlanId(event.target.value)}
@@ -128,11 +207,16 @@ export function CreateSubscriptionForm() {
                 value={planId}
               >
                 <option value="">
-                  {isLoadingPlans ? "Loading plans..." : "Select an active plan"}
+                  {isLoadingPlans
+                    ? "Loading plans..."
+                    : productId
+                      ? "Select an active plan"
+                      : "Select a product first"}
                 </option>
-                {activePlans.map((plan) => (
+                {filteredPlans.map((plan) => (
                   <option key={plan.id} value={plan.id}>
-                    {plan.name}
+                    {plan.name} · {formatMoney(plan.amount, plan.currency)} /{" "}
+                    {formatInterval(plan.interval, plan.intervalCount)}
                   </option>
                 ))}
               </select>
@@ -165,12 +249,58 @@ export function CreateSubscriptionForm() {
               onChange={(event) => setCancelAtPeriodEnd(event.target.checked)}
               type="checkbox"
             />
-            Cancel at period end
+            Do not renew after first period
           </label>
 
-          {customersError || plansError ? (
+          {selectedCustomer && selectedProduct && selectedPlan ? (
+            <section className="rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
+              <div className="space-y-2">
+                <p className="text-sm font-medium uppercase tracking-[0.2em] text-[var(--color-accent)]">
+                  Summary
+                </p>
+                <h3 className="text-xl font-semibold tracking-tight text-slate-950">
+                  {selectedCustomer.name} will subscribe to {selectedProduct.name}
+                </h3>
+                <p className="text-sm leading-6 text-slate-600">
+                  Plan: {selectedPlan.name} ·{" "}
+                  {formatMoney(selectedPlan.amount, selectedPlan.currency)} /{" "}
+                  {formatInterval(
+                    selectedPlan.interval,
+                    selectedPlan.intervalCount,
+                  )}
+                </p>
+              </div>
+
+              <dl className="mt-4 grid gap-3 text-sm text-slate-600 md:grid-cols-3">
+                <div>
+                  <dt className="font-medium text-slate-500">Start date</dt>
+                  <dd>
+                    {startDate
+                      ? formatDate(`${startDate}T00:00:00.000Z`)
+                      : "Today if left empty"}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="font-medium text-slate-500">First invoice</dt>
+                  <dd>Generated automatically</dd>
+                </div>
+                <div>
+                  <dt className="font-medium text-slate-500">
+                    Renewal behavior
+                  </dt>
+                  <dd>
+                    {cancelAtPeriodEnd
+                      ? "Cancel at current period end"
+                      : "Renew normally"}
+                  </dd>
+                </div>
+              </dl>
+            </section>
+          ) : null}
+
+          {customersError || productsError || plansError ? (
             <p className="text-sm text-red-600" role="alert">
-              Unable to load customers or plans.
+              Unable to load customers, products, or plans.
             </p>
           ) : null}
 
@@ -188,7 +318,12 @@ export function CreateSubscriptionForm() {
 
           <button
             className="rounded-xl bg-slate-950 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
-            disabled={isLoading || isLoadingCustomers || isLoadingPlans}
+            disabled={
+              isLoading ||
+              isLoadingCustomers ||
+              isLoadingProducts ||
+              isLoadingPlans
+            }
             type="submit"
           >
             {isLoading ? "Creating..." : "Create subscription"}
