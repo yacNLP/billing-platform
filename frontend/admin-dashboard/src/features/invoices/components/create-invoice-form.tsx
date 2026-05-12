@@ -4,7 +4,9 @@ import { FormEvent, useMemo, useState } from "react";
 
 import { useGetCustomersQuery } from "@/features/customers/customers-api";
 import { useCreateInvoiceMutation } from "@/features/invoices/invoices-api";
+import { useGetPlansQuery } from "@/features/plans/plans-api";
 import { useGetSubscriptionsQuery } from "@/features/subscriptions/subscriptions-api";
+import { formatDate, formatMoney } from "@/lib/formatters";
 
 function toMinorUnits(amountInput: string): number | null {
   const normalized = amountInput.trim().replace(",", ".");
@@ -30,6 +32,21 @@ function toIsoDateString(dateValue: string): string | undefined {
   return new Date(`${dateValue}T00:00:00.000Z`).toISOString();
 }
 
+function toDateInputValue(value: string | Date): string {
+  return new Date(value).toISOString().slice(0, 10);
+}
+
+function getTodayInputValue(): string {
+  return toDateInputValue(new Date());
+}
+
+function getDefaultDueDateInputValue(): string {
+  const dueDate = new Date();
+  dueDate.setUTCDate(dueDate.getUTCDate() + 7);
+
+  return toDateInputValue(dueDate);
+}
+
 export function CreateInvoiceForm() {
   const [customerId, setCustomerId] = useState("");
   const [subscriptionId, setSubscriptionId] = useState("");
@@ -51,21 +68,66 @@ export function CreateInvoiceForm() {
     isLoading: isLoadingSubscriptions,
     error: subscriptionsError,
   } = useGetSubscriptionsQuery({ page: 1, pageSize: 100 });
+  const {
+    data: plans,
+    isLoading: isLoadingPlans,
+    error: plansError,
+  } = useGetPlansQuery({ page: 1, pageSize: 100 });
 
-  const filteredSubscriptions = useMemo(() => {
-    const parsedCustomerId = Number(customerId);
-    const activeSubscriptions = (subscriptions?.data || []).filter(
-      (subscription) => subscription.status === "ACTIVE",
+  const activeSubscriptions = useMemo(
+    () =>
+      (subscriptions?.data || []).filter(
+        (subscription) => subscription.status === "ACTIVE",
+      ),
+    [subscriptions],
+  );
+  const selectedSubscription = useMemo(
+    () =>
+      activeSubscriptions.find(
+        (subscription) => subscription.id === Number(subscriptionId),
+      ),
+    [activeSubscriptions, subscriptionId],
+  );
+  const selectedCustomer = useMemo(
+    () => customers?.data.find((customer) => customer.id === Number(customerId)),
+    [customerId, customers],
+  );
+  const selectedPlan = useMemo(
+    () => plans?.data.find((plan) => plan.id === selectedSubscription?.planId),
+    [plans, selectedSubscription],
+  );
+  const amountInMinorUnits = useMemo(() => toMinorUnits(amountDue), [amountDue]);
+  const hasManualAmountAdjustment =
+    selectedSubscription !== undefined &&
+    amountInMinorUnits !== null &&
+    amountInMinorUnits !== selectedSubscription.amountSnapshot;
+
+  function handleSubscriptionChange(nextSubscriptionId: string) {
+    setSubscriptionId(nextSubscriptionId);
+
+    const subscription = activeSubscriptions.find(
+      (item) => item.id === Number(nextSubscriptionId),
     );
 
-    if (!Number.isInteger(parsedCustomerId) || parsedCustomerId <= 0) {
-      return activeSubscriptions;
+    if (!subscription) {
+      setCustomerId("");
+      setAmountDue("");
+      setCurrency("EUR");
+      setPeriodStart("");
+      setPeriodEnd("");
+      setIssuedAt("");
+      setDueAt("");
+      return;
     }
 
-    return activeSubscriptions.filter(
-      (subscription) => subscription.customerId === parsedCustomerId,
-    );
-  }, [customerId, subscriptions]);
+    setCustomerId(String(subscription.customerId));
+    setAmountDue((subscription.amountSnapshot / 100).toFixed(2));
+    setCurrency(subscription.currencySnapshot);
+    setPeriodStart(toDateInputValue(subscription.currentPeriodStart));
+    setPeriodEnd(toDateInputValue(subscription.currentPeriodEnd));
+    setIssuedAt(getTodayInputValue());
+    setDueAt(getDefaultDueDateInputValue());
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -146,41 +208,13 @@ export function CreateInvoiceForm() {
             Create invoice
           </h2>
           <p className="text-sm text-slate-600">
-            Create a manual invoice for an existing subscription.
+            Select a subscription and review the prefilled invoice details
+            before creating a manual invoice.
           </p>
         </div>
 
         <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <label
-                className="text-sm font-medium text-slate-700"
-                htmlFor="invoice-customer"
-              >
-                Customer *
-              </label>
-              <select
-                className="w-full rounded-xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm text-slate-950 outline-none transition focus:border-slate-400"
-                disabled={isLoading || isLoadingCustomers}
-                id="invoice-customer"
-                onChange={(event) => {
-                  setCustomerId(event.target.value);
-                  setSubscriptionId("");
-                }}
-                required
-                value={customerId}
-              >
-                <option value="">
-                  {isLoadingCustomers ? "Loading customers..." : "Select a customer"}
-                </option>
-                {(customers?.data || []).map((customer) => (
-                  <option key={customer.id} value={customer.id}>
-                    {customer.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
+          <div className="grid gap-4">
             <div className="space-y-2">
               <label
                 className="text-sm font-medium text-slate-700"
@@ -190,9 +224,9 @@ export function CreateInvoiceForm() {
               </label>
               <select
                 className="w-full rounded-xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm text-slate-950 outline-none transition focus:border-slate-400"
-                disabled={isLoading || isLoadingSubscriptions}
+                disabled={isLoading || isLoadingSubscriptions || isLoadingPlans}
                 id="invoice-subscription"
-                onChange={(event) => setSubscriptionId(event.target.value)}
+                onChange={(event) => handleSubscriptionChange(event.target.value)}
                 required
                 value={subscriptionId}
               >
@@ -201,133 +235,227 @@ export function CreateInvoiceForm() {
                     ? "Loading subscriptions..."
                     : "Select a subscription"}
                 </option>
-                {filteredSubscriptions.map((subscription) => (
-                  <option key={subscription.id} value={subscription.id}>
-                    #{subscription.id} · Plan {subscription.planId}
-                  </option>
-                ))}
+                {activeSubscriptions.map((subscription) => {
+                  const customer = customers?.data.find(
+                    (item) => item.id === subscription.customerId,
+                  );
+                  const plan = plans?.data.find(
+                    (item) => item.id === subscription.planId,
+                  );
+
+                  return (
+                    <option key={subscription.id} value={subscription.id}>
+                      Subscription #{subscription.id} ·{" "}
+                      {customer?.name ?? `Customer ${subscription.customerId}`} ·{" "}
+                      {plan
+                        ? `${plan.name} / ${plan.code}`
+                        : `Plan ${subscription.planId}`}{" "}
+                      ·{" "}
+                      {formatMoney(
+                        subscription.amountSnapshot,
+                        subscription.currencySnapshot,
+                      )}
+                    </option>
+                  );
+                })}
               </select>
             </div>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2">
+          {selectedSubscription && selectedCustomer ? (
+            <section className="rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
+              <div className="space-y-2">
+                <p className="text-sm font-medium uppercase tracking-[0.2em] text-[var(--color-accent)]">
+                  Summary
+                </p>
+                <h3 className="text-xl font-semibold tracking-tight text-slate-950">
+                  Invoice for {selectedCustomer.name}
+                </h3>
+                <p className="text-sm leading-6 text-slate-600">
+                  Plan:{" "}
+                  {selectedPlan
+                    ? `${selectedPlan.name} / ${selectedPlan.code}`
+                    : `Plan ${selectedSubscription.planId}`}
+                </p>
+              </div>
+
+              <dl className="mt-4 grid gap-3 text-sm text-slate-600 md:grid-cols-4">
+                <div>
+                  <dt className="font-medium text-slate-500">Period</dt>
+                  <dd>
+                    {periodStart && periodEnd
+                      ? `${formatDate(`${periodStart}T00:00:00.000Z`)} - ${formatDate(
+                          `${periodEnd}T00:00:00.000Z`,
+                        )}`
+                      : "Select a subscription"}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="font-medium text-slate-500">Amount</dt>
+                  <dd>
+                    {amountDue && currency
+                      ? `${amountDue} ${currency}`
+                      : "Missing amount"}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="font-medium text-slate-500">Due date</dt>
+                  <dd>
+                    {dueAt
+                      ? formatDate(`${dueAt}T00:00:00.000Z`)
+                      : "Select a due date"}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="font-medium text-slate-500">Customer email</dt>
+                  <dd>{selectedCustomer.email}</dd>
+                </div>
+              </dl>
+            </section>
+          ) : null}
+
+          <section className="rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
             <div className="space-y-2">
-              <label
-                className="text-sm font-medium text-slate-700"
-                htmlFor="invoice-amount"
-              >
-                Amount due *
-              </label>
-              <input
-                className="w-full rounded-xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm text-slate-950 outline-none transition focus:border-slate-400"
-                disabled={isLoading}
-                id="invoice-amount"
-                inputMode="decimal"
-                onChange={(event) => setAmountDue(event.target.value)}
-                placeholder="49.00"
-                required
-                type="text"
-                value={amountDue}
-              />
+              <h3 className="text-lg font-semibold tracking-tight text-slate-950">
+                Advanced invoice details
+              </h3>
+              <p className="text-sm leading-6 text-slate-600">
+                Use these fields only for manual invoice adjustments.
+              </p>
             </div>
 
-            <div className="space-y-2">
-              <label
-                className="text-sm font-medium text-slate-700"
-                htmlFor="invoice-currency"
-              >
-                Currency
-              </label>
-              <input
-                className="w-full rounded-xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm uppercase text-slate-950 outline-none transition focus:border-slate-400"
-                disabled={isLoading}
-                id="invoice-currency"
-                maxLength={3}
-                onChange={(event) => setCurrency(event.target.value.toUpperCase())}
-                type="text"
-                value={currency}
-              />
-            </div>
-          </div>
+            <div className="mt-5 grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <label
+                  className="text-sm font-medium text-slate-700"
+                  htmlFor="invoice-amount"
+                >
+                  Amount due *
+                </label>
+                <input
+                  className="w-full rounded-xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm text-slate-950 outline-none transition focus:border-slate-400"
+                  disabled={isLoading}
+                  id="invoice-amount"
+                  inputMode="decimal"
+                  onChange={(event) => setAmountDue(event.target.value)}
+                  placeholder="49.00"
+                  required
+                  type="text"
+                  value={amountDue}
+                />
+              </div>
 
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <label
-                className="text-sm font-medium text-slate-700"
-                htmlFor="invoice-period-start"
-              >
-                Period start *
-              </label>
-              <input
-                className="w-full rounded-xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm text-slate-950 outline-none transition focus:border-slate-400"
-                disabled={isLoading}
-                id="invoice-period-start"
-                onChange={(event) => setPeriodStart(event.target.value)}
-                required
-                type="date"
-                value={periodStart}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label
-                className="text-sm font-medium text-slate-700"
-                htmlFor="invoice-period-end"
-              >
-                Period end *
-              </label>
-              <input
-                className="w-full rounded-xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm text-slate-950 outline-none transition focus:border-slate-400"
-                disabled={isLoading}
-                id="invoice-period-end"
-                onChange={(event) => setPeriodEnd(event.target.value)}
-                required
-                type="date"
-                value={periodEnd}
-              />
-            </div>
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <label
-                className="text-sm font-medium text-slate-700"
-                htmlFor="invoice-issued-at"
-              >
-                Issued at
-              </label>
-              <input
-                className="w-full rounded-xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm text-slate-950 outline-none transition focus:border-slate-400"
-                disabled={isLoading}
-                id="invoice-issued-at"
-                onChange={(event) => setIssuedAt(event.target.value)}
-                type="date"
-                value={issuedAt}
-              />
+              <div className="space-y-2">
+                <label
+                  className="text-sm font-medium text-slate-700"
+                  htmlFor="invoice-currency"
+                >
+                  Currency
+                </label>
+                <input
+                  className="w-full rounded-xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm uppercase text-slate-950 outline-none transition focus:border-slate-400"
+                  disabled={isLoading}
+                  id="invoice-currency"
+                  maxLength={3}
+                  onChange={(event) =>
+                    setCurrency(event.target.value.toUpperCase())
+                  }
+                  type="text"
+                  value={currency}
+                />
+              </div>
             </div>
 
-            <div className="space-y-2">
-              <label
-                className="text-sm font-medium text-slate-700"
-                htmlFor="invoice-due-at"
-              >
-                Due at *
-              </label>
-              <input
-                className="w-full rounded-xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm text-slate-950 outline-none transition focus:border-slate-400"
-                disabled={isLoading}
-                id="invoice-due-at"
-                onChange={(event) => setDueAt(event.target.value)}
-                required
-                type="date"
-                value={dueAt}
-              />
-            </div>
-          </div>
+            {hasManualAmountAdjustment ? (
+              <p className="mt-4 rounded-[1.25rem] border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
+                This amount differs from the selected subscription price (
+                {formatMoney(
+                  selectedSubscription.amountSnapshot,
+                  selectedSubscription.currencySnapshot,
+                )}
+                ). Keep this only for a manual invoice adjustment.
+              </p>
+            ) : null}
 
-          {customersError || subscriptionsError ? (
+            <div className="mt-4 grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <label
+                  className="text-sm font-medium text-slate-700"
+                  htmlFor="invoice-period-start"
+                >
+                  Period start *
+                </label>
+                <input
+                  className="w-full rounded-xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm text-slate-950 outline-none transition focus:border-slate-400"
+                  disabled={isLoading}
+                  id="invoice-period-start"
+                  onChange={(event) => setPeriodStart(event.target.value)}
+                  required
+                  type="date"
+                  value={periodStart}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label
+                  className="text-sm font-medium text-slate-700"
+                  htmlFor="invoice-period-end"
+                >
+                  Period end *
+                </label>
+                <input
+                  className="w-full rounded-xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm text-slate-950 outline-none transition focus:border-slate-400"
+                  disabled={isLoading}
+                  id="invoice-period-end"
+                  onChange={(event) => setPeriodEnd(event.target.value)}
+                  required
+                  type="date"
+                  value={periodEnd}
+                />
+              </div>
+            </div>
+
+            <div className="mt-4 grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <label
+                  className="text-sm font-medium text-slate-700"
+                  htmlFor="invoice-issued-at"
+                >
+                  Issued at
+                </label>
+                <input
+                  className="w-full rounded-xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm text-slate-950 outline-none transition focus:border-slate-400"
+                  disabled={isLoading}
+                  id="invoice-issued-at"
+                  onChange={(event) => setIssuedAt(event.target.value)}
+                  type="date"
+                  value={issuedAt}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label
+                  className="text-sm font-medium text-slate-700"
+                  htmlFor="invoice-due-at"
+                >
+                  Due at *
+                </label>
+                <input
+                  className="w-full rounded-xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm text-slate-950 outline-none transition focus:border-slate-400"
+                  disabled={isLoading}
+                  id="invoice-due-at"
+                  onChange={(event) => setDueAt(event.target.value)}
+                  required
+                  type="date"
+                  value={dueAt}
+                />
+              </div>
+            </div>
+          </section>
+
+          {customersError || subscriptionsError || plansError ? (
             <p className="text-sm text-red-600" role="alert">
-              Unable to load customers or subscriptions.
+              Unable to load customers, subscriptions, or plans.
             </p>
           ) : null}
 
@@ -345,7 +473,12 @@ export function CreateInvoiceForm() {
 
           <button
             className="rounded-xl bg-slate-950 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
-            disabled={isLoading || isLoadingCustomers || isLoadingSubscriptions}
+            disabled={
+              isLoading ||
+              isLoadingCustomers ||
+              isLoadingSubscriptions ||
+              isLoadingPlans
+            }
             type="submit"
           >
             {isLoading ? "Creating..." : "Create invoice"}
