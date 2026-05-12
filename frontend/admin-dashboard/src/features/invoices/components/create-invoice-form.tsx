@@ -101,6 +101,12 @@ export function CreateInvoiceForm() {
     selectedSubscription !== undefined &&
     amountInMinorUnits !== null &&
     amountInMinorUnits !== selectedSubscription.amountSnapshot;
+  const hasManualPeriodAdjustment =
+    selectedSubscription !== undefined &&
+    periodStart !== "" &&
+    periodEnd !== "" &&
+    (periodStart !== toDateInputValue(selectedSubscription.currentPeriodStart) ||
+      periodEnd !== toDateInputValue(selectedSubscription.currentPeriodEnd));
 
   function handleSubscriptionChange(nextSubscriptionId: string) {
     setSubscriptionId(nextSubscriptionId);
@@ -414,6 +420,13 @@ export function CreateInvoiceForm() {
                 />
               </div>
             </div>
+
+            {hasManualPeriodAdjustment ? (
+              <p className="mt-4 rounded-[1.25rem] border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
+                This period differs from the subscription period. Use only for a
+                manual adjustment; overlapping invoices will be rejected.
+              </p>
+            ) : null}
 
             <div className="mt-4 grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
