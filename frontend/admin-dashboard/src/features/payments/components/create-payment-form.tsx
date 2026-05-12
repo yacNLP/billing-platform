@@ -89,15 +89,6 @@ export function CreatePaymentForm() {
       customers?.data.find((customer) => customer.id === selectedInvoice?.customerId),
     [customers, selectedInvoice],
   );
-  const selectedRemainingAmount =
-    selectedInvoice !== undefined
-      ? selectedInvoice.amountDue - selectedInvoice.amountPaid
-      : null;
-  const amountInMinorUnits = useMemo(() => toMinorUnits(amount), [amount]);
-  const hasManualAmountAdjustment =
-    selectedRemainingAmount !== null &&
-    amountInMinorUnits !== null &&
-    amountInMinorUnits !== selectedRemainingAmount;
 
   function handleInvoiceChange(nextInvoiceId: string) {
     setInvoiceId(nextInvoiceId);
@@ -113,7 +104,7 @@ export function CreatePaymentForm() {
       return;
     }
 
-    setAmount(((invoice.amountDue - invoice.amountPaid) / 100).toFixed(2));
+    setAmount((invoice.amountDue / 100).toFixed(2));
     setCurrency(invoice.currency);
 
     if (status === "SUCCESS") {
@@ -283,14 +274,9 @@ export function CreatePaymentForm() {
                   </dd>
                 </div>
                 <div>
-                  <dt className="font-medium text-slate-500">
-                    Remaining amount
-                  </dt>
+                  <dt className="font-medium text-slate-500">Payment amount</dt>
                   <dd>
-                    {formatMoney(
-                      selectedInvoice.amountDue - selectedInvoice.amountPaid,
-                      selectedInvoice.currency,
-                    )}
+                    {formatMoney(selectedInvoice.amountDue, selectedInvoice.currency)}
                   </dd>
                 </div>
                 <div>
@@ -307,8 +293,7 @@ export function CreatePaymentForm() {
                 Payment details
               </h3>
               <p className="text-sm leading-6 text-slate-600">
-                Amount and currency are prefilled from the selected invoice.
-                Adjust only for manual reconciliation.
+                Payment amount and currency must match the selected invoice.
               </p>
             </div>
 
@@ -322,10 +307,9 @@ export function CreatePaymentForm() {
                 </label>
                 <input
                   className="w-full rounded-xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm text-slate-950 outline-none transition focus:border-slate-400"
-                  disabled={isLoading}
+                  disabled
                   id="payment-amount"
                   inputMode="decimal"
-                  onChange={(event) => setAmount(event.target.value)}
                   placeholder="49.00"
                   required
                   type="text"
@@ -342,29 +326,15 @@ export function CreatePaymentForm() {
                 </label>
                 <input
                   className="w-full rounded-xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm uppercase text-slate-950 outline-none transition focus:border-slate-400"
-                  disabled={isLoading}
+                  disabled
                   id="payment-currency"
                   maxLength={3}
-                  onChange={(event) =>
-                    setCurrency(event.target.value.toUpperCase())
-                  }
                   required
                   type="text"
                   value={currency}
                 />
               </div>
             </div>
-
-            {hasManualAmountAdjustment && selectedInvoice ? (
-              <p className="mt-4 rounded-[1.25rem] border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
-                This amount differs from the remaining invoice amount (
-                {formatMoney(
-                  selectedInvoice.amountDue - selectedInvoice.amountPaid,
-                  selectedInvoice.currency,
-                )}
-                ). Keep this only for manual reconciliation.
-              </p>
-            ) : null}
 
             <div className="mt-4 grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
