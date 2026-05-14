@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent } from "react";
+import { FormEvent, ReactNode } from "react";
 import {
   usePathname,
   useRouter,
@@ -23,6 +23,10 @@ const intervalLabelMap: Record<BillingInterval, string> = {
   WEEK: "week",
   MONTH: "month",
   YEAR: "year",
+};
+
+type PlansListProps = {
+  action?: ReactNode;
 };
 
 function formatPricing(amount: number, currency: string, interval: BillingInterval) {
@@ -64,7 +68,7 @@ function getQueryParams(searchParams: URLSearchParams): PlansQueryParams {
   };
 }
 
-export function PlansList() {
+export function PlansList({ action }: PlansListProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -169,6 +173,7 @@ export function PlansList() {
     <main className="px-6 py-16">
       <section className="mx-auto w-full max-w-5xl rounded-[2rem] border border-[var(--color-border)] bg-white/90 p-8 shadow-[0_24px_80px_rgba(15,23,42,0.08)] backdrop-blur">
         <PageHeader
+          action={action}
           eyebrow="Plans"
           title="Listing"
           description="Paginated plans listing with backend search, status, currency filters, and URL state."

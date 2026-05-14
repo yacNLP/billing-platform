@@ -24,7 +24,15 @@ function toMinorUnits(priceInput: string): number | null {
   return Math.round(parsed * 100);
 }
 
-export function CreatePlanForm() {
+type CreatePlanFormProps = {
+  isEmbedded?: boolean;
+  onCreated?: () => void;
+};
+
+export function CreatePlanForm({
+  isEmbedded = false,
+  onCreated,
+}: CreatePlanFormProps) {
   const [code, setCode] = useState("");
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -103,14 +111,15 @@ export function CreatePlanForm() {
       setIntervalCount("1");
       setTrialDays("0");
       setActive(true);
+      onCreated?.();
     } catch {
       setErrorMessage("Unable to create plan.");
     }
   }
 
-  return (
-    <section className="px-6 pt-16">
-      <div className="mx-auto w-full max-w-5xl rounded-[2rem] border border-[var(--color-border)] bg-white/90 p-6 shadow-[0_24px_80px_rgba(15,23,42,0.08)] backdrop-blur">
+  const formContent = (
+    <>
+      {!isEmbedded ? (
         <div className="space-y-2">
           <h2 className="text-2xl font-semibold tracking-tight text-slate-950">
             Create plan
@@ -119,8 +128,9 @@ export function CreatePlanForm() {
             Add a billing plan and attach it to an active product.
           </p>
         </div>
+      ) : null}
 
-        <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
+      <form className={isEmbedded ? "space-y-4" : "mt-6 space-y-4"} onSubmit={handleSubmit}>
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
               <label className="text-sm font-medium text-slate-700" htmlFor="plan-code">
@@ -324,6 +334,17 @@ export function CreatePlanForm() {
             {isLoading ? "Creating..." : "Create plan"}
           </button>
         </form>
+    </>
+  );
+
+  if (isEmbedded) {
+    return formContent;
+  }
+
+  return (
+    <section className="px-6 pt-16">
+      <div className="mx-auto w-full max-w-5xl rounded-[2rem] border border-[var(--color-border)] bg-white/90 p-6 shadow-[0_24px_80px_rgba(15,23,42,0.08)] backdrop-blur">
+        {formContent}
       </div>
     </section>
   );
