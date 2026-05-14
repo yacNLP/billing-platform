@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent } from "react";
+import { FormEvent, ReactNode } from "react";
 import {
   usePathname,
   useRouter,
@@ -41,6 +41,10 @@ const statusClassNameMap: Record<SubscriptionStatus, string> = {
     "inline-flex rounded-full border border-red-200 bg-red-50 px-3 py-1 text-sm font-medium text-red-700",
 };
 
+type SubscriptionsListProps = {
+  action?: ReactNode;
+};
+
 function formatInterval(interval: BillingInterval, count: number): string {
   const label = intervalLabelMap[interval];
 
@@ -71,7 +75,7 @@ function getQueryParams(searchParams: URLSearchParams): SubscriptionsQueryParams
   };
 }
 
-export function SubscriptionsList() {
+export function SubscriptionsList({ action }: SubscriptionsListProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -146,6 +150,7 @@ export function SubscriptionsList() {
         eyebrow="Subscriptions"
         title="Subscriptions"
         message="Loading subscriptions..."
+        action={action}
       />
     );
   }
@@ -156,6 +161,7 @@ export function SubscriptionsList() {
         eyebrow="Subscriptions"
         title="Subscriptions"
         message="Unable to load subscriptions."
+        action={action}
       />
     );
   }
@@ -166,6 +172,7 @@ export function SubscriptionsList() {
         eyebrow="Subscriptions"
         title="Subscriptions"
         message="No subscriptions found."
+        action={action}
       />
     );
   }
@@ -174,6 +181,7 @@ export function SubscriptionsList() {
     <main className="px-6 py-16">
       <section className="mx-auto w-full max-w-5xl rounded-[2rem] border border-[var(--color-border)] bg-white/90 p-8 shadow-[0_24px_80px_rgba(15,23,42,0.08)] backdrop-blur">
         <PageHeader
+          action={action}
           eyebrow="Subscriptions"
           title="Listing"
           description="Paginated subscriptions listing with backend-aligned status filters and URL state."
