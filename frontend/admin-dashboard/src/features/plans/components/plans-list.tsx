@@ -68,6 +68,10 @@ function getQueryParams(searchParams: URLSearchParams): PlansQueryParams {
   };
 }
 
+function hasActiveFilters(queryParams: PlansQueryParams): boolean {
+  return Boolean(queryParams.search || queryParams.active || queryParams.currency);
+}
+
 export function PlansList({ action }: PlansListProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -168,6 +172,20 @@ export function PlansList({ action }: PlansListProps) {
   }
 
   const plans = data?.data || [];
+  const hasFilters = hasActiveFilters(queryParams);
+  const isEmptyDataset = data?.total === 0;
+  const isEmptyCurrentPage = plans.length === 0;
+
+  if (isEmptyDataset && !hasFilters) {
+    return (
+      <StatePanel
+        action={action}
+        eyebrow="Plans"
+        title="Plans"
+        message="No plans found yet."
+      />
+    );
+  }
 
   return (
     <main className="px-6 py-16">
@@ -324,9 +342,11 @@ export function PlansList({ action }: PlansListProps) {
           </div>
         </form>
 
-        {plans.length === 0 ? (
+        {isEmptyCurrentPage ? (
           <p className="mt-8 rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4 text-sm text-slate-600">
-            No plans found.
+            {hasFilters
+              ? "No plans match the current filters."
+              : "No plans on this page."}
           </p>
         ) : null}
 

@@ -43,6 +43,10 @@ function getQueryParams(searchParams: URLSearchParams): ProductsQueryParams {
   };
 }
 
+function hasActiveFilters(queryParams: ProductsQueryParams): boolean {
+  return Boolean(queryParams.q || queryParams.isActive);
+}
+
 export function ProductsList({ action }: ProductsListProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -138,6 +142,20 @@ export function ProductsList({ action }: ProductsListProps) {
   }
 
   const products = data?.data || [];
+  const hasFilters = hasActiveFilters(queryParams);
+  const isEmptyDataset = data?.total === 0;
+  const isEmptyCurrentPage = products.length === 0;
+
+  if (isEmptyDataset && !hasFilters) {
+    return (
+      <StatePanel
+        action={action}
+        eyebrow="Products"
+        title="Products"
+        message="No products found yet."
+      />
+    );
+  }
 
   return (
     <main className="px-6 py-16">
@@ -275,9 +293,11 @@ export function ProductsList({ action }: ProductsListProps) {
           </div>
         </form>
 
-        {products.length === 0 ? (
+        {isEmptyCurrentPage ? (
           <p className="mt-8 rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4 text-sm text-slate-600">
-            No products found.
+            {hasFilters
+              ? "No products match the current filters."
+              : "No products on this page."}
           </p>
         ) : null}
 

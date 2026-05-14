@@ -48,6 +48,10 @@ function getQueryParams(searchParams: URLSearchParams): PaymentsQueryParams {
   };
 }
 
+function hasActiveFilters(queryParams: PaymentsQueryParams): boolean {
+  return Boolean(queryParams.status || queryParams.invoiceId || queryParams.customerId);
+}
+
 export function PaymentsList({ action }: PaymentsListProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -139,13 +143,28 @@ export function PaymentsList({ action }: PaymentsListProps) {
     );
   }
 
-  if (!data || data.data.length === 0) {
+  if (!data) {
     return (
       <StatePanel
         action={action}
         eyebrow="Payments"
         title="Payments"
-        message="No payments found."
+        message="No payments found yet."
+      />
+    );
+  }
+
+  const hasFilters = hasActiveFilters(queryParams);
+  const isEmptyDataset = data.total === 0;
+  const isEmptyCurrentPage = data.data.length === 0;
+
+  if (isEmptyDataset && !hasFilters) {
+    return (
+      <StatePanel
+        action={action}
+        eyebrow="Payments"
+        title="Payments"
+        message="No payments found yet."
       />
     );
   }
@@ -285,6 +304,14 @@ export function PaymentsList({ action }: PaymentsListProps) {
             </p>
           </div>
         </form>
+
+        {isEmptyCurrentPage ? (
+          <p className="mt-8 rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4 text-sm text-slate-600">
+            {hasFilters
+              ? "No payments match the current filters."
+              : "No payments on this page."}
+          </p>
+        ) : null}
 
         <ul className="mt-8 space-y-4">
           {data.data.map((payment) => {

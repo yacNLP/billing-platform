@@ -40,6 +40,10 @@ function getQueryParams(searchParams: URLSearchParams): CustomersQueryParams {
   };
 }
 
+function hasActiveFilters(queryParams: CustomersQueryParams): boolean {
+  return Boolean(queryParams.search);
+}
+
 export function CustomersList({ action }: CustomersListProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -128,6 +132,20 @@ export function CustomersList({ action }: CustomersListProps) {
   }
 
   const customers = data?.data || [];
+  const hasFilters = hasActiveFilters(queryParams);
+  const isEmptyDataset = data?.total === 0;
+  const isEmptyCurrentPage = customers.length === 0;
+
+  if (isEmptyDataset && !hasFilters) {
+    return (
+      <StatePanel
+        action={action}
+        eyebrow="Customers"
+        title="Customers"
+        message="No customers found yet."
+      />
+    );
+  }
 
   return (
     <main className="px-6 py-16">
@@ -246,9 +264,11 @@ export function CustomersList({ action }: CustomersListProps) {
           </div>
         </form>
 
-        {customers.length === 0 ? (
+        {isEmptyCurrentPage ? (
           <p className="mt-8 rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4 text-sm text-slate-600">
-            No customers found.
+            {hasFilters
+              ? "No customers match the current filters."
+              : "No customers on this page."}
           </p>
         ) : null}
 

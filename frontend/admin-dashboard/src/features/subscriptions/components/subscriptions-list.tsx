@@ -75,6 +75,10 @@ function getQueryParams(searchParams: URLSearchParams): SubscriptionsQueryParams
   };
 }
 
+function hasActiveFilters(queryParams: SubscriptionsQueryParams): boolean {
+  return Boolean(queryParams.status || queryParams.customerId || queryParams.planId);
+}
+
 export function SubscriptionsList({ action }: SubscriptionsListProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -166,12 +170,27 @@ export function SubscriptionsList({ action }: SubscriptionsListProps) {
     );
   }
 
-  if (!data || data.data.length === 0) {
+  if (!data) {
     return (
       <StatePanel
         eyebrow="Subscriptions"
         title="Subscriptions"
-        message="No subscriptions found."
+        message="No subscriptions found yet."
+        action={action}
+      />
+    );
+  }
+
+  const hasFilters = hasActiveFilters(queryParams);
+  const isEmptyDataset = data.total === 0;
+  const isEmptyCurrentPage = data.data.length === 0;
+
+  if (isEmptyDataset && !hasFilters) {
+    return (
+      <StatePanel
+        eyebrow="Subscriptions"
+        title="Subscriptions"
+        message="No subscriptions found yet."
         action={action}
       />
     );
@@ -306,6 +325,14 @@ export function SubscriptionsList({ action }: SubscriptionsListProps) {
             </p>
           </div>
         </form>
+
+        {isEmptyCurrentPage ? (
+          <p className="mt-8 rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4 text-sm text-slate-600">
+            {hasFilters
+              ? "No subscriptions match the current filters."
+              : "No subscriptions on this page."}
+          </p>
+        ) : null}
 
         <ul className="mt-8 space-y-4">
           {data.data.map((subscription) => {

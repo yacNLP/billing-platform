@@ -57,6 +57,12 @@ function getQueryParams(searchParams: URLSearchParams): InvoicesQueryParams {
   };
 }
 
+function hasActiveFilters(queryParams: InvoicesQueryParams): boolean {
+  return Boolean(
+    queryParams.status || queryParams.customerId || queryParams.subscriptionId,
+  );
+}
+
 export function InvoicesList({ action }: InvoicesListProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -152,13 +158,28 @@ export function InvoicesList({ action }: InvoicesListProps) {
     );
   }
 
-  if (!data || data.data.length === 0) {
+  if (!data) {
     return (
       <StatePanel
         action={action}
         eyebrow="Invoices"
         title="Invoices"
-        message="No invoices found."
+        message="No invoices found yet."
+      />
+    );
+  }
+
+  const hasFilters = hasActiveFilters(queryParams);
+  const isEmptyDataset = data.total === 0;
+  const isEmptyCurrentPage = data.data.length === 0;
+
+  if (isEmptyDataset && !hasFilters) {
+    return (
+      <StatePanel
+        action={action}
+        eyebrow="Invoices"
+        title="Invoices"
+        message="No invoices found yet."
       />
     );
   }
@@ -291,6 +312,14 @@ export function InvoicesList({ action }: InvoicesListProps) {
             </p>
           </div>
         </form>
+
+        {isEmptyCurrentPage ? (
+          <p className="mt-8 rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4 text-sm text-slate-600">
+            {hasFilters
+              ? "No invoices match the current filters."
+              : "No invoices on this page."}
+          </p>
+        ) : null}
 
         <ul className="mt-8 space-y-4">
           {data.data.map((invoice) => {
