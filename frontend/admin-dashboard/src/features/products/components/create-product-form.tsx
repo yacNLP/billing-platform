@@ -4,7 +4,15 @@ import { FormEvent, useState } from "react";
 
 import { useCreateProductMutation } from "@/features/products/products-api";
 
-export function CreateProductForm() {
+type CreateProductFormProps = {
+  isEmbedded?: boolean;
+  onCreated?: () => void;
+};
+
+export function CreateProductForm({
+  isEmbedded = false,
+  onCreated,
+}: CreateProductFormProps) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [isActive, setIsActive] = useState(true);
@@ -25,14 +33,15 @@ export function CreateProductForm() {
       setName("");
       setDescription("");
       setIsActive(true);
+      onCreated?.();
     } catch {
       setErrorMessage("Unable to create product.");
     }
   }
 
-  return (
-    <section className="px-6 pt-16">
-      <div className="mx-auto w-full max-w-5xl rounded-[2rem] border border-[var(--color-border)] bg-white/90 p-6 shadow-[0_24px_80px_rgba(15,23,42,0.08)] backdrop-blur">
+  const formContent = (
+    <>
+      {!isEmbedded ? (
         <div className="space-y-2">
           <h2 className="text-2xl font-semibold tracking-tight text-slate-950">
             Create product
@@ -42,8 +51,9 @@ export function CreateProductForm() {
             status.
           </p>
         </div>
+      ) : null}
 
-        <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
+      <form className={isEmbedded ? "space-y-4" : "mt-6 space-y-4"} onSubmit={handleSubmit}>
           <div className="space-y-2">
             <label className="text-sm font-medium text-slate-700" htmlFor="product-name">
               Name *
@@ -105,6 +115,17 @@ export function CreateProductForm() {
             {isLoading ? "Creating..." : "Create product"}
           </button>
         </form>
+    </>
+  );
+
+  if (isEmbedded) {
+    return formContent;
+  }
+
+  return (
+    <section className="px-6 pt-16">
+      <div className="mx-auto w-full max-w-5xl rounded-[2rem] border border-[var(--color-border)] bg-white/90 p-6 shadow-[0_24px_80px_rgba(15,23,42,0.08)] backdrop-blur">
+        {formContent}
       </div>
     </section>
   );
