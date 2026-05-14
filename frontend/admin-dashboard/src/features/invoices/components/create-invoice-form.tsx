@@ -47,7 +47,15 @@ function getDefaultDueDateInputValue(): string {
   return toDateInputValue(dueDate);
 }
 
-export function CreateInvoiceForm() {
+type CreateInvoiceFormProps = {
+  isEmbedded?: boolean;
+  onCreated?: () => void;
+};
+
+export function CreateInvoiceForm({
+  isEmbedded = false,
+  onCreated,
+}: CreateInvoiceFormProps) {
   const [customerId, setCustomerId] = useState("");
   const [subscriptionId, setSubscriptionId] = useState("");
   const [amountDue, setAmountDue] = useState("");
@@ -201,14 +209,15 @@ export function CreateInvoiceForm() {
       setPeriodEnd("");
       setIssuedAt("");
       setDueAt("");
+      onCreated?.();
     } catch {
       setErrorMessage("Unable to create invoice.");
     }
   }
 
-  return (
-    <section className="px-6 pt-16">
-      <div className="mx-auto w-full max-w-5xl rounded-[2rem] border border-[var(--color-border)] bg-white/90 p-6 shadow-[0_24px_80px_rgba(15,23,42,0.08)] backdrop-blur">
+  const formContent = (
+    <>
+      {!isEmbedded ? (
         <div className="space-y-2">
           <h2 className="text-2xl font-semibold tracking-tight text-slate-950">
             Create invoice
@@ -218,8 +227,9 @@ export function CreateInvoiceForm() {
             before creating a manual invoice.
           </p>
         </div>
+      ) : null}
 
-        <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
+      <form className={isEmbedded ? "space-y-4" : "mt-6 space-y-4"} onSubmit={handleSubmit}>
           <div className="grid gap-4">
             <div className="space-y-2">
               <label
@@ -497,6 +507,17 @@ export function CreateInvoiceForm() {
             {isLoading ? "Creating..." : "Create invoice"}
           </button>
         </form>
+    </>
+  );
+
+  if (isEmbedded) {
+    return formContent;
+  }
+
+  return (
+    <section className="px-6 pt-16">
+      <div className="mx-auto w-full max-w-5xl rounded-[2rem] border border-[var(--color-border)] bg-white/90 p-6 shadow-[0_24px_80px_rgba(15,23,42,0.08)] backdrop-blur">
+        {formContent}
       </div>
     </section>
   );

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent } from "react";
+import { FormEvent, ReactNode } from "react";
 import {
   usePathname,
   useRouter,
@@ -33,6 +33,10 @@ const statusClassNameMap: Record<InvoiceStatus, string> = {
     "inline-flex rounded-full border border-red-200 bg-red-50 px-3 py-1 text-sm font-medium text-red-700",
 };
 
+type InvoicesListProps = {
+  action?: ReactNode;
+};
+
 function getQueryParams(searchParams: URLSearchParams): InvoicesQueryParams {
   const page = parsePositiveInteger(searchParams.get("page")) ?? 1;
   const pageSize = parsePositiveInteger(searchParams.get("pageSize")) ?? 20;
@@ -53,7 +57,7 @@ function getQueryParams(searchParams: URLSearchParams): InvoicesQueryParams {
   };
 }
 
-export function InvoicesList() {
+export function InvoicesList({ action }: InvoicesListProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -129,6 +133,7 @@ export function InvoicesList() {
   if (isLoading) {
     return (
       <StatePanel
+        action={action}
         eyebrow="Invoices"
         title="Invoices"
         message="Loading invoices..."
@@ -139,6 +144,7 @@ export function InvoicesList() {
   if (error) {
     return (
       <StatePanel
+        action={action}
         eyebrow="Invoices"
         title="Invoices"
         message="Unable to load invoices."
@@ -149,6 +155,7 @@ export function InvoicesList() {
   if (!data || data.data.length === 0) {
     return (
       <StatePanel
+        action={action}
         eyebrow="Invoices"
         title="Invoices"
         message="No invoices found."
@@ -160,6 +167,7 @@ export function InvoicesList() {
     <main className="px-6 py-16">
       <section className="mx-auto w-full max-w-5xl rounded-[2rem] border border-[var(--color-border)] bg-white/90 p-8 shadow-[0_24px_80px_rgba(15,23,42,0.08)] backdrop-blur">
         <PageHeader
+          action={action}
           eyebrow="Invoices"
           title="Listing"
           description="Paginated invoices listing with backend-aligned filters and URL state."
