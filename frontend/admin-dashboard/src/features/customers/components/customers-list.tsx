@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent } from "react";
+import { FormEvent, ReactNode } from "react";
 import {
   usePathname,
   useRouter,
@@ -16,6 +16,10 @@ import type { CustomersQueryParams } from "@/features/customers/types";
 import { formatDate } from "@/lib/formatters";
 import { pageSizeOptions } from "@/lib/pagination";
 import { parsePositiveInteger } from "@/lib/query-params";
+
+type CustomersListProps = {
+  action?: ReactNode;
+};
 
 function getQueryParams(searchParams: URLSearchParams): CustomersQueryParams {
   const page = parsePositiveInteger(searchParams.get("page")) ?? 1;
@@ -36,7 +40,7 @@ function getQueryParams(searchParams: URLSearchParams): CustomersQueryParams {
   };
 }
 
-export function CustomersList() {
+export function CustomersList({ action }: CustomersListProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -129,6 +133,7 @@ export function CustomersList() {
     <main className="px-6 py-16">
       <section className="mx-auto w-full max-w-5xl rounded-[2rem] border border-[var(--color-border)] bg-white/90 p-8 shadow-[0_24px_80px_rgba(15,23,42,0.08)] backdrop-blur">
         <PageHeader
+          action={action}
           eyebrow="Customers"
           title="Listing"
           description="Paginated customer listing with URL-driven search and sorting."

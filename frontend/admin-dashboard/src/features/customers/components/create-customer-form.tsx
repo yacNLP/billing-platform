@@ -4,7 +4,15 @@ import { FormEvent, useState } from "react";
 
 import { useCreateCustomerMutation } from "@/features/customers/customers-api";
 
-export function CreateCustomerForm() {
+type CreateCustomerFormProps = {
+  isEmbedded?: boolean;
+  onCreated?: () => void;
+};
+
+export function CreateCustomerForm({
+  isEmbedded = false,
+  onCreated,
+}: CreateCustomerFormProps) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -22,14 +30,15 @@ export function CreateCustomerForm() {
 
       setName("");
       setEmail("");
+      onCreated?.();
     } catch {
       setErrorMessage("Unable to create customer.");
     }
   }
 
-  return (
-    <section className="px-6 pt-16">
-      <div className="mx-auto w-full max-w-5xl rounded-[2rem] border border-[var(--color-border)] bg-white/90 p-6 shadow-[0_24px_80px_rgba(15,23,42,0.08)] backdrop-blur">
+  const formContent = (
+    <>
+      {!isEmbedded ? (
         <div className="space-y-2">
           <h2 className="text-2xl font-semibold tracking-tight text-slate-950">
             Create customer
@@ -38,8 +47,9 @@ export function CreateCustomerForm() {
             Add a customer with a name and email.
           </p>
         </div>
+      ) : null}
 
-        <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
+      <form className={isEmbedded ? "space-y-4" : "mt-6 space-y-4"} onSubmit={handleSubmit}>
           <div className="space-y-2">
             <label className="text-sm font-medium text-slate-700" htmlFor="customer-name">
               Name
@@ -90,6 +100,17 @@ export function CreateCustomerForm() {
             {isLoading ? "Creating..." : "Create customer"}
           </button>
         </form>
+    </>
+  );
+
+  if (isEmbedded) {
+    return formContent;
+  }
+
+  return (
+    <section className="px-6 pt-16">
+      <div className="mx-auto w-full max-w-5xl rounded-[2rem] border border-[var(--color-border)] bg-white/90 p-6 shadow-[0_24px_80px_rgba(15,23,42,0.08)] backdrop-blur">
+        {formContent}
       </div>
     </section>
   );
