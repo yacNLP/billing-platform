@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent } from "react";
+import { FormEvent, ReactNode } from "react";
 import {
   usePathname,
   useRouter,
@@ -29,6 +29,10 @@ const statusClassNameMap: Record<PaymentStatus, string> = {
     "inline-flex rounded-full border border-red-200 bg-red-50 px-3 py-1 text-sm font-medium text-red-700",
 };
 
+type PaymentsListProps = {
+  action?: ReactNode;
+};
+
 function getQueryParams(searchParams: URLSearchParams): PaymentsQueryParams {
   const page = parsePositiveInteger(searchParams.get("page")) ?? 1;
   const pageSize = parsePositiveInteger(searchParams.get("pageSize")) ?? 20;
@@ -44,7 +48,7 @@ function getQueryParams(searchParams: URLSearchParams): PaymentsQueryParams {
   };
 }
 
-export function PaymentsList() {
+export function PaymentsList({ action }: PaymentsListProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -116,6 +120,7 @@ export function PaymentsList() {
   if (isLoading) {
     return (
       <StatePanel
+        action={action}
         eyebrow="Payments"
         title="Payments"
         message="Loading payments..."
@@ -126,6 +131,7 @@ export function PaymentsList() {
   if (error) {
     return (
       <StatePanel
+        action={action}
         eyebrow="Payments"
         title="Payments"
         message="Unable to load payments."
@@ -136,6 +142,7 @@ export function PaymentsList() {
   if (!data || data.data.length === 0) {
     return (
       <StatePanel
+        action={action}
         eyebrow="Payments"
         title="Payments"
         message="No payments found."
@@ -147,6 +154,7 @@ export function PaymentsList() {
     <main className="px-6 py-16">
       <section className="mx-auto w-full max-w-5xl rounded-[2rem] border border-[var(--color-border)] bg-white/90 p-8 shadow-[0_24px_80px_rgba(15,23,42,0.08)] backdrop-blur">
         <PageHeader
+          action={action}
           eyebrow="Payments"
           title="Listing"
           description="Paginated payments listing with backend-aligned filters and URL state."

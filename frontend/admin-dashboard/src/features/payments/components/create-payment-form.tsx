@@ -39,7 +39,15 @@ function getTodayInputValue(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-export function CreatePaymentForm() {
+type CreatePaymentFormProps = {
+  isEmbedded?: boolean;
+  onCreated?: () => void;
+};
+
+export function CreatePaymentForm({
+  isEmbedded = false,
+  onCreated,
+}: CreatePaymentFormProps) {
   const [invoiceId, setInvoiceId] = useState("");
   const [amount, setAmount] = useState("");
   const [currency, setCurrency] = useState("");
@@ -182,14 +190,15 @@ export function CreatePaymentForm() {
       setFailureReason("");
       setProvider("stripe");
       setProviderReference("");
+      onCreated?.();
     } catch {
       setErrorMessage("Unable to create payment.");
     }
   }
 
-  return (
-    <section className="px-6 pt-16">
-      <div className="mx-auto w-full max-w-5xl rounded-[2rem] border border-[var(--color-border)] bg-white/90 p-6 shadow-[0_24px_80px_rgba(15,23,42,0.08)] backdrop-blur">
+  const formContent = (
+    <>
+      {!isEmbedded ? (
         <div className="space-y-2">
           <h2 className="text-2xl font-semibold tracking-tight text-slate-950">
             Create payment
@@ -199,8 +208,9 @@ export function CreatePaymentForm() {
             payment outcome.
           </p>
         </div>
+      ) : null}
 
-        <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
+      <form className={isEmbedded ? "space-y-4" : "mt-6 space-y-4"} onSubmit={handleSubmit}>
           <div className="space-y-2">
             <label
               className="text-sm font-medium text-slate-700"
@@ -477,6 +487,17 @@ export function CreatePaymentForm() {
             {isLoading ? "Creating..." : "Create payment"}
           </button>
         </form>
+    </>
+  );
+
+  if (isEmbedded) {
+    return formContent;
+  }
+
+  return (
+    <section className="px-6 pt-16">
+      <div className="mx-auto w-full max-w-5xl rounded-[2rem] border border-[var(--color-border)] bg-white/90 p-6 shadow-[0_24px_80px_rgba(15,23,42,0.08)] backdrop-blur">
+        {formContent}
       </div>
     </section>
   );
