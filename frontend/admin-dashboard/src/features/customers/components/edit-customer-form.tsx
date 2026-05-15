@@ -7,9 +7,15 @@ import type { Customer } from "@/features/customers/types";
 
 type EditCustomerFormProps = {
   customer: Customer;
+  isEmbedded?: boolean;
+  onUpdated?: () => void;
 };
 
-export function EditCustomerForm({ customer }: EditCustomerFormProps) {
+export function EditCustomerForm({
+  customer,
+  isEmbedded = false,
+  onUpdated,
+}: EditCustomerFormProps) {
   const [name, setName] = useState(customer.name);
   const [email, setEmail] = useState(customer.email);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -29,17 +35,20 @@ export function EditCustomerForm({ customer }: EditCustomerFormProps) {
       }).unwrap();
 
       setSuccessMessage("Customer updated.");
+      onUpdated?.();
     } catch {
       setErrorMessage("Unable to update customer.");
     }
   }
 
-  return (
-    <section className="mt-8 rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
+  const formContent = (
+    <>
       <div className="space-y-2">
-        <h3 className="text-2xl font-semibold tracking-tight text-slate-950">
-          Edit customer
-        </h3>
+        {!isEmbedded ? (
+          <h3 className="text-2xl font-semibold tracking-tight text-slate-950">
+            Edit customer
+          </h3>
+        ) : null}
         <p className="text-sm text-slate-600">
           Update the current customer name and email.
         </p>
@@ -102,6 +111,16 @@ export function EditCustomerForm({ customer }: EditCustomerFormProps) {
           {isLoading ? "Saving..." : "Save changes"}
         </button>
       </form>
+    </>
+  );
+
+  if (isEmbedded) {
+    return formContent;
+  }
+
+  return (
+    <section className="mt-8 rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
+      {formContent}
     </section>
   );
 }
