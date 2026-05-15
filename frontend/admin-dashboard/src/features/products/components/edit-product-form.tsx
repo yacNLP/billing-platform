@@ -7,9 +7,15 @@ import type { Product } from "@/features/products/types";
 
 type EditProductFormProps = {
   product: Product;
+  isEmbedded?: boolean;
+  onUpdated?: () => void;
 };
 
-export function EditProductForm({ product }: EditProductFormProps) {
+export function EditProductForm({
+  product,
+  isEmbedded = false,
+  onUpdated,
+}: EditProductFormProps) {
   const [name, setName] = useState(product.name);
   const [description, setDescription] = useState(product.description || "");
   const [isActive, setIsActive] = useState(product.isActive);
@@ -31,17 +37,20 @@ export function EditProductForm({ product }: EditProductFormProps) {
       }).unwrap();
 
       setSuccessMessage("Product updated.");
+      onUpdated?.();
     } catch {
       setErrorMessage("Unable to update product.");
     }
   }
 
-  return (
-    <section className="mt-8 rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
+  const formContent = (
+    <>
       <div className="space-y-2">
-        <h3 className="text-2xl font-semibold tracking-tight text-slate-950">
-          Edit product
-        </h3>
+        {!isEmbedded ? (
+          <h3 className="text-2xl font-semibold tracking-tight text-slate-950">
+            Edit product
+          </h3>
+        ) : null}
         <p className="text-sm text-slate-600">
           Update the current product name, description, and active status.
         </p>
@@ -112,6 +121,16 @@ export function EditProductForm({ product }: EditProductFormProps) {
           {isLoading ? "Saving..." : "Save changes"}
         </button>
       </form>
+    </>
+  );
+
+  if (isEmbedded) {
+    return formContent;
+  }
+
+  return (
+    <section className="mt-8 rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
+      {formContent}
     </section>
   );
 }

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { AdminDrawer } from "@/components/admin/admin-drawer";
 import { EditProductForm } from "@/features/products/components/edit-product-form";
 import {
   useDeleteProductMutation,
@@ -23,6 +24,7 @@ export function ProductDetails({ id }: ProductDetailsProps) {
   const router = useRouter();
   const { data, error, isLoading } = useGetProductByIdQuery(id);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isEditDrawerOpen, setIsEditDrawerOpen] = useState(false);
   const [isDeleteConfirmationOpen, setIsDeleteConfirmationOpen] = useState(false);
   const [deleteProduct, { isLoading: isDeleting }] = useDeleteProductMutation();
 
@@ -52,16 +54,26 @@ export function ProductDetails({ id }: ProductDetailsProps) {
   return (
     <main className="pb-8 pt-2">
       <section className="w-full rounded-[2rem] border border-[var(--color-border)] bg-white/90 p-8 shadow-[0_24px_80px_rgba(15,23,42,0.08)] backdrop-blur">
-        <div className="space-y-3">
-          <p className="text-sm font-medium uppercase tracking-[0.24em] text-[var(--color-accent)]">
-            Products
-          </p>
-          <h2 className="text-4xl font-semibold tracking-tight text-slate-950">
-            {data.name}
-          </h2>
-          <p className="text-base leading-7 text-slate-600">
-            {data.description || "No description provided."}
-          </p>
+        <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+          <div className="space-y-3">
+            <p className="text-sm font-medium uppercase tracking-[0.24em] text-[var(--color-accent)]">
+              Products
+            </p>
+            <h2 className="text-4xl font-semibold tracking-tight text-slate-950">
+              {data.name}
+            </h2>
+            <p className="text-base leading-7 text-slate-600">
+              {data.description || "No description provided."}
+            </p>
+          </div>
+
+          <button
+            className="shrink-0 rounded-xl bg-slate-950 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800"
+            onClick={() => setIsEditDrawerOpen(true)}
+            type="button"
+          >
+            Edit product
+          </button>
         </div>
 
         <dl className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -91,8 +103,6 @@ export function ProductDetails({ id }: ProductDetailsProps) {
             </dd>
           </div>
         </dl>
-
-        <EditProductForm product={data} />
 
         {errorMessage ? (
           <p className="mt-6 text-sm text-red-600" role="alert">
@@ -143,6 +153,19 @@ export function ProductDetails({ id }: ProductDetailsProps) {
           </button>
         )}
       </section>
+
+      <AdminDrawer
+        description="Update the current product name, description, and active status."
+        isOpen={isEditDrawerOpen}
+        onClose={() => setIsEditDrawerOpen(false)}
+        title="Edit product"
+      >
+        <EditProductForm
+          isEmbedded
+          onUpdated={() => setIsEditDrawerOpen(false)}
+          product={data}
+        />
+      </AdminDrawer>
     </main>
   );
 }

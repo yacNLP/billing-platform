@@ -29,9 +29,15 @@ function toDisplayPrice(amount: number): string {
 
 type EditPlanFormProps = {
   plan: Plan;
+  isEmbedded?: boolean;
+  onUpdated?: () => void;
 };
 
-export function EditPlanForm({ plan }: EditPlanFormProps) {
+export function EditPlanForm({
+  plan,
+  isEmbedded = false,
+  onUpdated,
+}: EditPlanFormProps) {
   const [code, setCode] = useState(plan.code);
   const [name, setName] = useState(plan.name);
   const [description, setDescription] = useState(plan.description || "");
@@ -84,19 +90,26 @@ export function EditPlanForm({ plan }: EditPlanFormProps) {
       }).unwrap();
 
       setSuccessMessage("Plan updated.");
+      onUpdated?.();
     } catch {
       setErrorMessage("Unable to update plan.");
     }
   }
 
-  return (
-    <section className="mt-8 rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
+  const formContent = (
+    <>
       <div className="space-y-2">
-        <h3 className="text-2xl font-semibold tracking-tight text-slate-950">
-          Edit plan
-        </h3>
+        {!isEmbedded ? (
+          <h3 className="text-2xl font-semibold tracking-tight text-slate-950">
+            Edit plan
+          </h3>
+        ) : null}
         <p className="text-sm text-slate-600">
           Update the current plan pricing, billing interval, and metadata.
+        </p>
+        <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
+          Changes apply to the plan catalog. Existing subscriptions keep their
+          original price and billing interval.
         </p>
       </div>
 
@@ -272,6 +285,16 @@ export function EditPlanForm({ plan }: EditPlanFormProps) {
           {isLoading ? "Saving..." : "Save changes"}
         </button>
       </form>
+    </>
+  );
+
+  if (isEmbedded) {
+    return formContent;
+  }
+
+  return (
+    <section className="mt-8 rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
+      {formContent}
     </section>
   );
 }

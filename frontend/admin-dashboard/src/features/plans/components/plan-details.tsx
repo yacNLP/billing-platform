@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { AdminDrawer } from "@/components/admin/admin-drawer";
 import { EditPlanForm } from "@/features/plans/components/edit-plan-form";
 import {
   useDeletePlanMutation,
@@ -43,6 +44,7 @@ export function PlanDetails({ id }: PlanDetailsProps) {
   const router = useRouter();
   const { data, error, isLoading } = useGetPlanByIdQuery(id);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isEditDrawerOpen, setIsEditDrawerOpen] = useState(false);
   const [isDeleteConfirmationOpen, setIsDeleteConfirmationOpen] = useState(false);
   const [deletePlan, { isLoading: isDeleting }] = useDeletePlanMutation();
 
@@ -72,16 +74,26 @@ export function PlanDetails({ id }: PlanDetailsProps) {
   return (
     <main className="pb-8 pt-2">
       <section className="w-full rounded-[2rem] border border-[var(--color-border)] bg-white/90 p-8 shadow-[0_24px_80px_rgba(15,23,42,0.08)] backdrop-blur">
-        <div className="space-y-3">
-          <p className="text-sm font-medium uppercase tracking-[0.24em] text-[var(--color-accent)]">
-            Plans
-          </p>
-          <h2 className="text-4xl font-semibold tracking-tight text-slate-950">
-            {data.name}
-          </h2>
-          <p className="text-base leading-7 text-slate-600">
-            {data.description || "No description provided."}
-          </p>
+        <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+          <div className="space-y-3">
+            <p className="text-sm font-medium uppercase tracking-[0.24em] text-[var(--color-accent)]">
+              Plans
+            </p>
+            <h2 className="text-4xl font-semibold tracking-tight text-slate-950">
+              {data.name}
+            </h2>
+            <p className="text-base leading-7 text-slate-600">
+              {data.description || "No description provided."}
+            </p>
+          </div>
+
+          <button
+            className="shrink-0 rounded-xl bg-slate-950 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800"
+            onClick={() => setIsEditDrawerOpen(true)}
+            type="button"
+          >
+            Edit plan
+          </button>
         </div>
 
         <dl className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -148,8 +160,6 @@ export function PlanDetails({ id }: PlanDetailsProps) {
           </div>
         </dl>
 
-        <EditPlanForm plan={data} />
-
         {errorMessage ? (
           <p className="mt-6 text-sm text-red-600" role="alert">
             {errorMessage}
@@ -199,6 +209,19 @@ export function PlanDetails({ id }: PlanDetailsProps) {
           </button>
         )}
       </section>
+
+      <AdminDrawer
+        description="Update the current plan pricing, billing interval, and metadata."
+        isOpen={isEditDrawerOpen}
+        onClose={() => setIsEditDrawerOpen(false)}
+        title="Edit plan"
+      >
+        <EditPlanForm
+          isEmbedded
+          onUpdated={() => setIsEditDrawerOpen(false)}
+          plan={data}
+        />
+      </AdminDrawer>
     </main>
   );
 }
