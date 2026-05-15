@@ -123,7 +123,7 @@ export function CreateProductForm({
   }
 
   return (
-    <section className="px-6 pt-16">
+    <section className="pb-8 pt-2">
       <div className="mx-auto w-full max-w-5xl rounded-[2rem] border border-[var(--color-border)] bg-white/90 p-6 shadow-[0_24px_80px_rgba(15,23,42,0.08)] backdrop-blur">
         {formContent}
       </div>

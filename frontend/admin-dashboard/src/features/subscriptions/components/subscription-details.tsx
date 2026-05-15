@@ -102,8 +102,8 @@ export function SubscriptionDetails({ id }: SubscriptionDetailsProps) {
   const showCancelActions = canScheduleCancellation || canImmediatelyCancel;
 
   return (
-    <main className="px-6 py-16">
-      <section className="mx-auto w-full max-w-5xl rounded-[2rem] border border-[var(--color-border)] bg-white/90 p-8 shadow-[0_24px_80px_rgba(15,23,42,0.08)] backdrop-blur">
+    <main className="pb-8 pt-2">
+      <section className="w-full rounded-[2rem] border border-[var(--color-border)] bg-white/90 p-8 shadow-[0_24px_80px_rgba(15,23,42,0.08)] backdrop-blur">
         <div className="space-y-3">
           <p className="text-sm font-medium uppercase tracking-[0.24em] text-[var(--color-accent)]">
             Subscriptions
@@ -281,8 +281,8 @@ type StatePanelProps = {
 
 function StatePanel({ title, message }: StatePanelProps) {
   return (
-    <main className="px-6 py-16">
-      <section className="mx-auto w-full max-w-5xl rounded-[2rem] border border-[var(--color-border)] bg-white/90 p-8 shadow-[0_24px_80px_rgba(15,23,42,0.08)] backdrop-blur">
+    <main className="pb-8 pt-2">
+      <section className="w-full rounded-[2rem] border border-[var(--color-border)] bg-white/90 p-8 shadow-[0_24px_80px_rgba(15,23,42,0.08)] backdrop-blur">
         <div className="space-y-3">
           <p className="text-sm font-medium uppercase tracking-[0.24em] text-[var(--color-accent)]">
             Subscriptions

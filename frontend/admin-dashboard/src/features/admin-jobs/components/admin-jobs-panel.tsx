@@ -47,8 +47,8 @@ export function AdminJobsPanel() {
   ] = useRunGenerateDueInvoicesJobMutation();
 
   return (
-    <main className="px-6 py-16">
-      <section className="mx-auto w-full max-w-6xl space-y-8">
+    <main className="pb-8 pt-2">
+      <section className="w-full space-y-8">
         <div className="rounded-[2rem] border border-[var(--color-border)] bg-white/90 p-8 shadow-[0_24px_80px_rgba(15,23,42,0.08)] backdrop-blur">
           <PageHeader
             eyebrow="Admin Jobs"
