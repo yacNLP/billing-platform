@@ -124,7 +124,7 @@ export function SubscriptionDetails({ id }: SubscriptionDetailsProps) {
           </p>
         </div>
 
-        <dl className="mt-8 space-y-4">
+        <dl className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           <div className="rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4">
             <dt className="text-sm font-medium text-slate-500">Customer ID</dt>
             <dd className="mt-1 text-base text-slate-950">{data.customerId}</dd>

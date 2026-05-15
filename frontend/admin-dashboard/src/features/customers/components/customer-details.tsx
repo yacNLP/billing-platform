@@ -64,7 +64,7 @@ export function CustomerDetails({ id }: CustomerDetailsProps) {
           <p className="text-base leading-7 text-slate-600">{data.email}</p>
         </div>
 
-        <dl className="mt-8 space-y-4">
+        <dl className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           <div className="rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4">
             <dt className="text-sm font-medium text-slate-500">Name</dt>
             <dd className="mt-1 text-base text-slate-950">{data.name}</dd>
