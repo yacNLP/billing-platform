@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 
+import { useGetCustomersQuery } from "@/features/customers/customers-api";
 import type { InvoiceStatus } from "@/features/invoices/types";
 import {
   useGetInvoiceByIdQuery,
@@ -9,6 +10,8 @@ import {
   useMarkInvoicePaidMutation,
   useMarkInvoiceVoidMutation,
 } from "@/features/invoices/invoices-api";
+import { useGetSubscriptionsQuery } from "@/features/subscriptions/subscriptions-api";
+import type { BillingInterval } from "@/features/subscriptions/types";
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", {
   year: "numeric",
@@ -27,6 +30,13 @@ const statusClassNameMap: Record<InvoiceStatus, string> = {
     "inline-flex rounded-full border border-red-200 bg-red-50 px-3 py-1 text-sm font-medium text-red-700",
 };
 
+const intervalLabelMap: Record<BillingInterval, string> = {
+  DAY: "day",
+  WEEK: "week",
+  MONTH: "month",
+  YEAR: "year",
+};
+
 function formatMoney(cents: number, currency: string): string {
   return `${(cents / 100).toFixed(2)} ${currency}`;
 }
@@ -37,6 +47,11 @@ type InvoiceDetailsProps = {
 
 export function InvoiceDetails({ id }: InvoiceDetailsProps) {
   const { data, error, isLoading } = useGetInvoiceByIdQuery(id);
+  const { data: customers } = useGetCustomersQuery({ page: 1, pageSize: 100 });
+  const { data: subscriptions } = useGetSubscriptionsQuery({
+    page: 1,
+    pageSize: 100,
+  });
   const [actionMode, setActionMode] = useState<"paid" | "void" | "overdue" | null>(
     null,
   );
@@ -88,6 +103,20 @@ export function InvoiceDetails({ id }: InvoiceDetailsProps) {
   const canVoid = data.status === "ISSUED";
   const canMarkOverdue = data.status === "ISSUED";
   const showActions = canMarkPaid || canVoid || canMarkOverdue;
+  const customer = customers?.data.find((item) => item.id === data.customerId);
+  const subscription = subscriptions?.data.find(
+    (item) => item.id === data.subscriptionId,
+  );
+  const customerLabel = customer
+    ? `${customer.name} · ${customer.email}`
+    : `Customer ID ${data.customerId}`;
+  const subscriptionLabel = subscription
+    ? `Subscription #${subscription.id} · ${formatMoney(
+        subscription.amountSnapshot,
+        subscription.currencySnapshot,
+      )} / ${intervalLabelMap[subscription.intervalSnapshot]}`
+    : `Subscription ID ${data.subscriptionId}`;
+  const remainingAmount = Math.max(data.amountDue - data.amountPaid, 0);
 
   return (
     <main className="pb-8 pt-2">
@@ -103,8 +132,7 @@ export function InvoiceDetails({ id }: InvoiceDetailsProps) {
             <span className={statusClassNameMap[data.status]}>{data.status}</span>
           </div>
           <p className="text-base leading-7 text-slate-600">
-            Invoice #{data.id} for customer ID {data.customerId} and subscription
-            ID {data.subscriptionId}.
+            Invoice #{data.id} for {customerLabel}.
           </p>
         </div>
 
@@ -115,13 +143,15 @@ export function InvoiceDetails({ id }: InvoiceDetailsProps) {
           </div>
 
           <div className="rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4">
-            <dt className="text-sm font-medium text-slate-500">Customer ID</dt>
-            <dd className="mt-1 text-base text-slate-950">{data.customerId}</dd>
+            <dt className="text-sm font-medium text-slate-500">Customer</dt>
+            <dd className="mt-1 text-base text-slate-950">{customerLabel}</dd>
           </div>
 
           <div className="rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4">
-            <dt className="text-sm font-medium text-slate-500">Subscription ID</dt>
-            <dd className="mt-1 text-base text-slate-950">{data.subscriptionId}</dd>
+            <dt className="text-sm font-medium text-slate-500">Subscription</dt>
+            <dd className="mt-1 text-base text-slate-950">
+              {subscriptionLabel}
+            </dd>
           </div>
 
           <div className="rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4">
@@ -135,6 +165,15 @@ export function InvoiceDetails({ id }: InvoiceDetailsProps) {
             <dt className="text-sm font-medium text-slate-500">Amount paid</dt>
             <dd className="mt-1 text-base text-slate-950">
               {formatMoney(data.amountPaid, data.currency)}
+            </dd>
+          </div>
+
+          <div className="rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4">
+            <dt className="text-sm font-medium text-slate-500">
+              Remaining amount
+            </dt>
+            <dd className="mt-1 text-base text-slate-950">
+              {formatMoney(remainingAmount, data.currency)}
             </dd>
           </div>
 
@@ -190,6 +229,13 @@ export function InvoiceDetails({ id }: InvoiceDetailsProps) {
               {dateFormatter.format(new Date(data.createdAt))}
             </dd>
           </div>
+
+          <div className="rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4">
+            <dt className="text-sm font-medium text-slate-500">Updated</dt>
+            <dd className="mt-1 text-base text-slate-950">
+              {dateFormatter.format(new Date(data.updatedAt))}
+            </dd>
+          </div>
         </dl>
 
         {errorMessage ? (
@@ -202,11 +248,7 @@ export function InvoiceDetails({ id }: InvoiceDetailsProps) {
           <section className="mt-6 rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
             <div className="space-y-2">
               <h3 className="text-xl font-semibold tracking-tight text-slate-950">
-                {actionMode === "paid"
-                  ? "Mark invoice as paid"
-                  : actionMode === "void"
-                    ? "Void invoice"
-                    : "Mark invoice as overdue"}
+                Invoice operations
               </h3>
               <p className="text-sm leading-6 text-slate-600">
                 {actionMode === "paid"
