@@ -14,7 +14,7 @@ export function Topbar() {
   const session = useAppSelector(selectAuthSession);
 
   return (
-    <header className="rounded-[2rem] border border-[var(--color-border)] bg-white/90 px-5 py-4 shadow-[0_18px_50px_rgba(15,23,42,0.06)] backdrop-blur">
+    <header className="rounded-[2rem] border border-[var(--color-border)] bg-white/95 px-5 py-4 shadow-[0_18px_50px_rgba(15,23,42,0.06)] backdrop-blur">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="space-y-1">
           <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--color-accent)]">
@@ -29,7 +29,7 @@ export function Topbar() {
         <div className="flex flex-wrap items-center gap-3">
           {session ? (
             <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2">
-              <p className="text-xs font-medium uppercase tracking-[0.18em] text-slate-500">
+              <p className="text-xs font-medium uppercase tracking-[0.18em] text-[var(--color-text-subtle)]">
                 {session.role}
               </p>
               <p className="text-sm font-semibold text-slate-950">

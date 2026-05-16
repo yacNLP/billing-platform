@@ -1,19 +1,49 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f7f4ef;
-  --foreground: #111827;
-  --surface: #ebe5db;
-  --border: #d6cdbf;
-  --accent: #9a3412;
+  --background: #f8fafc;
+  --foreground: #0f172a;
+  --surface: #f1f5f9;
+  --surface-card: #ffffff;
+  --surface-elevated: #ffffff;
+  --surface-subtle: #f8fafc;
+  --border: #e2e8f0;
+  --border-strong: #cbd5e1;
+  --accent: #4f46e5;
+  --accent-hover: #4338ca;
+  --accent-soft: #eef2ff;
+  --accent-secondary: #0891b2;
+  --accent-secondary-soft: #ecfeff;
+  --text-muted: #475569;
+  --text-subtle: #64748b;
+  --success: #059669;
+  --warning: #d97706;
+  --danger: #dc2626;
+  --sidebar: #0b1220;
+  --sidebar-muted: #111827;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-surface: var(--surface);
+  --color-surface-card: var(--surface-card);
+  --color-surface-elevated: var(--surface-elevated);
+  --color-surface-subtle: var(--surface-subtle);
   --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
   --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-secondary: var(--accent-secondary);
+  --color-accent-secondary-soft: var(--accent-secondary-soft);
+  --color-text-muted: var(--text-muted);
+  --color-text-subtle: var(--text-subtle);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-muted: var(--sidebar-muted);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -29,8 +59,8 @@ html {
 body {
   min-height: 100%;
   background:
-    radial-gradient(circle at top, rgba(154, 52, 18, 0.12), transparent 35%),
-    linear-gradient(180deg, #faf7f2 0%, var(--background) 100%);
+    radial-gradient(circle at top left, rgba(79, 70, 229, 0.1), transparent 32%),
+    linear-gradient(180deg, #ffffff 0%, var(--background) 46%, #eef2f7 100%);
   color: var(--foreground);
   font-family: var(--font-geist-sans), sans-serif;
 }

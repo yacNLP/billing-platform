@@ -41,12 +41,12 @@ export function AdminDrawer({
     <div
       aria-labelledby="admin-drawer-title"
       aria-modal="true"
-      className="fixed inset-0 z-50 flex justify-end bg-slate-950/40 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex justify-end bg-slate-950/45 backdrop-blur-sm"
       role="dialog"
     >
       <div aria-hidden="true" className="absolute inset-0" />
 
-      <aside className="relative flex h-full w-full max-w-xl flex-col bg-white shadow-[0_24px_80px_rgba(15,23,42,0.24)]">
+      <aside className="relative flex h-full w-full max-w-xl flex-col border-l border-[var(--color-border)] bg-white shadow-[0_24px_80px_rgba(15,23,42,0.24)]">
         <header className="border-b border-[var(--color-border)] px-6 py-5">
           <div className="flex items-start justify-between gap-4">
             <div className="space-y-1">
@@ -62,7 +62,7 @@ export function AdminDrawer({
             </div>
 
             <button
-              className="rounded-xl border border-[var(--color-border)] bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+              className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-[var(--color-accent-soft)] hover:text-[var(--color-accent)]"
               onClick={onClose}
               type="button"
             >
