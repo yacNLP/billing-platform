@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { useState } from "react";
 
 import { useGetCustomersQuery } from "@/features/customers/customers-api";
@@ -117,6 +118,13 @@ export function InvoiceDetails({ id }: InvoiceDetailsProps) {
       )} / ${intervalLabelMap[subscription.intervalSnapshot]}`
     : `Subscription ID ${data.subscriptionId}`;
   const remainingAmount = Math.max(data.amountDue - data.amountPaid, 0);
+  const amountDueLabel = formatMoney(data.amountDue, data.currency);
+  const amountPaidLabel = formatMoney(data.amountPaid, data.currency);
+  const remainingAmountLabel = formatMoney(remainingAmount, data.currency);
+  const periodStartLabel = dateFormatter.format(new Date(data.periodStart));
+  const periodEndLabel = dateFormatter.format(new Date(data.periodEnd));
+  const billingPeriodLabel = `${periodStartLabel} → ${periodEndLabel}`;
+  const dueDateLabel = dateFormatter.format(new Date(data.dueAt));
 
   return (
     <main className="pb-8 pt-2">
@@ -132,202 +140,209 @@ export function InvoiceDetails({ id }: InvoiceDetailsProps) {
             <span className={statusClassNameMap[data.status]}>{data.status}</span>
           </div>
           <p className="text-base leading-7 text-slate-600">
-            Invoice #{data.id} for {customerLabel}.
+            {customerLabel} · {subscriptionLabel} · {amountDueLabel}
           </p>
         </div>
 
-        <dl className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          <div className="rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4">
-            <dt className="text-sm font-medium text-slate-500">Invoice number</dt>
-            <dd className="mt-1 text-base text-slate-950">{data.invoiceNumber}</dd>
+        <div className="mt-8 grid gap-6 xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.75fr)]">
+          <div className="space-y-6">
+            <DetailSection
+              description="Customer, subscription, and invoice identity."
+              title="Invoice overview"
+            >
+              <DetailItem label="Invoice number" value={data.invoiceNumber} />
+              <DetailItem label="Customer" value={customerLabel} />
+              <DetailItem label="Subscription" value={subscriptionLabel} />
+            </DetailSection>
+
+            <DetailSection
+              description="Collection position for this invoice."
+              title="Payment position"
+            >
+              <DetailItem label="Amount due" value={amountDueLabel} />
+              <DetailItem label="Amount paid" value={amountPaidLabel} />
+              <DetailItem label="Remaining amount" value={remainingAmountLabel} />
+              <DetailItem label="Due date" value={dueDateLabel} />
+            </DetailSection>
+
+            <DetailSection
+              description="Billing period covered by this invoice."
+              title="Billing period"
+            >
+              <DetailItem label="Period" value={billingPeriodLabel} />
+              <DetailItem
+                label="Issued"
+                value={dateFormatter.format(new Date(data.issuedAt))}
+              />
+            </DetailSection>
           </div>
 
-          <div className="rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4">
-            <dt className="text-sm font-medium text-slate-500">Customer</dt>
-            <dd className="mt-1 text-base text-slate-950">{customerLabel}</dd>
-          </div>
+          <aside className="space-y-6">
+            <DetailSection
+              description="Current invoice state and lifecycle timestamps."
+              title="Status & lifecycle"
+            >
+              <DetailItem
+                label="Current status"
+                value={
+                  <span className={statusClassNameMap[data.status]}>
+                    {data.status}
+                  </span>
+                }
+              />
+              {data.paidAt ? (
+                <DetailItem
+                  label="Paid at"
+                  value={dateFormatter.format(new Date(data.paidAt))}
+                />
+              ) : null}
+              {data.voidedAt ? (
+                <DetailItem
+                  label="Voided at"
+                  value={dateFormatter.format(new Date(data.voidedAt))}
+                />
+              ) : null}
+              <DetailItem
+                label="Created"
+                value={dateFormatter.format(new Date(data.createdAt))}
+              />
+              <DetailItem
+                label="Updated"
+                value={dateFormatter.format(new Date(data.updatedAt))}
+              />
+            </DetailSection>
 
-          <div className="rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4">
-            <dt className="text-sm font-medium text-slate-500">Subscription</dt>
-            <dd className="mt-1 text-base text-slate-950">
-              {subscriptionLabel}
-            </dd>
-          </div>
+            <section className="rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
+              <div className="space-y-2">
+                <h3 className="text-xl font-semibold tracking-tight text-slate-950">
+                  Invoice operations
+                </h3>
+                <p className="text-sm leading-6 text-slate-600">
+                  Apply one of the supported backend status actions for this
+                  invoice.
+                </p>
+              </div>
 
-          <div className="rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4">
-            <dt className="text-sm font-medium text-slate-500">Amount due</dt>
-            <dd className="mt-1 text-base text-slate-950">
-              {formatMoney(data.amountDue, data.currency)}
-            </dd>
-          </div>
-
-          <div className="rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4">
-            <dt className="text-sm font-medium text-slate-500">Amount paid</dt>
-            <dd className="mt-1 text-base text-slate-950">
-              {formatMoney(data.amountPaid, data.currency)}
-            </dd>
-          </div>
-
-          <div className="rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4">
-            <dt className="text-sm font-medium text-slate-500">
-              Remaining amount
-            </dt>
-            <dd className="mt-1 text-base text-slate-950">
-              {formatMoney(remainingAmount, data.currency)}
-            </dd>
-          </div>
-
-          <div className="rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4">
-            <dt className="text-sm font-medium text-slate-500">Period start</dt>
-            <dd className="mt-1 text-base text-slate-950">
-              {dateFormatter.format(new Date(data.periodStart))}
-            </dd>
-          </div>
-
-          <div className="rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4">
-            <dt className="text-sm font-medium text-slate-500">Period end</dt>
-            <dd className="mt-1 text-base text-slate-950">
-              {dateFormatter.format(new Date(data.periodEnd))}
-            </dd>
-          </div>
-
-          <div className="rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4">
-            <dt className="text-sm font-medium text-slate-500">Issued</dt>
-            <dd className="mt-1 text-base text-slate-950">
-              {dateFormatter.format(new Date(data.issuedAt))}
-            </dd>
-          </div>
-
-          <div className="rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4">
-            <dt className="text-sm font-medium text-slate-500">Due</dt>
-            <dd className="mt-1 text-base text-slate-950">
-              {dateFormatter.format(new Date(data.dueAt))}
-            </dd>
-          </div>
-
-          {data.paidAt ? (
-            <div className="rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4">
-              <dt className="text-sm font-medium text-slate-500">Paid at</dt>
-              <dd className="mt-1 text-base text-slate-950">
-                {dateFormatter.format(new Date(data.paidAt))}
-              </dd>
-            </div>
-          ) : null}
-
-          {data.voidedAt ? (
-            <div className="rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4">
-              <dt className="text-sm font-medium text-slate-500">Voided at</dt>
-              <dd className="mt-1 text-base text-slate-950">
-                {dateFormatter.format(new Date(data.voidedAt))}
-              </dd>
-            </div>
-          ) : null}
-
-          <div className="rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4">
-            <dt className="text-sm font-medium text-slate-500">Created</dt>
-            <dd className="mt-1 text-base text-slate-950">
-              {dateFormatter.format(new Date(data.createdAt))}
-            </dd>
-          </div>
-
-          <div className="rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4">
-            <dt className="text-sm font-medium text-slate-500">Updated</dt>
-            <dd className="mt-1 text-base text-slate-950">
-              {dateFormatter.format(new Date(data.updatedAt))}
-            </dd>
-          </div>
-        </dl>
-
-        {errorMessage ? (
-          <p className="mt-6 text-sm text-red-600" role="alert">
-            {errorMessage}
-          </p>
-        ) : null}
-
-        {actionMode ? (
-          <section className="mt-6 rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
-            <div className="space-y-2">
-              <h3 className="text-xl font-semibold tracking-tight text-slate-950">
-                Invoice operations
-              </h3>
-              <p className="text-sm leading-6 text-slate-600">
-                {actionMode === "paid"
-                  ? "This will mark the invoice as paid and set the paid amount to the full due amount."
-                  : actionMode === "void"
-                    ? "This will void the invoice and clear any paid timestamp."
-                    : "This will move the invoice to overdue if the backend considers it past due."}
-              </p>
-            </div>
-
-            <div className="mt-4 flex flex-col gap-3 sm:flex-row">
-              <button
-                className="rounded-xl bg-slate-950 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
-                disabled={isSubmittingAction}
-                onClick={handleInvoiceAction}
-                type="button"
-              >
-                {isSubmittingAction ? "Saving..." : "Confirm"}
-              </button>
-
-              <button
-                className="rounded-xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
-                disabled={isSubmittingAction}
-                onClick={() => setActionMode(null)}
-                type="button"
-              >
-                Cancel
-              </button>
-            </div>
-          </section>
-        ) : showActions ? (
-          <section className="mt-6 rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
-            <div className="space-y-2">
-              <h3 className="text-xl font-semibold tracking-tight text-slate-950">
-                Invoice actions
-              </h3>
-              <p className="text-sm leading-6 text-slate-600">
-                Apply one of the supported backend status actions for this invoice.
-              </p>
-            </div>
-
-            <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-              {canMarkPaid ? (
-                <button
-                  className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
-                  disabled={isSubmittingAction}
-                  onClick={() => setActionMode("paid")}
-                  type="button"
-                >
-                  Mark paid
-                </button>
+              {errorMessage ? (
+                <p className="mt-5 text-sm text-red-600" role="alert">
+                  {errorMessage}
+                </p>
               ) : null}
 
-              {canVoid ? (
-                <button
-                  className="rounded-xl border border-slate-200 bg-slate-100 px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-60"
-                  disabled={isSubmittingAction}
-                  onClick={() => setActionMode("void")}
-                  type="button"
-                >
-                  Void
-                </button>
-              ) : null}
+              {actionMode ? (
+                <div className="mt-5">
+                  <p className="text-sm leading-6 text-slate-600">
+                    {actionMode === "paid"
+                      ? "This will mark the invoice as paid and set the paid amount to the full due amount."
+                      : actionMode === "void"
+                        ? "This will void the invoice and clear any paid timestamp."
+                        : "This will move the invoice to overdue if the backend considers it past due."}
+                  </p>
 
-              {canMarkOverdue ? (
-                <button
-                  className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
-                  disabled={isSubmittingAction}
-                  onClick={() => setActionMode("overdue")}
-                  type="button"
-                >
-                  Mark overdue
-                </button>
-              ) : null}
-            </div>
-          </section>
-        ) : null}
+                  <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+                    <button
+                      className="rounded-xl bg-slate-950 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                      disabled={isSubmittingAction}
+                      onClick={handleInvoiceAction}
+                      type="button"
+                    >
+                      {isSubmittingAction ? "Saving..." : "Confirm"}
+                    </button>
+
+                    <button
+                      className="rounded-xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                      disabled={isSubmittingAction}
+                      onClick={() => setActionMode(null)}
+                      type="button"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : showActions ? (
+                <div className="mt-5 flex flex-col gap-3">
+                  {canMarkPaid ? (
+                    <button
+                      className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
+                      disabled={isSubmittingAction}
+                      onClick={() => setActionMode("paid")}
+                      type="button"
+                    >
+                      Mark paid
+                    </button>
+                  ) : null}
+
+                  {canVoid ? (
+                    <button
+                      className="rounded-xl border border-slate-200 bg-slate-100 px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-60"
+                      disabled={isSubmittingAction}
+                      onClick={() => setActionMode("void")}
+                      type="button"
+                    >
+                      Void
+                    </button>
+                  ) : null}
+
+                  {canMarkOverdue ? (
+                    <button
+                      className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+                      disabled={isSubmittingAction}
+                      onClick={() => setActionMode("overdue")}
+                      type="button"
+                    >
+                      Mark overdue
+                    </button>
+                  ) : null}
+                </div>
+              ) : (
+                <p className="mt-5 text-sm leading-6 text-slate-600">
+                  No invoice operations are currently available for this status.
+                </p>
+              )}
+            </section>
+          </aside>
+        </div>
       </section>
     </main>
+  );
+}
+
+type DetailSectionProps = {
+  children: ReactNode;
+  description: string;
+  title: string;
+};
+
+function DetailSection({ children, description, title }: DetailSectionProps) {
+  return (
+    <section className="rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
+      <div className="space-y-2">
+        <h3 className="text-xl font-semibold tracking-tight text-slate-950">
+          {title}
+        </h3>
+        <p className="text-sm leading-6 text-slate-600">{description}</p>
+      </div>
+
+      <dl className="mt-5 divide-y divide-[var(--color-border)] rounded-[1.25rem] border border-[var(--color-border)] bg-white">
+        {children}
+      </dl>
+    </section>
+  );
+}
+
+type DetailItemProps = {
+  label: string;
+  value: ReactNode;
+};
+
+function DetailItem({ label, value }: DetailItemProps) {
+  return (
+    <div className="flex flex-col gap-1 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+      <dt className="text-sm font-medium text-slate-500">{label}</dt>
+      <dd className="text-sm font-semibold text-slate-950 sm:text-right">
+        {value}
+      </dd>
+    </div>
   );
 }
 
