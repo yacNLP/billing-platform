@@ -132,9 +132,9 @@ const toneClassNames: Record<
   },
   accent: {
     accent: "bg-[var(--color-accent)]",
-    border: "border-orange-200",
-    soft: "bg-orange-50",
-    text: "text-orange-950",
+    border: "border-indigo-200",
+    soft: "bg-[var(--color-accent-soft)]",
+    text: "text-[var(--color-accent)]",
   },
 };
 
@@ -188,7 +188,7 @@ export function AnalyticsSummaryPanel() {
               Tenant billing overview
             </span>
             {isFetching ? (
-              <span className="rounded-full border border-orange-200 bg-orange-50 px-4 py-2 text-sm font-medium text-orange-900">
+              <span className="rounded-full border border-indigo-100 bg-[var(--color-accent-soft)] px-4 py-2 text-sm font-medium text-[var(--color-accent)]">
                 Refreshing
               </span>
             ) : null}
@@ -255,12 +255,14 @@ function FinancialPositionPanel({ data }: { data: AnalyticsSummary }) {
       />
 
       <div className="mt-8 grid gap-6 2xl:grid-cols-[1.15fr_0.85fr]">
-        <div className="rounded-[1.5rem] border border-orange-200 bg-orange-50 p-6">
-          <p className="text-sm font-medium text-orange-900">Estimated MRR</p>
-          <p className="mt-3 text-5xl font-semibold tracking-[-0.04em] text-orange-950">
+        <div className="rounded-[1.5rem] border border-indigo-100 bg-[var(--color-accent-soft)] p-6">
+          <p className="text-sm font-medium text-[var(--color-accent)]">
+            Estimated MRR
+          </p>
+          <p className="mt-3 text-5xl font-semibold tracking-[-0.04em] text-slate-950">
             {formatMoney(data.estimatedMrr, "EUR")}
           </p>
-          <p className="mt-3 max-w-sm text-sm leading-6 text-orange-900">
+          <p className="mt-3 max-w-sm text-sm leading-6 text-slate-600">
             Estimated monthly recurring revenue from active subscriptions.
           </p>
         </div>

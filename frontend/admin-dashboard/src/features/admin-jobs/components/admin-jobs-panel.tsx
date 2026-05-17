@@ -53,14 +53,14 @@ export function AdminJobsPanel() {
           <PageHeader
             eyebrow="Admin Jobs"
             title="Operations"
-            description="Run a first set of manual admin jobs safely and inspect the result returned by the backend."
+            description="Run controlled billing operations and review the operation result."
           />
         </div>
 
         <div className="grid gap-6 xl:grid-cols-2">
           <JobCard
             actionLabel="Run job"
-            confirmationMessage="This will mark eligible issued invoices as overdue."
+            confirmationMessage="This will mark issued invoices past their due date as overdue."
             description="Find issued invoices whose due date is already in the past and mark them as overdue."
             error={overdueError}
             isLoading={isRunningOverdueInvoices}
@@ -70,8 +70,8 @@ export function AdminJobsPanel() {
           />
           <JobCard
             actionLabel="Run job"
-            confirmationMessage="This will move eligible active subscriptions to PAST_DUE."
-            description="Find active subscriptions that still have an unpaid overdue invoice and move them to PAST_DUE."
+            confirmationMessage="This will move active subscriptions with unpaid overdue invoices to past due."
+            description="Find active subscriptions that still have an unpaid overdue invoice and mark them as past due."
             error={pastDueError}
             isLoading={isRunningPastDueSubscriptions}
             onRun={() => runUpdatePastDueSubscriptionsJob()}
@@ -80,8 +80,8 @@ export function AdminJobsPanel() {
           />
           <JobCard
             actionLabel="Run job"
-            confirmationMessage="This will renew eligible due subscriptions and create the next-period invoice when needed."
-            description="Renew active subscriptions whose current period already ended and are still eligible for normal renewal."
+            confirmationMessage="This will renew subscriptions matching the renewal rule and create the next-period invoice when needed."
+            description="Renew active subscriptions whose current period has ended and should continue normally."
             error={renewalError}
             isLoading={isRunningRenewal}
             onRun={() => runRenewDueSubscriptionsJob()}

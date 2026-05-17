@@ -55,7 +55,7 @@ export function LoginForm({ nextPath }: LoginFormProps) {
           Admin sign in
         </h1>
         <p className="text-sm leading-6 text-slate-600">
-          Authenticate with the billing API and unlock the protected dashboard.
+          Sign in to manage your revenue operations workspace.
         </p>
       </div>
 
