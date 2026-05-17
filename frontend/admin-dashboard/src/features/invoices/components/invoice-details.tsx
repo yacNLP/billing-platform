@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import { useState } from "react";
 
+import { useToast } from "@/components/admin/toast-provider";
 import { useGetCustomersQuery } from "@/features/customers/customers-api";
 import type { InvoiceStatus } from "@/features/invoices/types";
 import {
@@ -47,6 +48,7 @@ type InvoiceDetailsProps = {
 };
 
 export function InvoiceDetails({ id }: InvoiceDetailsProps) {
+  const { showToast } = useToast();
   const { data, error, isLoading } = useGetInvoiceByIdQuery(id);
   const { data: customers } = useGetCustomersQuery({ page: 1, pageSize: 100 });
   const { data: subscriptions } = useGetSubscriptionsQuery({
@@ -76,10 +78,13 @@ export function InvoiceDetails({ id }: InvoiceDetailsProps) {
     try {
       if (actionMode === "paid") {
         await markInvoicePaid(id).unwrap();
+        showToast("Invoice marked as paid.");
       } else if (actionMode === "void") {
         await markInvoiceVoid(id).unwrap();
+        showToast("Invoice voided.");
       } else {
         await markInvoiceOverdue(id).unwrap();
+        showToast("Invoice marked as overdue.");
       }
 
       setActionMode(null);

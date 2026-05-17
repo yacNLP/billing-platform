@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { useState } from "react";
 
 import { ConfirmActionPanel } from "@/components/admin/confirm-action-panel";
+import { useToast } from "@/components/admin/toast-provider";
 import { useGetCustomersQuery } from "@/features/customers/customers-api";
 import { useGetPlansQuery } from "@/features/plans/plans-api";
 import type {
@@ -58,6 +59,7 @@ type SubscriptionDetailsProps = {
 };
 
 export function SubscriptionDetails({ id }: SubscriptionDetailsProps) {
+  const { showToast } = useToast();
   const { data, error, isLoading } = useGetSubscriptionByIdQuery(id);
   const { data: customers } = useGetCustomersQuery({ page: 1, pageSize: 100 });
   const { data: plans } = useGetPlansQuery({ page: 1, pageSize: 100 });
@@ -76,6 +78,11 @@ export function SubscriptionDetails({ id }: SubscriptionDetailsProps) {
         id,
         cancelAtPeriodEnd,
       }).unwrap();
+      showToast(
+        cancelAtPeriodEnd
+          ? "Subscription cancellation scheduled."
+          : "Subscription canceled immediately.",
+      );
       setCancelMode(null);
     } catch {
       setErrorMessage("Unable to cancel subscription.");
