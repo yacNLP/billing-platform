@@ -321,7 +321,17 @@ export function InvoicesList({ action }: InvoicesListProps) {
           </p>
         ) : null}
 
-        <ul className="mt-8 space-y-4">
+        <div className="mt-8 overflow-hidden rounded-[1.5rem] border border-[var(--color-border)] bg-white">
+          <div className="hidden grid-cols-[minmax(170px,1fr)_minmax(220px,1.2fr)_minmax(150px,0.9fr)_minmax(150px,0.9fr)_minmax(120px,0.7fr)_110px] border-b border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500 xl:grid">
+            <span>Invoice</span>
+            <span>Customer</span>
+            <span>Amount</span>
+            <span>Due date</span>
+            <span>Status</span>
+            <span className="text-right">Action</span>
+          </div>
+
+          <ul className="divide-y divide-[var(--color-border)]">
           {data.data.map((invoice) => {
             const customer = customers?.data.find(
               (item) => item.id === invoice.customerId,
@@ -329,91 +339,76 @@ export function InvoicesList({ action }: InvoicesListProps) {
             const subscription = subscriptions?.data.find(
               (item) => item.id === invoice.subscriptionId,
             );
+            const customerLabel = customer
+              ? `${customer.name} · ${customer.email}`
+              : `Customer ID ${invoice.customerId}`;
+            const subscriptionLabel = subscription
+              ? `Subscription #${subscription.id}`
+              : `Subscription ID ${invoice.subscriptionId}`;
+            const remainingAmount = Math.max(
+              invoice.amountDue - invoice.amountPaid,
+              0,
+            );
 
             return (
               <li
-                className="rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4"
+                className="bg-white px-5 py-4 transition hover:bg-slate-50/80"
                 key={invoice.id}
               >
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                <div className="space-y-3">
-                  <div className="space-y-2">
-                    <div className="flex flex-wrap items-center gap-3">
-                      <p className="text-lg font-semibold text-slate-950">
+                <div className="grid gap-4 xl:grid-cols-[minmax(170px,1fr)_minmax(220px,1.2fr)_minmax(150px,0.9fr)_minmax(150px,0.9fr)_minmax(120px,0.7fr)_110px] xl:items-center">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-slate-950">
                         {invoice.invoiceNumber}
                       </p>
-                      <span className={statusClassNameMap[invoice.status]}>
-                        {invoice.status}
-                      </span>
-                    </div>
-
-                    <p className="text-sm text-slate-600">
-                      Invoice #{invoice.id} ·{" "}
-                      {customer
-                        ? `${customer.name} · ${customer.email}`
-                        : `Customer ID ${invoice.customerId}`}{" "}
-                      ·{" "}
-                      {subscription
-                        ? `Subscription #${subscription.id}`
-                        : `Subscription ID ${invoice.subscriptionId}`}
+                    <p className="mt-1 text-xs uppercase tracking-[0.16em] text-slate-500">
+                      Invoice #{invoice.id}
                     </p>
+                  </div>
+
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium text-slate-700">
+                      {customerLabel}
+                    </p>
+                    <p className="mt-1 text-xs uppercase tracking-[0.16em] text-slate-500">
+                      {subscriptionLabel}
+                    </p>
+                  </div>
+
+                  <div>
+                    <p className="text-sm font-semibold text-slate-950">
+                      Due {formatMoney(invoice.amountDue, invoice.currency)}
+                    </p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      Remaining {formatMoney(remainingAmount, invoice.currency)}
+                    </p>
+                  </div>
+
+                  <div>
+                    <p className="text-sm font-medium text-slate-700">
+                      {formatDate(invoice.dueAt)}
+                    </p>
+                  </div>
+
+                  <div>
+                    <span className={statusClassNameMap[invoice.status]}>
+                      {invoice.status}
+                    </span>
+                  </div>
+
+                  <div className="flex xl:justify-end">
                     <Link
-                      className="text-sm font-medium text-[var(--color-accent)] underline-offset-4 hover:underline"
+                      className="rounded-xl border border-[var(--color-border)] bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
                       href={`/invoices/${invoice.id}`}
                     >
-                      View details
+                      Details
                     </Link>
                   </div>
-
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="rounded-full border border-slate-200 bg-slate-950 px-3 py-1 text-sm font-semibold text-white">
-                      Due {formatMoney(invoice.amountDue, invoice.currency)}
-                    </span>
-                    <span className="rounded-full border border-[var(--color-border)] bg-white px-3 py-1 text-sm text-slate-700">
-                      Paid {formatMoney(invoice.amountPaid, invoice.currency)}
-                    </span>
-                  </div>
                 </div>
-
-                <dl className="grid gap-3 text-sm text-slate-600 sm:grid-cols-2 lg:min-w-[22rem]">
-                  <div>
-                    <dt className="font-medium text-slate-500">Period start</dt>
-                    <dd>{formatDate(invoice.periodStart)}</dd>
-                  </div>
-                  <div>
-                    <dt className="font-medium text-slate-500">Period end</dt>
-                    <dd>{formatDate(invoice.periodEnd)}</dd>
-                  </div>
-                  <div>
-                    <dt className="font-medium text-slate-500">Issued</dt>
-                    <dd>{formatDate(invoice.issuedAt)}</dd>
-                  </div>
-                  <div>
-                    <dt className="font-medium text-slate-500">Due</dt>
-                    <dd>{formatDate(invoice.dueAt)}</dd>
-                  </div>
-                  {invoice.paidAt ? (
-                    <div>
-                      <dt className="font-medium text-slate-500">Paid at</dt>
-                      <dd>{formatDate(invoice.paidAt)}</dd>
-                    </div>
-                  ) : null}
-                  {invoice.voidedAt ? (
-                    <div>
-                      <dt className="font-medium text-slate-500">Voided at</dt>
-                      <dd>{formatDate(invoice.voidedAt)}</dd>
-                    </div>
-                  ) : null}
-                  <div>
-                    <dt className="font-medium text-slate-500">Created</dt>
-                    <dd>{formatDate(invoice.createdAt)}</dd>
-                  </div>
-                </dl>
-              </div>
               </li>
             );
           })}
-        </ul>
+          </ul>
+        </div>
 
         <PaginationControls
           currentPage={data.page}
