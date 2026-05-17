@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, ReactNode } from "react";
+import { FormEvent, ReactNode, useState } from "react";
 import {
   usePathname,
   useRouter,
@@ -75,6 +75,7 @@ export function PlansList({ action }: PlansListProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const [areFiltersOpen, setAreFiltersOpen] = useState(false);
 
   const queryParams = getQueryParams(searchParams);
   const { data, error, isLoading, isFetching } = useGetPlansQuery(queryParams);
@@ -174,6 +175,44 @@ export function PlansList({ action }: PlansListProps) {
   const hasFilters = hasActiveFilters(queryParams);
   const isEmptyDataset = data?.total === 0;
   const isEmptyCurrentPage = plans.length === 0;
+  const activeFilterCount = [
+    queryParams.search,
+    queryParams.active,
+    queryParams.currency,
+    queryParams.sort,
+    queryParams.order,
+  ].filter(Boolean).length;
+  const filterSummaryItems = [
+    {
+      label: "Search",
+      value: queryParams.search || "Any plan",
+    },
+    {
+      label: "Status",
+      value:
+        queryParams.active === "true"
+          ? "Active"
+          : queryParams.active === "false"
+            ? "Inactive"
+            : "All statuses",
+    },
+    {
+      label: "Currency",
+      value: queryParams.currency ?? "Any currency",
+    },
+    {
+      label: "Sort",
+      value: queryParams.sort ?? "Default",
+    },
+    {
+      label: "Order",
+      value: queryParams.order ?? "Default",
+    },
+    {
+      label: "Page size",
+      value: `${queryParams.pageSize ?? 20} / page`,
+    },
+  ];
 
   if (isEmptyDataset && !hasFilters) {
     return (
@@ -200,20 +239,70 @@ export function PlansList({ action }: PlansListProps) {
           <p className="mt-6 text-sm text-slate-500">Refreshing plans...</p>
         ) : null}
 
-        <form
-          key={searchParams.toString()}
-          className="mt-8 grid gap-4 rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] p-5 md:grid-cols-2 xl:grid-cols-6"
-          onSubmit={handleFiltersSubmit}
-        >
+        <section className="mt-6 overflow-hidden rounded-[1.25rem] border border-[var(--color-border)] bg-white shadow-[0_14px_38px_rgba(15,23,42,0.04)]">
+          <div className="flex flex-col gap-3 px-5 py-3.5 lg:flex-row lg:items-center lg:justify-between">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                <p className="text-sm font-semibold text-slate-950">
+                  Plan filters
+                </p>
+                <span className="hidden h-4 w-px bg-[var(--color-border)] sm:inline-block" />
+                {activeFilterCount > 0 ? (
+                  <span className="inline-flex items-center gap-1.5 text-xs font-medium text-[var(--color-accent)]">
+                    <span className="h-1.5 w-1.5 rounded-full bg-[var(--color-accent)]" />
+                    {activeFilterCount} active
+                  </span>
+                ) : (
+                  <span className="text-xs font-medium text-slate-500">
+                    No active filters
+                  </span>
+                )}
+              </div>
+
+              <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-slate-600">
+                {filterSummaryItems.map((item, index) => (
+                  <span
+                    className="inline-flex items-center gap-x-2"
+                    key={item.label}
+                  >
+                    {index > 0 ? (
+                      <span className="text-slate-300">·</span>
+                    ) : null}
+                    <span>
+                      <span className="font-medium text-slate-800">
+                        {item.label}:
+                      </span>{" "}
+                      {item.value}
+                    </span>
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            <button
+              className="self-start rounded-xl border border-[var(--color-border)] bg-white px-3.5 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 lg:self-center"
+              onClick={() => setAreFiltersOpen((value) => !value)}
+              type="button"
+            >
+              {areFiltersOpen ? "Hide filters" : "Adjust filters"}
+            </button>
+          </div>
+
+          {areFiltersOpen ? (
+            <form
+              key={searchParams.toString()}
+              className="grid gap-3 border-t border-[var(--color-border)] bg-[var(--color-surface-subtle)] px-5 py-4 md:grid-cols-2 xl:grid-cols-6"
+              onSubmit={handleFiltersSubmit}
+            >
           <div className="space-y-2 xl:col-span-2">
             <label
-              className="text-sm font-medium text-slate-700"
+              className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500"
               htmlFor="plan-search"
             >
               Search
             </label>
             <input
-              className="w-full rounded-xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm text-slate-950 outline-none transition focus:border-slate-400"
+              className="w-full rounded-xl border border-[var(--color-border)] bg-white px-3 py-2.5 text-sm text-slate-950 outline-none transition focus:border-[var(--color-accent)]"
               defaultValue={queryParams.search ?? ""}
               id="plan-search"
               name="search"
@@ -224,13 +313,13 @@ export function PlansList({ action }: PlansListProps) {
 
           <div className="space-y-2">
             <label
-              className="text-sm font-medium text-slate-700"
+              className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500"
               htmlFor="plan-status"
             >
               Status
             </label>
             <select
-              className="w-full rounded-xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm text-slate-950 outline-none transition focus:border-slate-400"
+              className="w-full rounded-xl border border-[var(--color-border)] bg-white px-3 py-2.5 text-sm text-slate-950 outline-none transition focus:border-[var(--color-accent)]"
               defaultValue={queryParams.active ?? ""}
               id="plan-status"
               name="active"
@@ -243,13 +332,13 @@ export function PlansList({ action }: PlansListProps) {
 
           <div className="space-y-2">
             <label
-              className="text-sm font-medium text-slate-700"
+              className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500"
               htmlFor="plan-currency"
             >
               Currency
             </label>
             <input
-              className="w-full rounded-xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm uppercase text-slate-950 outline-none transition focus:border-slate-400"
+              className="w-full rounded-xl border border-[var(--color-border)] bg-white px-3 py-2.5 text-sm uppercase text-slate-950 outline-none transition focus:border-[var(--color-accent)]"
               defaultValue={queryParams.currency ?? ""}
               id="plan-currency"
               maxLength={3}
@@ -261,13 +350,13 @@ export function PlansList({ action }: PlansListProps) {
 
           <div className="space-y-2">
             <label
-              className="text-sm font-medium text-slate-700"
+              className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500"
               htmlFor="plan-sort"
             >
               Sort by
             </label>
             <select
-              className="w-full rounded-xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm text-slate-950 outline-none transition focus:border-slate-400"
+              className="w-full rounded-xl border border-[var(--color-border)] bg-white px-3 py-2.5 text-sm text-slate-950 outline-none transition focus:border-[var(--color-accent)]"
               defaultValue={queryParams.sort ?? ""}
               id="plan-sort"
               name="sort"
@@ -282,13 +371,13 @@ export function PlansList({ action }: PlansListProps) {
 
           <div className="space-y-2">
             <label
-              className="text-sm font-medium text-slate-700"
+              className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500"
               htmlFor="plan-order"
             >
               Order
             </label>
             <select
-              className="w-full rounded-xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm text-slate-950 outline-none transition focus:border-slate-400"
+              className="w-full rounded-xl border border-[var(--color-border)] bg-white px-3 py-2.5 text-sm text-slate-950 outline-none transition focus:border-[var(--color-accent)]"
               defaultValue={queryParams.order ?? ""}
               id="plan-order"
               name="order"
@@ -301,13 +390,13 @@ export function PlansList({ action }: PlansListProps) {
 
           <div className="space-y-2">
             <label
-              className="text-sm font-medium text-slate-700"
+              className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500"
               htmlFor="plan-page-size"
             >
               Page size
             </label>
             <select
-              className="w-full rounded-xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm text-slate-950 outline-none transition focus:border-slate-400"
+              className="w-full rounded-xl border border-[var(--color-border)] bg-white px-3 py-2.5 text-sm text-slate-950 outline-none transition focus:border-[var(--color-accent)]"
               defaultValue={String(queryParams.pageSize ?? 20)}
               id="plan-page-size"
               name="pageSize"
@@ -322,13 +411,13 @@ export function PlansList({ action }: PlansListProps) {
 
           <div className="flex flex-wrap items-center gap-3 md:col-span-2 xl:col-span-6">
             <button
-              className="rounded-xl bg-slate-950 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800"
+              className="rounded-xl bg-[var(--color-accent)] px-3.5 py-2.5 text-sm font-semibold text-white shadow-[0_10px_22px_rgba(79,70,229,0.18)] transition hover:bg-[var(--color-accent-hover)]"
               type="submit"
             >
               Apply filters
             </button>
             <button
-              className="rounded-xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+              className="rounded-xl border border-[var(--color-border)] bg-white px-3.5 py-2.5 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
               onClick={handleResetFilters}
               type="button"
             >
@@ -339,7 +428,9 @@ export function PlansList({ action }: PlansListProps) {
               {data?.totalPages || 1}.
             </p>
           </div>
-        </form>
+            </form>
+          ) : null}
+        </section>
 
         {isEmptyCurrentPage ? (
           <p className="mt-8 rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4 text-sm text-slate-600">
