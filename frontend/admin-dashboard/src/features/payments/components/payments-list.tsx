@@ -313,7 +313,17 @@ export function PaymentsList({ action }: PaymentsListProps) {
           </p>
         ) : null}
 
-        <ul className="mt-8 space-y-4">
+        <div className="mt-8 overflow-hidden rounded-[1.5rem] border border-[var(--color-border)] bg-white">
+          <div className="hidden grid-cols-[minmax(170px,1fr)_minmax(220px,1.2fr)_minmax(140px,0.8fr)_minmax(140px,0.8fr)_minmax(130px,0.8fr)_110px] border-b border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500 xl:grid">
+            <span>Payment</span>
+            <span>Invoice</span>
+            <span>Amount</span>
+            <span>Provider</span>
+            <span>Status</span>
+            <span className="text-right">Action</span>
+          </div>
+
+          <ul className="divide-y divide-[var(--color-border)]">
           {data.data.map((payment) => {
             const invoice = invoices?.data.find(
               (item) => item.id === payment.invoiceId,
@@ -321,81 +331,75 @@ export function PaymentsList({ action }: PaymentsListProps) {
             const customer = invoice
               ? customers?.data.find((item) => item.id === invoice.customerId)
               : undefined;
+            const invoiceLabel = invoice
+              ? invoice.invoiceNumber
+              : `Invoice ID ${payment.invoiceId}`;
+            const invoiceContext = invoice
+              ? `${formatMoney(invoice.amountDue, invoice.currency)}${
+                  customer ? ` · ${customer.name}` : ""
+                }`
+              : "Invoice details unavailable";
+            const providerLabel = payment.provider ?? "Manual";
+            const paidAtLabel = payment.paidAt
+              ? formatDate(payment.paidAt)
+              : "Not paid";
 
             return (
               <li
-                className="rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4"
+                className="bg-white px-5 py-4 transition hover:bg-slate-50/80"
                 key={payment.id}
               >
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                  <div className="space-y-3">
-                    <div className="space-y-2">
-                      <div className="flex flex-wrap items-center gap-3">
-                        <p className="text-lg font-semibold text-slate-950">
-                          Payment #{payment.id}
-                        </p>
-                        <span className={statusClassNameMap[payment.status]}>
-                          {payment.status}
-                        </span>
-                      </div>
-
-                      <p className="text-sm text-slate-600">
-                        {invoice
-                          ? `${invoice.invoiceNumber} · ${formatMoney(
-                              invoice.amountDue,
-                              invoice.currency,
-                            )}`
-                          : `Invoice ID ${payment.invoiceId}`}
-                        {customer ? ` · ${customer.name}` : ""}
-                      </p>
-                      <Link
-                        className="text-sm font-medium text-[var(--color-accent)] underline-offset-4 hover:underline"
-                        href={`/payments/${payment.id}`}
-                      >
-                        View details
-                      </Link>
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="rounded-full border border-slate-200 bg-slate-950 px-3 py-1 text-sm font-semibold text-white">
-                        {formatMoney(payment.amount, payment.currency)}
-                      </span>
-                      {payment.provider ? (
-                        <span className="rounded-full border border-[var(--color-border)] bg-white px-3 py-1 text-sm text-slate-700">
-                          {payment.provider}
-                        </span>
-                      ) : null}
-                      {payment.providerReference ? (
-                        <span className="rounded-full border border-[var(--color-border)] bg-white px-3 py-1 text-sm text-slate-700">
-                          {payment.providerReference}
-                        </span>
-                      ) : null}
-                    </div>
+                <div className="grid gap-4 xl:grid-cols-[minmax(170px,1fr)_minmax(220px,1.2fr)_minmax(140px,0.8fr)_minmax(140px,0.8fr)_minmax(130px,0.8fr)_110px] xl:items-center">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-slate-950">
+                      Payment #{payment.id}
+                    </p>
+                    <p className="mt-1 text-xs uppercase tracking-[0.16em] text-slate-500">
+                      {paidAtLabel}
+                    </p>
                   </div>
 
-                  <dl className="grid gap-3 text-sm text-slate-600 sm:grid-cols-2 lg:min-w-[22rem]">
-                    {payment.paidAt ? (
-                      <div>
-                        <dt className="font-medium text-slate-500">Paid at</dt>
-                        <dd>{formatDate(payment.paidAt)}</dd>
-                      </div>
-                    ) : null}
-                    {payment.failureReason ? (
-                      <div>
-                        <dt className="font-medium text-slate-500">Failure</dt>
-                        <dd>{payment.failureReason}</dd>
-                      </div>
-                    ) : null}
-                    <div>
-                      <dt className="font-medium text-slate-500">Created</dt>
-                      <dd>{formatDate(payment.createdAt)}</dd>
-                    </div>
-                  </dl>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium text-slate-700">
+                      {invoiceLabel}
+                    </p>
+                    <p className="mt-1 truncate text-xs text-slate-500">
+                      {invoiceContext}
+                    </p>
+                  </div>
+
+                  <div>
+                    <p className="text-sm font-semibold text-slate-950">
+                      {formatMoney(payment.amount, payment.currency)}
+                    </p>
+                  </div>
+
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium text-slate-700">
+                      {providerLabel}
+                    </p>
+                  </div>
+
+                  <div>
+                    <span className={statusClassNameMap[payment.status]}>
+                      {payment.status}
+                    </span>
+                  </div>
+
+                  <div className="flex xl:justify-end">
+                    <Link
+                      className="rounded-xl border border-[var(--color-border)] bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+                      href={`/payments/${payment.id}`}
+                    >
+                      Details
+                    </Link>
+                  </div>
                 </div>
               </li>
             );
           })}
-        </ul>
+          </ul>
+        </div>
 
         <PaginationControls
           currentPage={data.page}
