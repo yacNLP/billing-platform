@@ -159,14 +159,6 @@ export function CustomerDetails({ id }: CustomerDetailsProps) {
               <span className={businessStatusClassName}>{businessStatus}</span>
             </div>
           </div>
-
-          <button
-            className="shrink-0 rounded-xl bg-slate-950 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800"
-            onClick={() => setIsEditDrawerOpen(true)}
-            type="button"
-          >
-            Edit customer
-          </button>
         </div>
 
         <div className="mt-8 grid gap-6 xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.75fr)]">
@@ -236,7 +228,7 @@ export function CustomerDetails({ id }: CustomerDetailsProps) {
                   Customer actions
                 </h3>
                 <p className="text-sm leading-6 text-slate-600">
-                  Edit this customer or delete it if it is no longer needed.
+                  Manage this customer profile and destructive account actions.
                 </p>
               </div>
 
@@ -245,6 +237,27 @@ export function CustomerDetails({ id }: CustomerDetailsProps) {
                   {errorMessage}
                 </p>
               ) : null}
+
+              <div className="mt-5 flex flex-wrap gap-3">
+                <button
+                  className="rounded-xl bg-slate-950 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800"
+                  onClick={() => setIsEditDrawerOpen(true)}
+                  type="button"
+                >
+                  Edit customer
+                </button>
+
+                {!isDeleteConfirmationOpen ? (
+                  <button
+                    className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+                    disabled={isDeleting}
+                    onClick={() => setIsDeleteConfirmationOpen(true)}
+                    type="button"
+                  >
+                    Delete customer
+                  </button>
+                ) : null}
+              </div>
 
               {isDeleteConfirmationOpen ? (
                 <div className="mt-5 rounded-[1.25rem] border border-red-200 bg-red-50 p-4">
@@ -258,7 +271,7 @@ export function CustomerDetails({ id }: CustomerDetailsProps) {
                     </p>
                   </div>
 
-                  <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+                  <div className="mt-4 flex flex-wrap gap-3">
                     <button
                       className="rounded-xl bg-red-700 px-4 py-3 text-sm font-medium text-white transition hover:bg-red-800 disabled:cursor-not-allowed disabled:opacity-60"
                       disabled={isDeleting}
@@ -278,16 +291,7 @@ export function CustomerDetails({ id }: CustomerDetailsProps) {
                     </button>
                   </div>
                 </div>
-              ) : (
-                <button
-                  className="mt-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
-                  disabled={isDeleting}
-                  onClick={() => setIsDeleteConfirmationOpen(true)}
-                  type="button"
-                >
-                  Delete customer
-                </button>
-              )}
+              ) : null}
             </section>
           </aside>
         </div>
