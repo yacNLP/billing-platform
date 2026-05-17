@@ -45,16 +45,6 @@ type SubscriptionsListProps = {
   action?: ReactNode;
 };
 
-function formatInterval(interval: BillingInterval, count: number): string {
-  const label = intervalLabelMap[interval];
-
-  if (count === 1) {
-    return `Every ${label}`;
-  }
-
-  return `Every ${count} ${label}s`;
-}
-
 function getQueryParams(searchParams: URLSearchParams): SubscriptionsQueryParams {
   const page = parsePositiveInteger(searchParams.get("page")) ?? 1;
   const pageSize = parsePositiveInteger(searchParams.get("pageSize")) ?? 20;
@@ -203,7 +193,7 @@ export function SubscriptionsList({ action }: SubscriptionsListProps) {
           action={action}
           eyebrow="Subscriptions"
           title="Listing"
-          description="Paginated subscriptions listing with backend-aligned status filters and URL state."
+          description="Track active, canceled and past due subscriptions."
         />
 
         {isFetching ? (
@@ -334,7 +324,17 @@ export function SubscriptionsList({ action }: SubscriptionsListProps) {
           </p>
         ) : null}
 
-        <ul className="mt-8 space-y-4">
+        <div className="mt-8 overflow-hidden rounded-[1.5rem] border border-[var(--color-border)] bg-white">
+          <div className="hidden grid-cols-[minmax(220px,1.25fr)_minmax(220px,1.2fr)_minmax(150px,0.8fr)_minmax(190px,1fr)_minmax(120px,0.7fr)_110px] border-b border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500 xl:grid">
+            <span>Plan</span>
+            <span>Customer</span>
+            <span>Price</span>
+            <span>Current period</span>
+            <span>Status</span>
+            <span className="text-right">Action</span>
+          </div>
+
+          <ul className="divide-y divide-[var(--color-border)]">
           {data.data.map((subscription) => {
             const customer = customers?.data.find(
               (item) => item.id === subscription.customerId,
@@ -342,92 +342,78 @@ export function SubscriptionsList({ action }: SubscriptionsListProps) {
             const plan = plans?.data.find(
               (item) => item.id === subscription.planId,
             );
+            const customerLabel = customer
+              ? `${customer.name} · ${customer.email}`
+              : `Customer ID ${subscription.customerId}`;
+            const planLabel = plan
+              ? `${plan.name} · ${plan.code}`
+              : `Plan ID ${subscription.planId}`;
+            const priceSnapshot = `${formatMoney(
+              subscription.amountSnapshot,
+              subscription.currencySnapshot,
+            )} / ${intervalLabelMap[subscription.intervalSnapshot]}`;
+            const currentPeriod = `${formatDate(
+              subscription.currentPeriodStart,
+            )} → ${formatDate(subscription.currentPeriodEnd)}`;
 
             return (
               <li
-                className="rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4"
+                className="bg-white px-5 py-4 transition hover:bg-slate-50/80"
                 key={subscription.id}
               >
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                <div className="space-y-3">
-                  <div className="space-y-2">
-                    <div className="flex flex-wrap items-center gap-3">
-                      <p className="text-lg font-semibold text-slate-950">
-                        Subscription #{subscription.id}
-                      </p>
-                      <span className={statusClassNameMap[subscription.status]}>
-                        {subscription.status}
-                      </span>
-                      {subscription.cancelAtPeriodEnd ? (
-                        <span className="inline-flex rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-sm font-medium text-amber-700">
-                          Scheduled cancellation
-                        </span>
-                      ) : null}
-                    </div>
-
-                    <p className="text-sm text-slate-600">
-                      {customer
-                        ? `${customer.name} · ${customer.email}`
-                        : `Customer ID ${subscription.customerId}`}{" "}
-                      ·{" "}
-                      {plan
-                        ? `${plan.name} · ${plan.code}`
-                        : `Plan ID ${subscription.planId}`}
+                <div className="grid gap-4 xl:grid-cols-[minmax(220px,1.25fr)_minmax(220px,1.2fr)_minmax(150px,0.8fr)_minmax(190px,1fr)_minmax(120px,0.7fr)_110px] xl:items-center">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-slate-950">
+                      {planLabel}
                     </p>
-                    <Link
-                      className="text-sm font-medium text-[var(--color-accent)] underline-offset-4 hover:underline"
-                      href={`/subscriptions/${subscription.id}`}
-                    >
-                      View details
-                    </Link>
+                    <p className="mt-1 text-xs uppercase tracking-[0.16em] text-slate-500">
+                      Subscription #{subscription.id}
+                    </p>
+                  </div>
+
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium text-slate-700">
+                      {customerLabel}
+                    </p>
+                  </div>
+
+                  <div>
+                    <p className="text-sm font-semibold text-slate-950">
+                      {priceSnapshot}
+                    </p>
+                  </div>
+
+                  <div>
+                    <p className="text-sm font-medium text-slate-700">
+                      {currentPeriod}
+                    </p>
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="rounded-full border border-slate-200 bg-slate-950 px-3 py-1 text-sm font-semibold text-white">
-                      {formatMoney(
-                        subscription.amountSnapshot,
-                        subscription.currencySnapshot,
-                      )}{" "}
-                      / {intervalLabelMap[subscription.intervalSnapshot]}
+                    <span className={statusClassNameMap[subscription.status]}>
+                      {subscription.status}
                     </span>
-                    <span className="rounded-full border border-[var(--color-border)] bg-white px-3 py-1 text-sm text-slate-700">
-                      {formatInterval(
-                        subscription.intervalSnapshot,
-                        subscription.intervalCountSnapshot,
-                      )}
-                    </span>
+                    {subscription.cancelAtPeriodEnd ? (
+                      <span className="inline-flex rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700 xl:hidden">
+                        Scheduled cancellation
+                      </span>
+                    ) : null}
+                  </div>
+
+                  <div className="flex xl:justify-end">
+                    <Link
+                      className="rounded-xl border border-[var(--color-border)] bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+                      href={`/subscriptions/${subscription.id}`}
+                    >
+                      Details
+                    </Link>
                   </div>
                 </div>
-
-                <dl className="grid gap-3 text-sm text-slate-600 sm:grid-cols-2 lg:min-w-[22rem]">
-                  <div>
-                    <dt className="font-medium text-slate-500">
-                      Current period start
-                    </dt>
-                    <dd>{formatDate(subscription.currentPeriodStart)}</dd>
-                  </div>
-                  <div>
-                    <dt className="font-medium text-slate-500">
-                      Current period end
-                    </dt>
-                    <dd>{formatDate(subscription.currentPeriodEnd)}</dd>
-                  </div>
-                  <div>
-                    <dt className="font-medium text-slate-500">Created</dt>
-                    <dd>{formatDate(subscription.createdAt)}</dd>
-                  </div>
-                  {subscription.endedAt ? (
-                    <div>
-                      <dt className="font-medium text-slate-500">Ended</dt>
-                      <dd>{formatDate(subscription.endedAt)}</dd>
-                    </div>
-                  ) : null}
-                </dl>
-              </div>
               </li>
             );
           })}
-        </ul>
+          </ul>
+        </div>
 
         <PaginationControls
           currentPage={data.page}
