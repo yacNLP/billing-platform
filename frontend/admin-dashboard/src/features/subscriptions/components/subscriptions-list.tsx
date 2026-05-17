@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, ReactNode } from "react";
+import { FormEvent, ReactNode, useState } from "react";
 import {
   usePathname,
   useRouter,
@@ -73,6 +73,7 @@ export function SubscriptionsList({ action }: SubscriptionsListProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const [areFiltersOpen, setAreFiltersOpen] = useState(false);
 
   const queryParams = getQueryParams(searchParams);
   const { data, error, isLoading, isFetching } =
@@ -174,6 +175,41 @@ export function SubscriptionsList({ action }: SubscriptionsListProps) {
   const hasFilters = hasActiveFilters(queryParams);
   const isEmptyDataset = data.total === 0;
   const isEmptyCurrentPage = data.data.length === 0;
+  const activeFilterCount = [
+    queryParams.status,
+    queryParams.customerId,
+    queryParams.planId,
+  ].filter(Boolean).length;
+  const selectedCustomer = queryParams.customerId
+    ? customers?.data.find((customer) => customer.id === queryParams.customerId)
+    : undefined;
+  const selectedPlan = queryParams.planId
+    ? plans?.data.find((plan) => plan.id === queryParams.planId)
+    : undefined;
+  const filterSummaryItems = [
+    {
+      label: "Status",
+      value: queryParams.status ?? "All statuses",
+    },
+    {
+      label: "Customer",
+      value:
+        selectedCustomer?.name ??
+        (queryParams.customerId
+          ? `Customer ID ${queryParams.customerId}`
+          : "All customers"),
+    },
+    {
+      label: "Plan",
+      value:
+        selectedPlan?.name ??
+        (queryParams.planId ? `Plan ID ${queryParams.planId}` : "All plans"),
+    },
+    {
+      label: "Page size",
+      value: `${queryParams.pageSize ?? 20} / page`,
+    },
+  ];
 
   if (isEmptyDataset && !hasFilters) {
     return (
@@ -202,119 +238,170 @@ export function SubscriptionsList({ action }: SubscriptionsListProps) {
           </p>
         ) : null}
 
-        <form
-          key={searchParams.toString()}
-          className="mt-8 grid gap-4 rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] p-5 md:grid-cols-2 xl:grid-cols-4"
-          onSubmit={handleFiltersSubmit}
-        >
-          <div className="space-y-2">
-            <label
-              className="text-sm font-medium text-slate-700"
-              htmlFor="subscription-status"
-            >
-              Status
-            </label>
-            <select
-              className="w-full rounded-xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm text-slate-950 outline-none transition focus:border-slate-400"
-              defaultValue={queryParams.status ?? ""}
-              id="subscription-status"
-              name="status"
-            >
-              <option value="">All statuses</option>
-              <option value="ACTIVE">ACTIVE</option>
-              <option value="CANCELED">CANCELED</option>
-              <option value="EXPIRED">EXPIRED</option>
-              <option value="PAST_DUE">PAST_DUE</option>
-            </select>
-          </div>
+        <section className="mt-6 overflow-hidden rounded-[1.25rem] border border-[var(--color-border)] bg-white shadow-[0_14px_38px_rgba(15,23,42,0.04)]">
+          <div className="flex flex-col gap-3 px-5 py-3.5 lg:flex-row lg:items-center lg:justify-between">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                <p className="text-sm font-semibold text-slate-950">
+                  Subscription filters
+                </p>
+                <span className="hidden h-4 w-px bg-[var(--color-border)] sm:inline-block" />
+                {activeFilterCount > 0 ? (
+                  <span className="inline-flex items-center gap-1.5 text-xs font-medium text-[var(--color-accent)]">
+                    <span className="h-1.5 w-1.5 rounded-full bg-[var(--color-accent)]" />
+                    {activeFilterCount} active
+                  </span>
+                ) : (
+                  <span className="text-xs font-medium text-slate-500">
+                    No active filters
+                  </span>
+                )}
+              </div>
 
-          <div className="space-y-2">
-            <label
-              className="text-sm font-medium text-slate-700"
-              htmlFor="subscription-customer"
-            >
-              Customer
-            </label>
-            <select
-              className="w-full rounded-xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm text-slate-950 outline-none transition focus:border-slate-400"
-              defaultValue={
-                queryParams.customerId ? String(queryParams.customerId) : ""
-              }
-              id="subscription-customer"
-              name="customerId"
-            >
-              <option value="">All customers</option>
-              {(customers?.data || []).map((customer) => (
-                <option key={customer.id} value={customer.id}>
-                  {customer.name} · {customer.email}
-                </option>
-              ))}
-            </select>
-          </div>
+              <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-slate-600">
+                {filterSummaryItems.map((item, index) => (
+                  <span className="inline-flex items-center gap-x-2" key={item.label}>
+                    {index > 0 ? (
+                      <span className="text-slate-300">·</span>
+                    ) : null}
+                    <span>
+                      <span className="font-medium text-slate-800">
+                        {item.label}:
+                      </span>{" "}
+                      {item.value}
+                    </span>
+                  </span>
+                ))}
+              </div>
+            </div>
 
-          <div className="space-y-2">
-            <label
-              className="text-sm font-medium text-slate-700"
-              htmlFor="subscription-plan"
-            >
-              Plan
-            </label>
-            <select
-              className="w-full rounded-xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm text-slate-950 outline-none transition focus:border-slate-400"
-              defaultValue={queryParams.planId ? String(queryParams.planId) : ""}
-              id="subscription-plan"
-              name="planId"
-            >
-              <option value="">All plans</option>
-              {(plans?.data || []).map((plan) => (
-                <option key={plan.id} value={plan.id}>
-                  {plan.name} · {plan.code}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="space-y-2">
-            <label
-              className="text-sm font-medium text-slate-700"
-              htmlFor="subscription-page-size"
-            >
-              Page size
-            </label>
-            <select
-              className="w-full rounded-xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm text-slate-950 outline-none transition focus:border-slate-400"
-              defaultValue={String(queryParams.pageSize ?? 20)}
-              id="subscription-page-size"
-              name="pageSize"
-            >
-              {pageSizeOptions.map((option) => (
-                <option key={option} value={option}>
-                  {option} / page
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3 md:col-span-2 xl:col-span-4">
             <button
-              className="rounded-xl bg-slate-950 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800"
-              type="submit"
-            >
-              Apply filters
-            </button>
-            <button
-              className="rounded-xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
-              onClick={handleResetFilters}
+              className="self-start rounded-xl border border-[var(--color-border)] bg-white px-3.5 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 lg:self-center"
+              onClick={() => setAreFiltersOpen((value) => !value)}
               type="button"
             >
-              Reset
+              {areFiltersOpen ? "Hide filters" : "Adjust filters"}
             </button>
-            <p className="text-sm text-slate-500">
-              {data.total} subscriptions found. Page {data.page} of{" "}
-              {data.totalPages || 1}.
-            </p>
           </div>
-        </form>
+
+          {areFiltersOpen ? (
+            <form
+              key={searchParams.toString()}
+              className="grid gap-3 border-t border-[var(--color-border)] bg-[var(--color-surface-subtle)] px-5 py-4 md:grid-cols-2 xl:grid-cols-4"
+              onSubmit={handleFiltersSubmit}
+            >
+              <div className="space-y-1.5">
+                <label
+                  className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500"
+                  htmlFor="subscription-status"
+                >
+                  Status
+                </label>
+                <select
+                  className="w-full rounded-xl border border-[var(--color-border)] bg-white px-3 py-2.5 text-sm text-slate-950 outline-none transition focus:border-[var(--color-accent)]"
+                  defaultValue={queryParams.status ?? ""}
+                  id="subscription-status"
+                  name="status"
+                >
+                  <option value="">All statuses</option>
+                  <option value="ACTIVE">ACTIVE</option>
+                  <option value="CANCELED">CANCELED</option>
+                  <option value="EXPIRED">EXPIRED</option>
+                  <option value="PAST_DUE">PAST_DUE</option>
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label
+                  className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500"
+                  htmlFor="subscription-customer"
+                >
+                  Customer
+                </label>
+                <select
+                  className="w-full rounded-xl border border-[var(--color-border)] bg-white px-3 py-2.5 text-sm text-slate-950 outline-none transition focus:border-[var(--color-accent)]"
+                  defaultValue={
+                    queryParams.customerId ? String(queryParams.customerId) : ""
+                  }
+                  id="subscription-customer"
+                  name="customerId"
+                >
+                  <option value="">All customers</option>
+                  {(customers?.data || []).map((customer) => (
+                    <option key={customer.id} value={customer.id}>
+                      {customer.name} · {customer.email}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label
+                  className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500"
+                  htmlFor="subscription-plan"
+                >
+                  Plan
+                </label>
+                <select
+                  className="w-full rounded-xl border border-[var(--color-border)] bg-white px-3 py-2.5 text-sm text-slate-950 outline-none transition focus:border-[var(--color-accent)]"
+                  defaultValue={
+                    queryParams.planId ? String(queryParams.planId) : ""
+                  }
+                  id="subscription-plan"
+                  name="planId"
+                >
+                  <option value="">All plans</option>
+                  {(plans?.data || []).map((plan) => (
+                    <option key={plan.id} value={plan.id}>
+                      {plan.name} · {plan.code}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label
+                  className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500"
+                  htmlFor="subscription-page-size"
+                >
+                  Page size
+                </label>
+                <select
+                  className="w-full rounded-xl border border-[var(--color-border)] bg-white px-3 py-2.5 text-sm text-slate-950 outline-none transition focus:border-[var(--color-accent)]"
+                  defaultValue={String(queryParams.pageSize ?? 20)}
+                  id="subscription-page-size"
+                  name="pageSize"
+                >
+                  {pageSizeOptions.map((option) => (
+                    <option key={option} value={option}>
+                      {option} / page
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2.5 md:col-span-2 xl:col-span-4">
+                <button
+                  className="rounded-xl bg-[var(--color-accent)] px-3.5 py-2.5 text-sm font-semibold text-white shadow-[0_10px_22px_rgba(79,70,229,0.18)] transition hover:bg-[var(--color-accent-hover)]"
+                  type="submit"
+                >
+                  Apply filters
+                </button>
+                <button
+                  className="rounded-xl border border-[var(--color-border)] bg-white px-3.5 py-2.5 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
+                  onClick={handleResetFilters}
+                  type="button"
+                >
+                  Reset
+                </button>
+                <p className="text-sm text-slate-500">
+                  {data.total} subscriptions found. Page {data.page} of{" "}
+                  {data.totalPages || 1}.
+                </p>
+              </div>
+            </form>
+          ) : null}
+        </section>
 
         {isEmptyCurrentPage ? (
           <p className="mt-8 rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4 text-sm text-slate-600">
