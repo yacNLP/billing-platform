@@ -3,11 +3,13 @@
 import { useState } from "react";
 
 import { AdminDrawer } from "@/components/admin/admin-drawer";
+import { useToast } from "@/components/admin/toast-provider";
 import { CreateProductForm } from "@/features/products/components/create-product-form";
 import { ProductsList } from "@/features/products/components/products-list";
 
 export default function ProductsPage() {
   const [isCreateDrawerOpen, setIsCreateDrawerOpen] = useState(false);
+  const { showToast } = useToast();
 
   return (
     <>
@@ -31,7 +33,10 @@ export default function ProductsPage() {
       >
         <CreateProductForm
           isEmbedded
-          onCreated={() => setIsCreateDrawerOpen(false)}
+          onCreated={() => {
+            setIsCreateDrawerOpen(false);
+            showToast("Product created.");
+          }}
         />
       </AdminDrawer>
     </>

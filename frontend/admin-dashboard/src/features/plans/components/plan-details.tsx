@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { AdminDrawer } from "@/components/admin/admin-drawer";
+import { useToast } from "@/components/admin/toast-provider";
 import { EditPlanForm } from "@/features/plans/components/edit-plan-form";
 import {
   useDeletePlanMutation,
@@ -45,6 +46,7 @@ type PlanDetailsProps = {
 
 export function PlanDetails({ id }: PlanDetailsProps) {
   const router = useRouter();
+  const { showToast } = useToast();
   const { data, error, isLoading } = useGetPlanByIdQuery(id);
   const { data: products } = useGetProductsQuery({ page: 1, pageSize: 100 });
   const { data: activeSubscriptions } = useGetSubscriptionsQuery({
@@ -63,6 +65,7 @@ export function PlanDetails({ id }: PlanDetailsProps) {
 
     try {
       await deletePlan(id).unwrap();
+      showToast("Plan deleted.");
       router.push("/plans");
     } catch {
       setErrorMessage("Unable to delete plan.");
@@ -261,7 +264,10 @@ export function PlanDetails({ id }: PlanDetailsProps) {
       >
         <EditPlanForm
           isEmbedded
-          onUpdated={() => setIsEditDrawerOpen(false)}
+          onUpdated={() => {
+            setIsEditDrawerOpen(false);
+            showToast("Plan updated.");
+          }}
           plan={data}
         />
       </AdminDrawer>

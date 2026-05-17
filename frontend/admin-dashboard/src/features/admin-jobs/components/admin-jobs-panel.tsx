@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import { ConfirmActionPanel } from "@/components/admin/confirm-action-panel";
 import { PageHeader } from "@/components/admin/page-header";
+import { useToast } from "@/components/admin/toast-provider";
 import {
   useRunGenerateDueInvoicesJobMutation,
   useRunMarkOverdueInvoicesJobMutation,
@@ -64,8 +65,9 @@ export function AdminJobsPanel() {
             description="Find issued invoices whose due date is already in the past and mark them as overdue."
             error={overdueError}
             isLoading={isRunningOverdueInvoices}
-            onRun={() => runMarkOverdueInvoicesJob()}
+            onRun={() => runMarkOverdueInvoicesJob().unwrap()}
             result={overdueResult}
+            successMessage="Overdue invoice job completed."
             title="Mark overdue invoices"
           />
           <JobCard
@@ -74,8 +76,9 @@ export function AdminJobsPanel() {
             description="Find active subscriptions that still have an unpaid overdue invoice and mark them as past due."
             error={pastDueError}
             isLoading={isRunningPastDueSubscriptions}
-            onRun={() => runUpdatePastDueSubscriptionsJob()}
+            onRun={() => runUpdatePastDueSubscriptionsJob().unwrap()}
             result={pastDueResult}
+            successMessage="Past due subscription job completed."
             title="Update past due subscriptions"
           />
           <JobCard
@@ -84,8 +87,9 @@ export function AdminJobsPanel() {
             description="Renew active subscriptions whose current period has ended and should continue normally."
             error={renewalError}
             isLoading={isRunningRenewal}
-            onRun={() => runRenewDueSubscriptionsJob()}
+            onRun={() => runRenewDueSubscriptionsJob().unwrap()}
             result={renewalResult}
+            successMessage="Subscription renewal job completed."
             title="Renew due subscriptions"
           />
           <JobCard
@@ -94,8 +98,9 @@ export function AdminJobsPanel() {
             description="Generate the missing invoice for the current subscription period without duplicating an already billed period."
             error={generationError}
             isLoading={isRunningGeneration}
-            onRun={() => runGenerateDueInvoicesJob()}
+            onRun={() => runGenerateDueInvoicesJob().unwrap()}
             result={generationResult}
+            successMessage="Invoice generation job completed."
             title="Generate due invoices"
           />
         </div>
@@ -112,7 +117,8 @@ type JobCardProps = {
   isLoading: boolean;
   result?: JobSummary;
   error?: unknown;
-  onRun: () => void;
+  onRun: () => Promise<unknown>;
+  successMessage: string;
 };
 
 function JobCard({
@@ -124,12 +130,20 @@ function JobCard({
   result,
   error,
   onRun,
+  successMessage,
 }: JobCardProps) {
   const [isConfirming, setIsConfirming] = useState(false);
+  const { showToast } = useToast();
 
-  function handleConfirmRun() {
-    onRun();
-    setIsConfirming(false);
+  async function handleConfirmRun() {
+    try {
+      await onRun();
+      showToast(successMessage);
+    } catch {
+      // RTK Query exposes the error through the card error state.
+    } finally {
+      setIsConfirming(false);
+    }
   }
 
   return (

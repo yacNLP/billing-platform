@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { AdminDrawer } from "@/components/admin/admin-drawer";
+import { useToast } from "@/components/admin/toast-provider";
 import { EditCustomerForm } from "@/features/customers/components/edit-customer-form";
 import {
   useDeleteCustomerMutation,
@@ -38,6 +39,7 @@ type CustomerDetailsProps = {
 
 export function CustomerDetails({ id }: CustomerDetailsProps) {
   const router = useRouter();
+  const { showToast } = useToast();
   const { data, error, isLoading } = useGetCustomerByIdQuery(id);
   const { data: subscriptions } = useGetSubscriptionsQuery({
     customerId: id,
@@ -78,6 +80,7 @@ export function CustomerDetails({ id }: CustomerDetailsProps) {
 
     try {
       await deleteCustomer(id).unwrap();
+      showToast("Customer deleted.");
       router.push("/customers");
     } catch {
       setErrorMessage("Unable to delete customer.");
@@ -306,7 +309,10 @@ export function CustomerDetails({ id }: CustomerDetailsProps) {
         <EditCustomerForm
           customer={data}
           isEmbedded
-          onUpdated={() => setIsEditDrawerOpen(false)}
+          onUpdated={() => {
+            setIsEditDrawerOpen(false);
+            showToast("Customer updated.");
+          }}
         />
       </AdminDrawer>
     </main>

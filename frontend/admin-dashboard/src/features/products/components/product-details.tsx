@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { AdminDrawer } from "@/components/admin/admin-drawer";
+import { useToast } from "@/components/admin/toast-provider";
 import { useGetPlansQuery } from "@/features/plans/plans-api";
 import { EditProductForm } from "@/features/products/components/edit-product-form";
 import {
@@ -28,6 +29,7 @@ type ProductDetailsProps = {
 
 export function ProductDetails({ id }: ProductDetailsProps) {
   const router = useRouter();
+  const { showToast } = useToast();
   const { data, error, isLoading } = useGetProductByIdQuery(id);
   const { data: plans } = useGetPlansQuery({ page: 1, pageSize: 100 });
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -40,6 +42,7 @@ export function ProductDetails({ id }: ProductDetailsProps) {
 
     try {
       await deleteProduct(id).unwrap();
+      showToast("Product deleted.");
       router.push("/products");
     } catch {
       setErrorMessage("Unable to delete product.");
@@ -287,7 +290,10 @@ export function ProductDetails({ id }: ProductDetailsProps) {
       >
         <EditProductForm
           isEmbedded
-          onUpdated={() => setIsEditDrawerOpen(false)}
+          onUpdated={() => {
+            setIsEditDrawerOpen(false);
+            showToast("Product updated.");
+          }}
           product={data}
         />
       </AdminDrawer>

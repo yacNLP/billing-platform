@@ -3,11 +3,13 @@
 import { useState } from "react";
 
 import { AdminDrawer } from "@/components/admin/admin-drawer";
+import { useToast } from "@/components/admin/toast-provider";
 import { CreateCustomerForm } from "@/features/customers/components/create-customer-form";
 import { CustomersList } from "@/features/customers/components/customers-list";
 
 export default function CustomersPage() {
   const [isCreateDrawerOpen, setIsCreateDrawerOpen] = useState(false);
+  const { showToast } = useToast();
 
   return (
     <>
@@ -31,7 +33,10 @@ export default function CustomersPage() {
       >
         <CreateCustomerForm
           isEmbedded
-          onCreated={() => setIsCreateDrawerOpen(false)}
+          onCreated={() => {
+            setIsCreateDrawerOpen(false);
+            showToast("Customer created.");
+          }}
         />
       </AdminDrawer>
     </>

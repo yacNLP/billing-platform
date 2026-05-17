@@ -3,11 +3,13 @@
 import { useState } from "react";
 
 import { AdminDrawer } from "@/components/admin/admin-drawer";
+import { useToast } from "@/components/admin/toast-provider";
 import { CreateSubscriptionForm } from "@/features/subscriptions/components/create-subscription-form";
 import { SubscriptionsList } from "@/features/subscriptions/components/subscriptions-list";
 
 export default function SubscriptionsPage() {
   const [isCreateDrawerOpen, setIsCreateDrawerOpen] = useState(false);
+  const { showToast } = useToast();
 
   return (
     <>
@@ -31,7 +33,10 @@ export default function SubscriptionsPage() {
       >
         <CreateSubscriptionForm
           isEmbedded
-          onCreated={() => setIsCreateDrawerOpen(false)}
+          onCreated={() => {
+            setIsCreateDrawerOpen(false);
+            showToast("Subscription created.");
+          }}
         />
       </AdminDrawer>
     </>

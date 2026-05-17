@@ -3,11 +3,13 @@
 import { useState } from "react";
 
 import { AdminDrawer } from "@/components/admin/admin-drawer";
+import { useToast } from "@/components/admin/toast-provider";
 import { CreatePaymentForm } from "@/features/payments/components/create-payment-form";
 import { PaymentsList } from "@/features/payments/components/payments-list";
 
 export default function PaymentsPage() {
   const [isCreateDrawerOpen, setIsCreateDrawerOpen] = useState(false);
+  const { showToast } = useToast();
 
   return (
     <>
@@ -31,7 +33,10 @@ export default function PaymentsPage() {
       >
         <CreatePaymentForm
           isEmbedded
-          onCreated={() => setIsCreateDrawerOpen(false)}
+          onCreated={() => {
+            setIsCreateDrawerOpen(false);
+            showToast("Payment created.");
+          }}
         />
       </AdminDrawer>
     </>

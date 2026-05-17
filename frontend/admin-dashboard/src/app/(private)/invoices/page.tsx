@@ -3,11 +3,13 @@
 import { useState } from "react";
 
 import { AdminDrawer } from "@/components/admin/admin-drawer";
+import { useToast } from "@/components/admin/toast-provider";
 import { CreateInvoiceForm } from "@/features/invoices/components/create-invoice-form";
 import { InvoicesList } from "@/features/invoices/components/invoices-list";
 
 export default function InvoicesPage() {
   const [isCreateDrawerOpen, setIsCreateDrawerOpen] = useState(false);
+  const { showToast } = useToast();
 
   return (
     <>
@@ -31,7 +33,10 @@ export default function InvoicesPage() {
       >
         <CreateInvoiceForm
           isEmbedded
-          onCreated={() => setIsCreateDrawerOpen(false)}
+          onCreated={() => {
+            setIsCreateDrawerOpen(false);
+            showToast("Invoice created.");
+          }}
         />
       </AdminDrawer>
     </>

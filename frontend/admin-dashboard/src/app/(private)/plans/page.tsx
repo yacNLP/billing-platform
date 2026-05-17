@@ -3,11 +3,13 @@
 import { useState } from "react";
 
 import { AdminDrawer } from "@/components/admin/admin-drawer";
+import { useToast } from "@/components/admin/toast-provider";
 import { CreatePlanForm } from "@/features/plans/components/create-plan-form";
 import { PlansList } from "@/features/plans/components/plans-list";
 
 export default function PlansPage() {
   const [isCreateDrawerOpen, setIsCreateDrawerOpen] = useState(false);
+  const { showToast } = useToast();
 
   return (
     <>
@@ -31,7 +33,10 @@ export default function PlansPage() {
       >
         <CreatePlanForm
           isEmbedded
-          onCreated={() => setIsCreateDrawerOpen(false)}
+          onCreated={() => {
+            setIsCreateDrawerOpen(false);
+            showToast("Plan created.");
+          }}
         />
       </AdminDrawer>
     </>
