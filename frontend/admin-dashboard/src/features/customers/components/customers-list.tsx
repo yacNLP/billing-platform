@@ -272,34 +272,55 @@ export function CustomersList({ action }: CustomersListProps) {
           </p>
         ) : null}
 
-        <ul className="mt-8 space-y-4">
+        <div className="mt-8 overflow-hidden rounded-[1.5rem] border border-[var(--color-border)] bg-white">
+          <div className="hidden grid-cols-[minmax(220px,1.2fr)_minmax(260px,1.3fr)_minmax(150px,0.8fr)_110px] border-b border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500 xl:grid">
+            <span>Customer</span>
+            <span>Email</span>
+            <span>Created</span>
+            <span className="text-right">Action</span>
+          </div>
+
+          <ul className="divide-y divide-[var(--color-border)]">
           {customers.map((customer) => (
             <li
-              className="rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4"
+              className="bg-white px-5 py-4 transition hover:bg-slate-50/80"
               key={customer.id}
             >
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                <div className="space-y-1">
-                  <p className="text-lg font-semibold text-slate-950">
+              <div className="grid gap-4 xl:grid-cols-[minmax(220px,1.2fr)_minmax(260px,1.3fr)_minmax(150px,0.8fr)_110px] xl:items-center">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-slate-950">
                     {customer.name}
                   </p>
-                  <p className="text-sm text-slate-600">{customer.email}</p>
-                  <Link
-                    className="text-sm font-medium text-[var(--color-accent)] underline-offset-4 hover:underline"
-                    href={`/customers/${customer.id}`}
-                  >
-                    View details
-                  </Link>
+                  <p className="mt-1 text-xs uppercase tracking-[0.16em] text-slate-500">
+                    Customer #{customer.id}
+                  </p>
                 </div>
 
-                {/* Keep the first version simple with a readable creation date only. */}
-                <p className="text-sm text-slate-500">
-                  Created {formatDate(customer.createdAt)}
-                </p>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-slate-700">
+                    {customer.email}
+                  </p>
+                </div>
+
+                <div>
+                  <p className="text-sm font-medium text-slate-700">
+                    {formatDate(customer.createdAt)}
+                  </p>
+                </div>
+
+                <div className="flex xl:justify-end">
+                  <Link
+                    className="rounded-xl border border-[var(--color-border)] bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+                    href={`/customers/${customer.id}`}
+                  >
+                    Details
+                  </Link>
+                </div>
               </div>
             </li>
           ))}
-        </ul>
+          </ul>
+        </div>
 
         <PaginationControls
           currentPage={data?.page ?? 1}

@@ -14,7 +14,6 @@ import { StatePanel } from "@/components/admin/state-panel";
 import { useGetPlansQuery } from "@/features/plans/plans-api";
 import type { BillingInterval, PlansQueryParams } from "@/features/plans/types";
 import { useGetProductsQuery } from "@/features/products/products-api";
-import { formatDate } from "@/lib/formatters";
 import { pageSizeOptions } from "@/lib/pagination";
 import { parsePositiveInteger } from "@/lib/query-params";
 
@@ -350,84 +349,78 @@ export function PlansList({ action }: PlansListProps) {
           </p>
         ) : null}
 
-        <ul className="mt-8 space-y-4">
+        <div className="mt-8 overflow-hidden rounded-[1.5rem] border border-[var(--color-border)] bg-white">
+          <div className="hidden grid-cols-[minmax(220px,1.2fr)_minmax(200px,1fr)_minmax(150px,0.8fr)_minmax(130px,0.8fr)_110px] border-b border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500 xl:grid">
+            <span>Plan</span>
+            <span>Product</span>
+            <span>Pricing</span>
+            <span>Status</span>
+            <span className="text-right">Action</span>
+          </div>
+
+          <ul className="divide-y divide-[var(--color-border)]">
           {plans.map((plan) => {
             const product = products?.data.find(
               (item) => item.id === plan.productId,
             );
+            const productLabel = product ? product.name : `Product ID ${plan.productId}`;
 
             return (
               <li
-                className="rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4"
+                className="bg-white px-5 py-4 transition hover:bg-slate-50/80"
                 key={plan.id}
               >
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                  <div className="space-y-2">
-                    <div className="space-y-1">
-                      <p className="text-sm font-medium uppercase tracking-[0.18em] text-[var(--color-accent)]">
-                        {plan.code}
-                      </p>
-                      <p className="text-lg font-semibold text-slate-950">
-                        {plan.name}
-                      </p>
-                      <p className="text-sm text-slate-600">
-                        {plan.description || "No description provided."}
-                      </p>
-                      <Link
-                        className="text-sm font-medium text-[var(--color-accent)] underline-offset-4 hover:underline"
-                        href={`/plans/${plan.id}`}
-                      >
-                        View details
-                      </Link>
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="rounded-full border border-slate-200 bg-slate-950 px-3 py-1 text-sm font-semibold text-white">
-                        {formatPricing(plan.amount, plan.currency, plan.interval)}
-                      </span>
-                      <span className="rounded-full border border-[var(--color-border)] bg-white px-3 py-1 text-sm text-slate-700">
-                        {formatInterval(plan.interval, plan.intervalCount)}
-                      </span>
-                      {plan.trialDays > 0 ? (
-                        <span className="rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-sm font-medium text-sky-700">
-                          Trial {plan.trialDays} day
-                          {plan.trialDays === 1 ? "" : "s"}
-                        </span>
-                      ) : null}
-                    </div>
+                <div className="grid gap-4 xl:grid-cols-[minmax(220px,1.2fr)_minmax(200px,1fr)_minmax(150px,0.8fr)_minmax(130px,0.8fr)_110px] xl:items-center">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-slate-950">
+                      {plan.name}
+                    </p>
+                    <p className="mt-1 text-xs uppercase tracking-[0.16em] text-slate-500">
+                      {plan.code}
+                    </p>
                   </div>
 
-                  <dl className="grid gap-2 text-sm text-slate-600 sm:grid-cols-2 lg:min-w-[18rem]">
-                    <div>
-                      <dt className="font-medium text-slate-500">Status</dt>
-                      <dd>
-                        <span
-                          className={
-                            plan.active
-                              ? "inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-sm font-medium text-emerald-700"
-                              : "inline-flex rounded-full border border-slate-200 bg-slate-100 px-3 py-1 text-sm font-medium text-slate-600"
-                          }
-                        >
-                          {plan.active ? "Active" : "Inactive"}
-                        </span>
-                      </dd>
-                    </div>
-                    <div>
-                      <dt className="font-medium text-slate-500">Product</dt>
-                      <dd>
-                        {product ? product.name : `Product ID ${plan.productId}`}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt className="font-medium text-slate-500">Created</dt>
-                      <dd>{formatDate(plan.createdAt)}</dd>
-                    </div>
-                  </dl>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium text-slate-700">
+                      {productLabel}
+                    </p>
+                  </div>
+
+                  <div>
+                    <p className="text-sm font-semibold text-slate-950">
+                      {formatPricing(plan.amount, plan.currency, plan.interval)}
+                    </p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      {formatInterval(plan.interval, plan.intervalCount)}
+                    </p>
+                  </div>
+
+                  <div>
+                    <span
+                      className={
+                        plan.active
+                          ? "inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-sm font-medium text-emerald-700"
+                          : "inline-flex rounded-full border border-slate-200 bg-slate-100 px-3 py-1 text-sm font-medium text-slate-600"
+                      }
+                    >
+                      {plan.active ? "Active" : "Inactive"}
+                    </span>
+                  </div>
+
+                  <div className="flex xl:justify-end">
+                    <Link
+                      className="rounded-xl border border-[var(--color-border)] bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+                      href={`/plans/${plan.id}`}
+                    >
+                      Details
+                    </Link>
+                  </div>
                 </div>
               </li>
             );
           })}
-        </ul>
+          </ul>
+        </div>
 
         <PaginationControls
           currentPage={data?.page ?? 1}

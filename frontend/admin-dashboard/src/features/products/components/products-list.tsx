@@ -11,6 +11,7 @@ import {
 import { PageHeader } from "@/components/admin/page-header";
 import { PaginationControls } from "@/components/admin/pagination-controls";
 import { StatePanel } from "@/components/admin/state-panel";
+import { useGetPlansQuery } from "@/features/plans/plans-api";
 import { useGetProductsQuery } from "@/features/products/products-api";
 import type { ProductsQueryParams } from "@/features/products/types";
 import { formatDate } from "@/lib/formatters";
@@ -55,6 +56,7 @@ export function ProductsList({ action }: ProductsListProps) {
   const queryParams = getQueryParams(searchParams);
   const { data, error, isLoading, isFetching } =
     useGetProductsQuery(queryParams);
+  const { data: plans } = useGetPlansQuery({ page: 1, pageSize: 100 });
 
   function replaceSearchParams(nextParams: URLSearchParams) {
     const queryString = nextParams.toString();
@@ -301,35 +303,85 @@ export function ProductsList({ action }: ProductsListProps) {
           </p>
         ) : null}
 
-        <ul className="mt-8 space-y-4">
-          {products.map((product) => (
+        <div className="mt-8 overflow-hidden rounded-[1.5rem] border border-[var(--color-border)] bg-white">
+          <div className="hidden grid-cols-[minmax(220px,1.2fr)_minmax(280px,1.4fr)_minmax(130px,0.8fr)_minmax(120px,0.7fr)_minmax(130px,0.8fr)_110px] border-b border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500 xl:grid">
+            <span>Product</span>
+            <span>Description</span>
+            <span>Status</span>
+            <span>Plans</span>
+            <span>Created</span>
+            <span className="text-right">Action</span>
+          </div>
+
+          <ul className="divide-y divide-[var(--color-border)]">
+          {products.map((product) => {
+            const linkedPlansCount = plans?.data.filter(
+              (plan) => plan.productId === product.id,
+            ).length;
+            const descriptionLabel =
+              product.description || "No description provided.";
+
+            return (
             <li
-              className="rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4"
+              className="bg-white px-5 py-4 transition hover:bg-slate-50/80"
               key={product.id}
             >
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div className="space-y-1">
-                  <p className="text-lg font-semibold text-slate-950">
+              <div className="grid gap-4 xl:grid-cols-[minmax(220px,1.2fr)_minmax(280px,1.4fr)_minmax(130px,0.8fr)_minmax(120px,0.7fr)_minmax(130px,0.8fr)_110px] xl:items-center">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-slate-950">
                     {product.name}
                   </p>
-                  <p className="text-sm text-slate-600">
-                    {product.isActive ? "Active" : "Inactive"}
+                  <p className="mt-1 text-xs uppercase tracking-[0.16em] text-slate-500">
+                    Product #{product.id}
                   </p>
-                  <Link
-                    className="text-sm font-medium text-[var(--color-accent)] underline-offset-4 hover:underline"
-                    href={`/products/${product.id}`}
-                  >
-                    View details
-                  </Link>
                 </div>
 
-                <p className="text-sm text-slate-500">
-                  Created {formatDate(product.createdAt)}
-                </p>
+                <div className="min-w-0">
+                  <p className="line-clamp-2 text-sm leading-6 text-slate-600">
+                    {descriptionLabel}
+                  </p>
+                </div>
+
+                <div>
+                  <span
+                    className={
+                      product.isActive
+                        ? "inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-sm font-medium text-emerald-700"
+                        : "inline-flex rounded-full border border-slate-200 bg-slate-100 px-3 py-1 text-sm font-medium text-slate-600"
+                    }
+                  >
+                    {product.isActive ? "Active" : "Inactive"}
+                  </span>
+                </div>
+
+                <div>
+                  <p className="text-sm font-medium text-slate-700">
+                    {linkedPlansCount !== undefined
+                      ? linkedPlansCount
+                      : "Loading..."}
+                  </p>
+                </div>
+
+                <div>
+                  <p className="text-sm font-medium text-slate-700">
+                    {formatDate(product.createdAt)}
+                  </p>
+                </div>
+
+                <div className="flex xl:justify-end">
+                  <Link
+                    className="rounded-xl border border-[var(--color-border)] bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+                    href={`/products/${product.id}`}
+                  >
+                    Details
+                  </Link>
+                </div>
               </div>
             </li>
-          ))}
-        </ul>
+            );
+          })}
+          </ul>
+        </div>
 
         <PaginationControls
           currentPage={data?.page ?? 1}
