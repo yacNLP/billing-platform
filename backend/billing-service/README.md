@@ -241,6 +241,12 @@ Security is enforced through global guards:
 - `TenantGuard`
 - `RolesGuard`
 
+Role policy:
+
+- `ADMIN` represents a tenant administrator or billing operator. Admin users can create, update, delete, and run billing operations such as admin jobs.
+- `USER` represents tenant staff with read-only access. User accounts can view tenant data, but cannot create, update, delete, or run jobs.
+- Customer-facing accounts and a customer portal are not implemented yet. The current `USER` role is not a customer portal role.
+
 Tenant isolation is handled by:
 
 - tenant-aware JWT payloads
