@@ -279,6 +279,61 @@ describe('Invoices e2e', () => {
     });
   });
 
+  describe('tenant isolation mutations', () => {
+    it('rejects creating an invoice with another tenant customerId', async () => {
+      const tenantBCustomer = await createTestCustomer(tenantBAdminClient);
+      const customer = await createTestCustomer(adminClient);
+      const product = await createTestProduct(adminClient);
+      const plan = await createTestPlan(adminClient, product.id);
+      const subscription = await createTestSubscription(
+        adminClient,
+        customer.id,
+        plan.id,
+      );
+
+      await adminClient
+        .post('/invoices', {
+          customerId: tenantBCustomer.id,
+          subscriptionId: subscription.id,
+          amountDue: 4900,
+          currency: 'EUR',
+          periodStart: '2026-03-01T00:00:00.000Z',
+          periodEnd: '2026-04-01T00:00:00.000Z',
+          issuedAt: '2026-03-01T00:00:00.000Z',
+          dueAt: '2026-03-10T00:00:00.000Z',
+        })
+        .expect(400);
+    });
+
+    it('rejects creating an invoice with another tenant subscriptionId', async () => {
+      const customer = await createTestCustomer(adminClient);
+      const tenantBCustomer = await createTestCustomer(tenantBAdminClient);
+      const tenantBProduct = await createTestProduct(tenantBAdminClient);
+      const tenantBPlan = await createTestPlan(
+        tenantBAdminClient,
+        tenantBProduct.id,
+      );
+      const tenantBSubscription = await createTestSubscription(
+        tenantBAdminClient,
+        tenantBCustomer.id,
+        tenantBPlan.id,
+      );
+
+      await adminClient
+        .post('/invoices', {
+          customerId: customer.id,
+          subscriptionId: tenantBSubscription.id,
+          amountDue: 4900,
+          currency: 'EUR',
+          periodStart: '2026-03-01T00:00:00.000Z',
+          periodEnd: '2026-04-01T00:00:00.000Z',
+          issuedAt: '2026-03-01T00:00:00.000Z',
+          dueAt: '2026-03-10T00:00:00.000Z',
+        })
+        .expect(400);
+    });
+  });
+
   it('POST /invoices should create an invoice', async () => {
     const customer = await createTestCustomer(adminClient);
     const product = await createTestProduct(adminClient);

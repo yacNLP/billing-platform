@@ -404,6 +404,43 @@ describe('Subscriptions e2e', () => {
     });
   });
 
+  describe('tenant isolation mutations', () => {
+    it('rejects creating a subscription with another tenant customerId', async () => {
+      const tenantBCustomer = await createTestCustomer(
+        tenantBAdminClient,
+        'cross_tenant_customer',
+      );
+      const product = await createTestProduct(adminClient);
+      const plan = await createTestPlan(adminClient, product.id);
+
+      await adminClient
+        .post('/subscriptions', {
+          customerId: tenantBCustomer.id,
+          planId: plan.id,
+        })
+        .expect(400);
+    });
+
+    it('rejects creating a subscription with another tenant planId', async () => {
+      const customer = await createTestCustomer(adminClient);
+      const tenantBProduct = await createTestProduct(
+        tenantBAdminClient,
+        'cross_tenant_plan',
+      );
+      const tenantBPlan = await createTestPlan(
+        tenantBAdminClient,
+        tenantBProduct.id,
+      );
+
+      await adminClient
+        .post('/subscriptions', {
+          customerId: customer.id,
+          planId: tenantBPlan.id,
+        })
+        .expect(400);
+    });
+  });
+
   describe('read subscriptions', () => {
     it('lists subscriptions for current tenant only', async () => {
       const customerA = await createTestCustomer(adminClient, 'tenant_a_sub');

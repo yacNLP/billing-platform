@@ -305,6 +305,24 @@ describe('Payments e2e', () => {
     });
   });
 
+  describe('tenant isolation mutations', () => {
+    it('rejects creating a payment with another tenant invoiceId', async () => {
+      const tenantBFixture = await createPaymentFixture(tenantBAdminClient);
+
+      await adminClient
+        .post('/payments', {
+          invoiceId: tenantBFixture.invoice.id,
+          amount: tenantBFixture.invoice.amountDue,
+          currency: tenantBFixture.invoice.currency,
+          status: 'SUCCESS',
+          paidAt: '2026-01-05T12:00:00.000Z',
+          provider: 'stripe',
+          providerReference: `cross_tenant_payment_${uniqueSuffix()}`,
+        })
+        .expect(404);
+    });
+  });
+
   describe('create payment', () => {
     it('creates a SUCCESS payment on an ISSUED invoice and marks the invoice as PAID', async () => {
       const { invoice } = await createPaymentFixture(adminClient);
