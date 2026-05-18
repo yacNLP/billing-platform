@@ -6,7 +6,7 @@ import type { BillingInterval } from '@prisma/client';
 import { InvoicesService } from '../../src/invoices/invoices.service';
 import { createE2eApp, TestApp } from '../utils/e2e-app';
 import { E2EClient } from '../utils/e2e-client';
-import { login, loginAsAdmin } from '../utils/e2e-auth';
+import { login, loginAsAdmin, loginAsUser } from '../utils/e2e-auth';
 
 interface CustomerResponse {
   id: number;
@@ -185,6 +185,7 @@ describe('Invoices e2e', () => {
   let app: INestApplication;
   let server: Server;
   let adminClient: E2EClient;
+  let userClient: E2EClient;
   let tenantBAdminClient: E2EClient;
   let invoicesService: InvoicesService;
 
@@ -194,9 +195,11 @@ describe('Invoices e2e', () => {
     server = testApp.server;
 
     adminClient = new E2EClient(server);
+    userClient = new E2EClient(server);
     tenantBAdminClient = new E2EClient(server);
 
     await loginAsAdmin(adminClient);
+    await loginAsUser(userClient);
     await login(tenantBAdminClient, 'admin2@test.com');
 
     const moduleRef = app.get(ModuleRef);
@@ -209,6 +212,71 @@ describe('Invoices e2e', () => {
 
   afterAll(async () => {
     await app.close();
+  });
+
+  describe('rbac', () => {
+    it('USER can read invoices', async () => {
+      const customer = await createTestCustomer(adminClient);
+      const product = await createTestProduct(adminClient);
+      const plan = await createTestPlan(adminClient, product.id);
+      const subscription = await createTestSubscription(
+        adminClient,
+        customer.id,
+        plan.id,
+      );
+      const invoice = await createTestInvoice(
+        adminClient,
+        customer.id,
+        subscription.id,
+      );
+
+      await userClient.get('/invoices').expect(200);
+      await userClient.get(`/invoices/${invoice.id}`).expect(200);
+    });
+
+    it('USER cannot create invoice', async () => {
+      const customer = await createTestCustomer(adminClient);
+      const product = await createTestProduct(adminClient);
+      const plan = await createTestPlan(adminClient, product.id);
+      const subscription = await createTestSubscription(
+        adminClient,
+        customer.id,
+        plan.id,
+      );
+
+      await userClient
+        .post('/invoices', {
+          customerId: customer.id,
+          subscriptionId: subscription.id,
+          amountDue: 4900,
+          currency: 'EUR',
+          periodStart: '2026-01-01T00:00:00.000Z',
+          periodEnd: '2026-02-01T00:00:00.000Z',
+          issuedAt: '2026-01-01T00:00:00.000Z',
+          dueAt: '2026-01-10T00:00:00.000Z',
+        })
+        .expect(403);
+    });
+
+    it('USER cannot run invoice status actions', async () => {
+      const customer = await createTestCustomer(adminClient);
+      const product = await createTestProduct(adminClient);
+      const plan = await createTestPlan(adminClient, product.id);
+      const subscription = await createTestSubscription(
+        adminClient,
+        customer.id,
+        plan.id,
+      );
+      const invoice = await createTestInvoice(
+        adminClient,
+        customer.id,
+        subscription.id,
+      );
+
+      await userClient.patch(`/invoices/${invoice.id}/paid`).expect(403);
+      await userClient.patch(`/invoices/${invoice.id}/void`).expect(403);
+      await userClient.patch(`/invoices/${invoice.id}/overdue`).expect(403);
+    });
   });
 
   it('POST /invoices should create an invoice', async () => {

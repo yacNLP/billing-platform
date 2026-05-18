@@ -5,7 +5,7 @@ import type { BillingInterval, SubscriptionStatus } from '@prisma/client';
 import { SubscriptionsService } from '../../src/subscriptions/subscriptions.service';
 import { createE2eApp, TestApp } from '../utils/e2e-app';
 import { E2EClient } from '../utils/e2e-client';
-import { login, loginAsAdmin } from '../utils/e2e-auth';
+import { login, loginAsAdmin, loginAsUser } from '../utils/e2e-auth';
 
 interface CustomerResponse {
   id: number;
@@ -189,6 +189,7 @@ describe('Subscriptions e2e', () => {
   let app: INestApplication;
   let server: Server;
   let adminClient: E2EClient;
+  let userClient: E2EClient;
   let tenantBAdminClient: E2EClient;
   let subscriptionsService: SubscriptionsService;
 
@@ -198,9 +199,11 @@ describe('Subscriptions e2e', () => {
     server = testApp.server;
 
     adminClient = new E2EClient(server);
+    userClient = new E2EClient(server);
     tenantBAdminClient = new E2EClient(server);
 
     await loginAsAdmin(adminClient);
+    await loginAsUser(userClient);
     await login(tenantBAdminClient, 'admin2@test.com');
 
     const moduleRef = app.get(ModuleRef);
@@ -217,6 +220,52 @@ describe('Subscriptions e2e', () => {
 
   afterAll(async () => {
     await app.close();
+  });
+
+  describe('rbac', () => {
+    it('USER can read subscriptions', async () => {
+      const customer = await createTestCustomer(adminClient);
+      const product = await createTestProduct(adminClient);
+      const plan = await createTestPlan(adminClient, product.id);
+      const created = await createTestSubscription(
+        adminClient,
+        customer.id,
+        plan.id,
+      );
+
+      await userClient.get('/subscriptions').expect(200);
+      await userClient.get(`/subscriptions/${created.id}`).expect(200);
+    });
+
+    it('USER cannot create subscription', async () => {
+      const customer = await createTestCustomer(adminClient);
+      const product = await createTestProduct(adminClient);
+      const plan = await createTestPlan(adminClient, product.id);
+
+      await userClient
+        .post('/subscriptions', {
+          customerId: customer.id,
+          planId: plan.id,
+        })
+        .expect(403);
+    });
+
+    it('USER cannot cancel subscription', async () => {
+      const customer = await createTestCustomer(adminClient);
+      const product = await createTestProduct(adminClient);
+      const plan = await createTestPlan(adminClient, product.id);
+      const created = await createTestSubscription(
+        adminClient,
+        customer.id,
+        plan.id,
+      );
+
+      await userClient
+        .patch(`/subscriptions/${created.id}/cancel`, {
+          cancelAtPeriodEnd: true,
+        })
+        .expect(403);
+    });
   });
 
   describe('create subscription', () => {

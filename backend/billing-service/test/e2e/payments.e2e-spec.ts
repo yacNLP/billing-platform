@@ -4,7 +4,7 @@ import type { BillingInterval } from '@prisma/client';
 
 import { createE2eApp, TestApp } from '../utils/e2e-app';
 import { E2EClient } from '../utils/e2e-client';
-import { login, loginAsAdmin } from '../utils/e2e-auth';
+import { login, loginAsAdmin, loginAsUser } from '../utils/e2e-auth';
 
 interface CustomerResponse {
   id: number;
@@ -258,6 +258,7 @@ describe('Payments e2e', () => {
   let app: INestApplication;
   let server: Server;
   let adminClient: E2EClient;
+  let userClient: E2EClient;
   let tenantBAdminClient: E2EClient;
 
   beforeAll(async () => {
@@ -266,14 +267,42 @@ describe('Payments e2e', () => {
     server = testApp.server;
 
     adminClient = new E2EClient(server);
+    userClient = new E2EClient(server);
     tenantBAdminClient = new E2EClient(server);
 
     await loginAsAdmin(adminClient);
+    await loginAsUser(userClient);
     await login(tenantBAdminClient, 'admin2@test.com');
   });
 
   afterAll(async () => {
     await app.close();
+  });
+
+  describe('rbac', () => {
+    it('USER can read payments', async () => {
+      const { invoice } = await createPaymentFixture(adminClient);
+      const payment = await createTestPayment(adminClient, invoice, 'FAILED');
+
+      await userClient.get('/payments').expect(200);
+      await userClient.get(`/payments/${payment.id}`).expect(200);
+    });
+
+    it('USER cannot create payment', async () => {
+      const { invoice } = await createPaymentFixture(adminClient);
+
+      await userClient
+        .post('/payments', {
+          invoiceId: invoice.id,
+          amount: invoice.amountDue,
+          currency: invoice.currency,
+          status: 'SUCCESS',
+          paidAt: '2026-01-05T12:00:00.000Z',
+          provider: 'stripe',
+          providerReference: `user_forbidden_payment_${uniqueSuffix()}`,
+        })
+        .expect(403);
+    });
   });
 
   describe('create payment', () => {

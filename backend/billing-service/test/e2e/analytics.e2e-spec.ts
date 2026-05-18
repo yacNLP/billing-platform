@@ -4,7 +4,7 @@ import type { BillingInterval } from '@prisma/client';
 
 import { createE2eApp, TestApp } from '../utils/e2e-app';
 import { E2EClient } from '../utils/e2e-client';
-import { login, loginAsAdmin } from '../utils/e2e-auth';
+import { login, loginAsAdmin, loginAsUser } from '../utils/e2e-auth';
 
 jest.setTimeout(20_000);
 
@@ -30,6 +30,11 @@ interface AnalyticsSummaryResponse {
     activeSubscriptions: number;
   }>;
 }
+
+type AnalyticsNumericMetric = Exclude<
+  keyof AnalyticsSummaryResponse,
+  'subscriptionsByPlan'
+>;
 
 interface CustomerResponse {
   id: number;
@@ -139,11 +144,9 @@ function expectSummaryShape(summary: AnalyticsSummaryResponse): void {
 function expectSummaryDelta(
   before: AnalyticsSummaryResponse,
   after: AnalyticsSummaryResponse,
-  expected: Partial<AnalyticsSummaryResponse>,
+  expected: Partial<Record<AnalyticsNumericMetric, number>>,
 ): void {
-  const metrics = Object.keys(expected) as Array<
-    keyof AnalyticsSummaryResponse
-  >;
+  const metrics = Object.keys(expected) as AnalyticsNumericMetric[];
 
   for (const metric of metrics) {
     const value = expected[metric];
@@ -298,6 +301,7 @@ describe('Analytics e2e', () => {
   let app: INestApplication;
   let server: Server;
   let adminClient: E2EClient;
+  let userClient: E2EClient;
   let tenantBAdminClient: E2EClient;
 
   beforeAll(async () => {
@@ -306,9 +310,11 @@ describe('Analytics e2e', () => {
     server = testApp.server;
 
     adminClient = new E2EClient(server);
+    userClient = new E2EClient(server);
     tenantBAdminClient = new E2EClient(server);
 
     await loginAsAdmin(adminClient);
+    await loginAsUser(userClient);
     await login(tenantBAdminClient, 'admin2@test.com');
   });
 
@@ -318,6 +324,12 @@ describe('Analytics e2e', () => {
 
   it('GET /analytics/summary returns the expected shape', async () => {
     const summary = await getSummary(adminClient);
+
+    expectSummaryShape(summary);
+  });
+
+  it('USER can read analytics summary', async () => {
+    const summary = await getSummary(userClient);
 
     expectSummaryShape(summary);
   });
