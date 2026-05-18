@@ -280,6 +280,23 @@ describe('Invoices e2e', () => {
   });
 
   describe('tenant isolation mutations', () => {
+    const createTenantBInvoice = async (): Promise<InvoiceResponse> => {
+      const customer = await createTestCustomer(tenantBAdminClient);
+      const product = await createTestProduct(tenantBAdminClient);
+      const plan = await createTestPlan(tenantBAdminClient, product.id);
+      const subscription = await createTestSubscription(
+        tenantBAdminClient,
+        customer.id,
+        plan.id,
+      );
+
+      return createTestInvoice(
+        tenantBAdminClient,
+        customer.id,
+        subscription.id,
+      );
+    };
+
     it('rejects creating an invoice with another tenant customerId', async () => {
       const tenantBCustomer = await createTestCustomer(tenantBAdminClient);
       const customer = await createTestCustomer(adminClient);
@@ -331,6 +348,30 @@ describe('Invoices e2e', () => {
           dueAt: '2026-03-10T00:00:00.000Z',
         })
         .expect(400);
+    });
+
+    it('rejects marking another tenant invoice as paid', async () => {
+      const tenantBInvoice = await createTenantBInvoice();
+
+      await adminClient
+        .patch(`/invoices/${tenantBInvoice.id}/paid`)
+        .expect(404);
+    });
+
+    it('rejects marking another tenant invoice as void', async () => {
+      const tenantBInvoice = await createTenantBInvoice();
+
+      await adminClient
+        .patch(`/invoices/${tenantBInvoice.id}/void`)
+        .expect(404);
+    });
+
+    it('rejects marking another tenant invoice as overdue', async () => {
+      const tenantBInvoice = await createTenantBInvoice();
+
+      await adminClient
+        .patch(`/invoices/${tenantBInvoice.id}/overdue`)
+        .expect(404);
     });
   });
 

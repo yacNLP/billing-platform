@@ -252,9 +252,10 @@ export class InvoicesService {
     const now = new Date();
 
     try {
-      const updated = await this.prisma.invoice.update({
+      const result = await this.prisma.invoice.updateMany({
         where: {
           id: invoice.id,
+          tenantId,
         },
         data: {
           status: InvoiceStatus.PAID,
@@ -262,6 +263,13 @@ export class InvoicesService {
           paidAt: now,
         },
       });
+
+      if (result.count === 0) {
+        this.logger.warn(`Invoice with id=${id} not found`);
+        throw new NotFoundException(`Invoice with id=${id} not found`);
+      }
+
+      const updated = await this.findInvoiceOrThrow(invoice.id, tenantId);
 
       this.logger.log(
         `marked invoice id=${updated.id} as paid tenantId=${tenantId}`,
@@ -297,9 +305,10 @@ export class InvoicesService {
     const now = new Date();
 
     try {
-      const updated = await this.prisma.invoice.update({
+      const result = await this.prisma.invoice.updateMany({
         where: {
           id: invoice.id,
+          tenantId,
         },
         data: {
           status: InvoiceStatus.VOID,
@@ -308,6 +317,13 @@ export class InvoicesService {
           voidedAt: now,
         },
       });
+
+      if (result.count === 0) {
+        this.logger.warn(`Invoice with id=${id} not found`);
+        throw new NotFoundException(`Invoice with id=${id} not found`);
+      }
+
+      const updated = await this.findInvoiceOrThrow(invoice.id, tenantId);
 
       this.logger.log(
         `marked invoice id=${updated.id} as void tenantId=${tenantId}`,
@@ -350,14 +366,22 @@ export class InvoicesService {
     }
 
     try {
-      const updated = await this.prisma.invoice.update({
+      const result = await this.prisma.invoice.updateMany({
         where: {
           id: invoice.id,
+          tenantId,
         },
         data: {
           status: InvoiceStatus.OVERDUE,
         },
       });
+
+      if (result.count === 0) {
+        this.logger.warn(`Invoice with id=${id} not found`);
+        throw new NotFoundException(`Invoice with id=${id} not found`);
+      }
+
+      const updated = await this.findInvoiceOrThrow(invoice.id, tenantId);
 
       this.logger.log(
         `marked invoice id=${updated.id} as overdue tenantId=${tenantId}`,
