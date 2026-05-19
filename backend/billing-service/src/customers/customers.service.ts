@@ -11,6 +11,9 @@ import { Paginated } from '../common/dto/paginated.type';
 import { errorMessage } from '../common/error.util';
 import { CustomersQueryDto } from './dto/customers-query.dto';
 import { TenantContext } from 'src/common/tenant/tenant.context';
+import { AuditLogAction } from '../audit-logs/audit-log-action';
+import { AuditLogEntityType } from '../audit-logs/audit-log-entity-type';
+import { AuditLogsService } from '../audit-logs/audit-logs.service';
 @Injectable()
 export class CustomersService {
   private readonly logger = new Logger(CustomersService.name);
@@ -18,6 +21,7 @@ export class CustomersService {
   constructor(
     private prisma: PrismaService,
     private readonly tenantContext: TenantContext,
+    private readonly auditLogs: AuditLogsService,
   ) {}
 
   async list(params: CustomersQueryDto): Promise<Paginated<Customer>> {
@@ -76,6 +80,11 @@ export class CustomersService {
       this.logger.log(
         `Created customer with id=${customer.id} and email=${customer.email}`,
       );
+      await this.auditLogs.record({
+        action: AuditLogAction.CustomerCreated,
+        entityType: AuditLogEntityType.Customer,
+        entityId: customer.id,
+      });
       return customer;
     } catch (e: unknown) {
       if (
@@ -104,6 +113,11 @@ export class CustomersService {
         data,
       });
       this.logger.log(`updated customer id=${id}`);
+      await this.auditLogs.record({
+        action: AuditLogAction.CustomerUpdated,
+        entityType: AuditLogEntityType.Customer,
+        entityId: customer.id,
+      });
       return customer;
     } catch (e: unknown) {
       if (e instanceof Prisma.PrismaClientKnownRequestError) {
@@ -132,6 +146,11 @@ export class CustomersService {
         },
       });
       this.logger.log(`deleted customer id=${id}`);
+      await this.auditLogs.record({
+        action: AuditLogAction.CustomerDeleted,
+        entityType: AuditLogEntityType.Customer,
+        entityId: id,
+      });
     } catch (e: unknown) {
       if (
         e instanceof Prisma.PrismaClientKnownRequestError &&

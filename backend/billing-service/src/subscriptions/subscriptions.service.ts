@@ -13,6 +13,9 @@ import {
   SubscriptionStatus,
 } from '@prisma/client';
 import type { JobSummary } from '../admin-jobs/job-summary.type';
+import { AuditLogAction } from '../audit-logs/audit-log-action';
+import { AuditLogEntityType } from '../audit-logs/audit-log-entity-type';
+import { AuditLogsService } from '../audit-logs/audit-logs.service';
 import { Paginated } from '../common/dto/paginated.type';
 import { TenantContext } from '../common/tenant/tenant.context';
 import { PrismaService } from '../prisma.service';
@@ -29,6 +32,7 @@ export class SubscriptionsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly tenantContext: TenantContext,
+    private readonly auditLogs: AuditLogsService,
   ) {}
 
   async create(dto: CreateSubscriptionDto): Promise<Subscription> {
@@ -137,6 +141,20 @@ export class SubscriptionsService {
       this.logger.log(
         `created subscription id=${created.id} customerId=${created.customerId} planId=${created.planId} tenantId=${tenantId}`,
       );
+      await this.auditLogs.record({
+        action: AuditLogAction.SubscriptionCreated,
+        entityType: AuditLogEntityType.Subscription,
+        entityId: created.id,
+        metadata: {
+          customerId: created.customerId,
+          planId: created.planId,
+          amountSnapshot: created.amountSnapshot,
+          currencySnapshot: created.currencySnapshot,
+          intervalSnapshot: created.intervalSnapshot,
+          intervalCountSnapshot: created.intervalCountSnapshot,
+          cancelAtPeriodEnd: created.cancelAtPeriodEnd,
+        },
+      });
 
       return created;
     } catch (e: unknown) {
@@ -277,6 +295,16 @@ export class SubscriptionsService {
       this.logger.log(
         `canceled subscription id=${updated.id} tenantId=${tenantId} cancelAtPeriodEnd=${cancelAtPeriodEnd}`,
       );
+      await this.auditLogs.record({
+        action: AuditLogAction.SubscriptionCanceled,
+        entityType: AuditLogEntityType.Subscription,
+        entityId: updated.id,
+        metadata: {
+          cancelAtPeriodEnd,
+          statusBefore: existing.status,
+          statusAfter: updated.status,
+        },
+      });
 
       return updated;
     } catch (e: unknown) {

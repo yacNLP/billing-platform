@@ -11,6 +11,9 @@ import { errorMessage } from '../common/error.util';
 import { TenantContext } from '../common/tenant/tenant.context';
 import { PrismaService } from '../prisma.service';
 import type { JobSummary } from '../admin-jobs/job-summary.type';
+import { AuditLogAction } from '../audit-logs/audit-log-action';
+import { AuditLogEntityType } from '../audit-logs/audit-log-entity-type';
+import { AuditLogsService } from '../audit-logs/audit-logs.service';
 import { CreateInvoiceDto } from './dto/create-invoice.dto';
 import { InvoicesQueryDto } from './dto/invoices-query.dto';
 
@@ -21,6 +24,7 @@ export class InvoicesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly tenantContext: TenantContext,
+    private readonly auditLogs: AuditLogsService,
   ) {}
 
   async create(dto: CreateInvoiceDto): Promise<Invoice> {
@@ -130,6 +134,20 @@ export class InvoicesService {
         this.logger.log(
           `created invoice id=${created.id} invoiceNumber=${created.invoiceNumber} customerId=${created.customerId} subscriptionId=${created.subscriptionId} tenantId=${tenantId}`,
         );
+        await this.auditLogs.record({
+          action: AuditLogAction.InvoiceCreated,
+          entityType: AuditLogEntityType.Invoice,
+          entityId: created.id,
+          metadata: {
+            customerId: created.customerId,
+            subscriptionId: created.subscriptionId,
+            invoiceNumber: created.invoiceNumber,
+            amountDue: created.amountDue,
+            currency: created.currency,
+            periodStart: created.periodStart.toISOString(),
+            periodEnd: created.periodEnd.toISOString(),
+          },
+        });
 
         return created;
       } catch (e: unknown) {
@@ -274,6 +292,18 @@ export class InvoicesService {
       this.logger.log(
         `marked invoice id=${updated.id} as paid tenantId=${tenantId}`,
       );
+      await this.auditLogs.record({
+        action: AuditLogAction.InvoiceMarkedPaid,
+        entityType: AuditLogEntityType.Invoice,
+        entityId: updated.id,
+        metadata: {
+          statusBefore: invoice.status,
+          statusAfter: updated.status,
+          amountDue: updated.amountDue,
+          amountPaid: updated.amountPaid,
+          currency: updated.currency,
+        },
+      });
 
       return updated;
     } catch (e: unknown) {
@@ -328,6 +358,17 @@ export class InvoicesService {
       this.logger.log(
         `marked invoice id=${updated.id} as void tenantId=${tenantId}`,
       );
+      await this.auditLogs.record({
+        action: AuditLogAction.InvoiceVoided,
+        entityType: AuditLogEntityType.Invoice,
+        entityId: updated.id,
+        metadata: {
+          statusBefore: invoice.status,
+          statusAfter: updated.status,
+          amountDue: updated.amountDue,
+          currency: updated.currency,
+        },
+      });
 
       return updated;
     } catch (e: unknown) {
@@ -386,6 +427,16 @@ export class InvoicesService {
       this.logger.log(
         `marked invoice id=${updated.id} as overdue tenantId=${tenantId}`,
       );
+      await this.auditLogs.record({
+        action: AuditLogAction.InvoiceMarkedOverdue,
+        entityType: AuditLogEntityType.Invoice,
+        entityId: updated.id,
+        metadata: {
+          statusBefore: invoice.status,
+          statusAfter: updated.status,
+          dueAt: updated.dueAt.toISOString(),
+        },
+      });
 
       return updated;
     } catch (e: unknown) {

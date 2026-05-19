@@ -12,6 +12,9 @@ import { Prisma, Product } from '@prisma/client';
 import { errorMessage } from '../common/error.util';
 import { Paginated } from 'src/common/dto/paginated.type';
 import { TenantContext } from 'src/common/tenant/tenant.context';
+import { AuditLogAction } from '../audit-logs/audit-log-action';
+import { AuditLogEntityType } from '../audit-logs/audit-log-entity-type';
+import { AuditLogsService } from '../audit-logs/audit-logs.service';
 
 @Injectable()
 export class ProductsService {
@@ -19,6 +22,7 @@ export class ProductsService {
   constructor(
     private prisma: PrismaService,
     private readonly tenantContext: TenantContext,
+    private readonly auditLogs: AuditLogsService,
   ) {}
 
   async create(dto: CreateProductDto): Promise<Product> {
@@ -32,6 +36,11 @@ export class ProductsService {
         },
       });
       this.logger.debug(`created product id=${created.id}`);
+      await this.auditLogs.record({
+        action: AuditLogAction.ProductCreated,
+        entityType: AuditLogEntityType.Product,
+        entityId: created.id,
+      });
       return created;
     } catch (err: unknown) {
       this.logger.error(
@@ -119,6 +128,11 @@ export class ProductsService {
         data: dto,
       });
       this.logger.debug(`updated product id=${updated.id}`);
+      await this.auditLogs.record({
+        action: AuditLogAction.ProductUpdated,
+        entityType: AuditLogEntityType.Product,
+        entityId: updated.id,
+      });
       return updated;
     } catch (err: unknown) {
       this.logger.error(`update failed id=${id}: ${errorMessage(err)}`);
@@ -140,6 +154,11 @@ export class ProductsService {
         where: { id, tenantId },
       });
       this.logger.debug(`deleted product id=${id}`);
+      await this.auditLogs.record({
+        action: AuditLogAction.ProductDeleted,
+        entityType: AuditLogEntityType.Product,
+        entityId: id,
+      });
     } catch (err: unknown) {
       this.logger.error(`delete failed id=${id}: ${errorMessage(err)}`);
 

@@ -226,6 +226,7 @@ model Tenant {
   subscriptions Subscription[]
   invoices      Invoice[]
   payments      Payment[]
+  auditLogs     AuditLog[]
 }
 
 model User {
@@ -237,5 +238,28 @@ model User {
   tenantId  Int
   tenant    Tenant   @relation(fields: [tenantId], references: [id])
 
+  auditLogs AuditLog[]
+
   createdAt DateTime @default(now())
+}
+
+model AuditLog {
+  id          Int      @id @default(autoincrement())
+
+  tenantId    Int
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  actorUserId Int?
+  actorUser   User?    @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  action      String
+  entityType  String
+  entityId    Int?
+  metadata    Json?
+
+  createdAt   DateTime @default(now())
+
+  @@index([tenantId, createdAt])
+  @@index([tenantId, entityType, entityId])
+  @@index([actorUserId])
 }

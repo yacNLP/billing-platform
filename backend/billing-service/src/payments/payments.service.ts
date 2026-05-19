@@ -5,6 +5,9 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InvoiceStatus, Payment, PaymentStatus, Prisma } from '@prisma/client';
+import { AuditLogAction } from '../audit-logs/audit-log-action';
+import { AuditLogEntityType } from '../audit-logs/audit-log-entity-type';
+import { AuditLogsService } from '../audit-logs/audit-logs.service';
 import { Paginated } from '../common/dto/paginated.type';
 import { TenantContext } from '../common/tenant/tenant.context';
 import { PrismaService } from '../prisma.service';
@@ -18,6 +21,7 @@ export class PaymentsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly tenantContext: TenantContext,
+    private readonly auditLogs: AuditLogsService,
   ) {}
 
   async create(dto: CreatePaymentDto): Promise<Payment> {
@@ -93,6 +97,18 @@ export class PaymentsService {
       this.logger.log(
         `created successful payment id=${payment.id} invoiceId=${invoice.id} tenantId=${tenantId}`,
       );
+      await this.auditLogs.record({
+        action: AuditLogAction.PaymentCreated,
+        entityType: AuditLogEntityType.Payment,
+        entityId: payment.id,
+        metadata: {
+          invoiceId: payment.invoiceId,
+          status: payment.status,
+          amount: payment.amount,
+          currency: payment.currency,
+          provider: payment.provider,
+        },
+      });
 
       return payment;
     }
@@ -113,6 +129,18 @@ export class PaymentsService {
     this.logger.log(
       `created failed payment id=${payment.id} invoiceId=${invoice.id} tenantId=${tenantId}`,
     );
+    await this.auditLogs.record({
+      action: AuditLogAction.PaymentCreated,
+      entityType: AuditLogEntityType.Payment,
+      entityId: payment.id,
+      metadata: {
+        invoiceId: payment.invoiceId,
+        status: payment.status,
+        amount: payment.amount,
+        currency: payment.currency,
+        provider: payment.provider,
+      },
+    });
 
     return payment;
   }

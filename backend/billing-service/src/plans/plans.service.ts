@@ -12,6 +12,9 @@ import { UpdatePlanDto } from './dto/update-plan.dto';
 import { PlansQueryDto } from './dto/plans-query.dto';
 import { Paginated } from '../common/dto/paginated.type';
 import { TenantContext } from '../common/tenant/tenant.context';
+import { AuditLogAction } from '../audit-logs/audit-log-action';
+import { AuditLogEntityType } from '../audit-logs/audit-log-entity-type';
+import { AuditLogsService } from '../audit-logs/audit-logs.service';
 
 // Whitelist for sorting
 type PlanSortKey = 'id' | 'code' | 'name' | 'amount' | 'createdAt';
@@ -38,6 +41,7 @@ export class PlansService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly tenantContext: TenantContext,
+    private readonly auditLogs: AuditLogsService,
   ) {}
 
   async create(dto: CreatePlanDto): Promise<Plan> {
@@ -65,6 +69,18 @@ export class PlansService {
       this.logger.log(
         `Created plan id=${created.id} code=${created.code} tenantId=${tenantId}`,
       );
+      await this.auditLogs.record({
+        action: AuditLogAction.PlanCreated,
+        entityType: AuditLogEntityType.Plan,
+        entityId: created.id,
+        metadata: {
+          productId: created.productId,
+          amount: created.amount,
+          currency: created.currency,
+          interval: created.interval,
+          intervalCount: created.intervalCount,
+        },
+      });
 
       return created;
     } catch (e: unknown) {
@@ -167,6 +183,19 @@ export class PlansService {
       this.logger.log(
         `Updated plan id=${updated.id} code=${updated.code} tenantId=${tenantId}`,
       );
+      await this.auditLogs.record({
+        action: AuditLogAction.PlanUpdated,
+        entityType: AuditLogEntityType.Plan,
+        entityId: updated.id,
+        metadata: {
+          productId: updated.productId,
+          amount: updated.amount,
+          currency: updated.currency,
+          interval: updated.interval,
+          intervalCount: updated.intervalCount,
+          active: updated.active,
+        },
+      });
 
       return updated;
     } catch (e: unknown) {
@@ -187,6 +216,11 @@ export class PlansService {
     });
 
     this.logger.log(`Soft-deleted plan id=${existing.id} tenantId=${tenantId}`);
+    await this.auditLogs.record({
+      action: AuditLogAction.PlanDeleted,
+      entityType: AuditLogEntityType.Plan,
+      entityId: existing.id,
+    });
   }
 
   private async ensureActiveTenantProduct(
