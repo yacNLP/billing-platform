@@ -4,6 +4,7 @@ import { Server } from 'http';
 import type { BillingInterval } from '@prisma/client';
 
 import { InvoicesService } from '../../src/invoices/invoices.service';
+import { PrismaService } from '../../src/prisma.service';
 import { createE2eApp, TestApp } from '../utils/e2e-app';
 import { E2EClient } from '../utils/e2e-client';
 import { login, loginAsAdmin, loginAsUser } from '../utils/e2e-auth';
@@ -188,6 +189,7 @@ describe('Invoices e2e', () => {
   let userClient: E2EClient;
   let tenantBAdminClient: E2EClient;
   let invoicesService: InvoicesService;
+  let prisma: PrismaService;
 
   beforeAll(async () => {
     const testApp: TestApp = await createE2eApp();
@@ -208,6 +210,7 @@ describe('Invoices e2e', () => {
     invoicesService = await moduleRef.resolve(InvoicesService, contextId, {
       strict: false,
     });
+    prisma = app.get(PrismaService);
   });
 
   afterAll(async () => {
@@ -636,6 +639,27 @@ describe('Invoices e2e', () => {
     expect(invoice.status).toBe('PAID');
     expect(invoice.amountPaid).toBe(invoice.amountDue);
     expect(invoice.paidAt).toBeDefined();
+
+    const auditLog = await prisma.auditLog.findFirst({
+      where: {
+        tenantId: invoice.tenantId,
+        action: 'invoice.marked_paid',
+        entityType: 'invoice',
+        entityId: invoice.id,
+      },
+    });
+    const metadata = auditLog?.metadata as Record<string, unknown> | undefined;
+
+    expect(auditLog).toBeDefined();
+    expect(auditLog?.tenantId).toBe(invoice.tenantId);
+    expect(auditLog?.actorUserId).toBeDefined();
+    expect(metadata).toMatchObject({
+      statusBefore: 'ISSUED',
+      statusAfter: 'PAID',
+      amountDue: invoice.amountDue,
+      amountPaid: invoice.amountPaid,
+      currency: invoice.currency,
+    });
   });
 
   it('PATCH /invoices/:id/paid should return 400 when invoice is already VOID', async () => {
@@ -681,6 +705,18 @@ describe('Invoices e2e', () => {
     expect(invoice.amountPaid).toBe(0);
     expect(invoice.paidAt).toBeNull();
     expect(invoice.voidedAt).toBeDefined();
+
+    const auditLog = await prisma.auditLog.findFirst({
+      where: {
+        tenantId: invoice.tenantId,
+        action: 'invoice.voided',
+        entityType: 'invoice',
+        entityId: invoice.id,
+      },
+    });
+
+    expect(auditLog).toBeDefined();
+    expect(auditLog?.actorUserId).toBeDefined();
   });
 
   it('PATCH /invoices/:id/void should return 400 when invoice is already PAID', async () => {
@@ -723,6 +759,24 @@ describe('Invoices e2e', () => {
 
     const invoice = res.body as InvoiceResponse;
     expect(invoice.status).toBe('OVERDUE');
+
+    const auditLog = await prisma.auditLog.findFirst({
+      where: {
+        tenantId: invoice.tenantId,
+        action: 'invoice.marked_overdue',
+        entityType: 'invoice',
+        entityId: invoice.id,
+      },
+    });
+    const metadata = auditLog?.metadata as Record<string, unknown> | undefined;
+
+    expect(auditLog).toBeDefined();
+    expect(auditLog?.actorUserId).toBeDefined();
+    expect(metadata).toMatchObject({
+      statusBefore: 'ISSUED',
+      statusAfter: 'OVERDUE',
+      dueAt: invoice.dueAt,
+    });
   });
 
   it('PATCH /invoices/:id/overdue should return 400 when invoice dueAt is in the future', async () => {

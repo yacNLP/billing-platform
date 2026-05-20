@@ -405,6 +405,30 @@ describe('Admin Jobs e2e', () => {
     expect(refreshedFuture.status).toBe('ISSUED');
     expect(refreshedPaid.status).toBe('PAID');
     expect(refreshedVoid.status).toBe('VOID');
+
+    const auditLog = await prisma.auditLog.findFirst({
+      where: {
+        tenantId: 1,
+        action: 'admin_job.run',
+        entityType: 'admin_job',
+        metadata: {
+          path: ['job'],
+          equals: 'mark-overdue-invoices',
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    const metadata = auditLog?.metadata as Record<string, unknown> | undefined;
+
+    expect(auditLog).toBeDefined();
+    expect(auditLog?.tenantId).toBe(1);
+    expect(auditLog?.actorUserId).toBeDefined();
+    expect(metadata).toMatchObject({
+      job: 'mark-overdue-invoices',
+      scanned: payload.scanned,
+      updated: payload.updated,
+      skipped: payload.skipped,
+    });
   });
 
   it('POST /admin/jobs/update-past-due-subscriptions updates only active subscriptions with unpaid overdue invoices', async () => {

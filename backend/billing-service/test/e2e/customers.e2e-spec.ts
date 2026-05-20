@@ -4,6 +4,7 @@ import { Server } from 'http';
 import { createE2eApp, TestApp } from '../utils/e2e-app';
 import { E2EClient } from '../utils/e2e-client';
 import { loginAsAdmin, loginAsUser } from '../utils/e2e-auth';
+import { PrismaService } from '../../src/prisma.service';
 
 interface CustomerResponse {
   id: number;
@@ -50,6 +51,7 @@ describe('Customers e2e', () => {
   let server: Server;
   let adminClient: E2EClient;
   let userClient: E2EClient;
+  let prisma: PrismaService;
 
   beforeAll(async () => {
     const testApp: TestApp = await createE2eApp();
@@ -61,6 +63,8 @@ describe('Customers e2e', () => {
 
     await loginAsAdmin(adminClient);
     await loginAsUser(userClient);
+
+    prisma = app.get(PrismaService);
   });
 
   afterAll(async () => {
@@ -105,6 +109,37 @@ describe('Customers e2e', () => {
   });
 
   describe('customers crud', () => {
+    it('writes audit logs for customer create, update, and delete', async () => {
+      const created = await createTestCustomer(adminClient);
+
+      await adminClient
+        .patch(`/customers/${created.id}`, {
+          name: `${created.name} updated`,
+        })
+        .expect(200);
+      await adminClient.delete(`/customers/${created.id}`).expect(204);
+
+      const logs = await prisma.auditLog.findMany({
+        where: {
+          tenantId: 1,
+          entityType: 'customer',
+          entityId: created.id,
+          action: {
+            in: ['customer.created', 'customer.updated', 'customer.deleted'],
+          },
+        },
+        orderBy: { createdAt: 'asc' },
+      });
+
+      expect(logs.map((log) => log.action)).toEqual([
+        'customer.created',
+        'customer.updated',
+        'customer.deleted',
+      ]);
+      expect(logs.every((log) => log.tenantId === 1)).toBe(true);
+      expect(logs.every((log) => log.actorUserId != null)).toBe(true);
+    });
+
     it('GET /customers should return paginated list', async () => {
       await createTestCustomer(adminClient);
 

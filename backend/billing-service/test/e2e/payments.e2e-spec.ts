@@ -5,6 +5,7 @@ import type { BillingInterval } from '@prisma/client';
 import { createE2eApp, TestApp } from '../utils/e2e-app';
 import { E2EClient } from '../utils/e2e-client';
 import { login, loginAsAdmin, loginAsUser } from '../utils/e2e-auth';
+import { PrismaService } from '../../src/prisma.service';
 
 interface CustomerResponse {
   id: number;
@@ -260,6 +261,7 @@ describe('Payments e2e', () => {
   let adminClient: E2EClient;
   let userClient: E2EClient;
   let tenantBAdminClient: E2EClient;
+  let prisma: PrismaService;
 
   beforeAll(async () => {
     const testApp: TestApp = await createE2eApp();
@@ -273,6 +275,8 @@ describe('Payments e2e', () => {
     await loginAsAdmin(adminClient);
     await loginAsUser(userClient);
     await login(tenantBAdminClient, 'admin2@test.com');
+
+    prisma = app.get(PrismaService);
   });
 
   afterAll(async () => {
@@ -348,6 +352,29 @@ describe('Payments e2e', () => {
       expect(payment.amount).toBe(invoice.amountDue);
       expect(payment.currency).toBe(invoice.currency);
       expectIsoDate(payment.paidAt, paidAt);
+
+      const auditLog = await prisma.auditLog.findFirst({
+        where: {
+          tenantId: payment.tenantId,
+          action: 'payment.created',
+          entityType: 'payment',
+          entityId: payment.id,
+        },
+      });
+      const metadata = auditLog?.metadata as
+        | Record<string, unknown>
+        | undefined;
+
+      expect(auditLog).toBeDefined();
+      expect(auditLog?.tenantId).toBe(payment.tenantId);
+      expect(auditLog?.actorUserId).toBeDefined();
+      expect(metadata).toMatchObject({
+        invoiceId: payment.invoiceId,
+        status: payment.status,
+        amount: payment.amount,
+        currency: payment.currency,
+        provider: payment.provider,
+      });
 
       const invoiceRes = await adminClient
         .get(`/invoices/${invoice.id}`)

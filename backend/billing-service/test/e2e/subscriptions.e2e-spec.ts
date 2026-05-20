@@ -3,6 +3,7 @@ import { ContextIdFactory, ModuleRef } from '@nestjs/core';
 import { Server } from 'http';
 import type { BillingInterval, SubscriptionStatus } from '@prisma/client';
 import { SubscriptionsService } from '../../src/subscriptions/subscriptions.service';
+import { PrismaService } from '../../src/prisma.service';
 import { createE2eApp, TestApp } from '../utils/e2e-app';
 import { E2EClient } from '../utils/e2e-client';
 import { login, loginAsAdmin, loginAsUser } from '../utils/e2e-auth';
@@ -192,6 +193,7 @@ describe('Subscriptions e2e', () => {
   let userClient: E2EClient;
   let tenantBAdminClient: E2EClient;
   let subscriptionsService: SubscriptionsService;
+  let prisma: PrismaService;
 
   beforeAll(async () => {
     const testApp: TestApp = await createE2eApp();
@@ -216,6 +218,7 @@ describe('Subscriptions e2e', () => {
         strict: false,
       },
     );
+    prisma = app.get(PrismaService);
   });
 
   afterAll(async () => {
@@ -630,6 +633,64 @@ describe('Subscriptions e2e', () => {
   });
 
   describe('cancel subscription', () => {
+    it('writes audit logs for subscription create and cancel', async () => {
+      const customer = await createTestCustomer(adminClient);
+      const product = await createTestProduct(adminClient);
+      const plan = await createTestPlan(adminClient, product.id);
+      const created = await createTestSubscription(
+        adminClient,
+        customer.id,
+        plan.id,
+      );
+
+      const res = await adminClient
+        .patch(`/subscriptions/${created.id}/cancel`, {
+          cancelAtPeriodEnd: true,
+        })
+        .expect(200);
+      const canceled = res.body as SubscriptionResponse;
+
+      const logs = await prisma.auditLog.findMany({
+        where: {
+          tenantId: created.tenantId,
+          entityType: 'subscription',
+          entityId: created.id,
+          action: {
+            in: ['subscription.created', 'subscription.canceled'],
+          },
+        },
+        orderBy: { createdAt: 'asc' },
+      });
+
+      expect(logs.map((log) => log.action)).toEqual([
+        'subscription.created',
+        'subscription.canceled',
+      ]);
+      expect(logs.every((log) => log.actorUserId != null)).toBe(true);
+
+      const createdMetadata = logs[0]?.metadata as
+        | Record<string, unknown>
+        | undefined;
+      const canceledMetadata = logs[1]?.metadata as
+        | Record<string, unknown>
+        | undefined;
+
+      expect(createdMetadata).toMatchObject({
+        customerId: created.customerId,
+        planId: created.planId,
+        amountSnapshot: created.amountSnapshot,
+        currencySnapshot: created.currencySnapshot,
+        intervalSnapshot: created.intervalSnapshot,
+        intervalCountSnapshot: created.intervalCountSnapshot,
+        cancelAtPeriodEnd: created.cancelAtPeriodEnd,
+      });
+      expect(canceledMetadata).toMatchObject({
+        cancelAtPeriodEnd: true,
+        statusBefore: created.status,
+        statusAfter: canceled.status,
+      });
+    });
+
     it('cancels subscription at period end', async () => {
       const customer = await createTestCustomer(adminClient);
       const product = await createTestProduct(adminClient);
