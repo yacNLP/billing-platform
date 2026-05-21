@@ -262,6 +262,26 @@ type JobSummary = {
 
 These jobs are manually triggered. There is no cron scheduler yet.
 
+## Audit Logs
+
+```text
+GET /audit-logs
+```
+
+Audit logs are ADMIN-only and tenant-scoped.
+
+Supported query parameters:
+
+- `page`
+- `pageSize` up to `100`
+- `action`
+- `entityType`
+- `entityId`
+
+Results are returned newest first by `createdAt`.
+
+The response does not expose `tenantId`; tenant isolation is enforced from the authenticated request context.
+
 ## Analytics
 
 ```text

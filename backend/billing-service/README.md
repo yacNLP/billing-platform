@@ -269,6 +269,28 @@ They are restricted to `ADMIN` users.
 
 These are not cron jobs yet. They are triggered from the admin dashboard or directly through the API.
 
+## Audit Logs
+
+RevenueOps writes audit logs for important operator actions such as customer, catalog, subscription, invoice, payment, and admin job changes.
+
+Audit logs can be read through:
+
+```text
+GET /audit-logs
+```
+
+This endpoint is restricted to `ADMIN` users and is scoped to the authenticated tenant.
+
+Supported query parameters:
+
+- `page`
+- `pageSize` up to `100`
+- `action`
+- `entityType`
+- `entityId`
+
+Results are sorted by `createdAt` descending. The API response intentionally does not include `tenantId`.
+
 ## Analytics
 
 The analytics endpoint exposes a tenant-scoped billing summary:
