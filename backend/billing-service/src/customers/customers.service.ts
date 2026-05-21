@@ -77,9 +77,7 @@ export class CustomersService {
           tenantId,
         },
       });
-      this.logger.log(
-        `Created customer with id=${customer.id} and email=${customer.email}`,
-      );
+      this.logger.log(`Created customer with id=${customer.id}`);
       await this.auditLogs.record({
         action: AuditLogAction.CustomerCreated,
         entityType: AuditLogEntityType.Customer,
@@ -91,13 +89,11 @@ export class CustomersService {
         e instanceof Prisma.PrismaClientKnownRequestError &&
         e.code === 'P2002'
       ) {
-        this.logger.warn(`duplicate email=${data.email}`);
+        this.logger.warn('duplicate customer email');
         throw new ConflictException('Email already exists');
       }
 
-      this.logger.error(
-        `create customer failed email=${data.email}: ${errorMessage(e)}`,
-      );
+      this.logger.error(`create customer failed: ${errorMessage(e)}`);
       throw e;
     }
   }
@@ -122,7 +118,7 @@ export class CustomersService {
     } catch (e: unknown) {
       if (e instanceof Prisma.PrismaClientKnownRequestError) {
         if (e.code === 'P2002') {
-          this.logger.warn(`duplicate email=${data.email}`);
+          this.logger.warn('duplicate customer email');
           throw new ConflictException('Email already exists');
         }
         if (e.code === 'P2025') {
