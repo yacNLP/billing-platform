@@ -14,6 +14,7 @@ import { PaymentsModule } from './payments/payments.module';
 import { AdminJobsModule } from './admin-jobs/admin-jobs.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { AuditLogsModule } from './audit-logs/audit-logs.module';
+import { RevenueActionsModule } from './revenue-actions/revenue-actions.module';
 
 import { JwtAuthGuard } from './auth/jwt.guard';
 import { TenantGuard } from './common/tenant/tenant.guard';
@@ -33,6 +34,7 @@ import { RolesGuard } from './auth/roles.guard';
     AdminJobsModule,
     AnalyticsModule,
     AuditLogsModule,
+    RevenueActionsModule,
   ],
   controllers: [AppController],
   providers: [

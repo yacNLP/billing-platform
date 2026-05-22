@@ -1,0 +1,248 @@
+import { INestApplication } from '@nestjs/common';
+import type { BillingInterval, Invoice } from '@prisma/client';
+import { Server } from 'http';
+
+import { PrismaService } from '../../src/prisma.service';
+import { createE2eApp, TestApp } from '../utils/e2e-app';
+import { E2EClient } from '../utils/e2e-client';
+import { login, loginAsAdmin } from '../utils/e2e-auth';
+
+jest.setTimeout(20_000);
+
+interface CustomerResponse {
+  id: number;
+}
+
+interface ProductResponse {
+  id: number;
+}
+
+interface PlanResponse {
+  id: number;
+}
+
+interface SubscriptionResponse {
+  id: number;
+}
+
+interface RevenueActionResponse {
+  key: string;
+  severity: 'LOW' | 'MEDIUM' | 'HIGH';
+  type: 'OVERDUE_INVOICE' | 'PAST_DUE_SUBSCRIPTION' | 'FAILED_PAYMENT';
+  entityType: string;
+  entityId: number;
+  amount?: number;
+  currency?: string;
+  suggestedAction: string;
+  createdFromRule: string;
+}
+
+interface PaginatedRevenueActions {
+  data: RevenueActionResponse[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+let uniqueCounter = 0;
+
+function uniqueSuffix(): string {
+  uniqueCounter += 1;
+  return `${Date.now()}_${uniqueCounter}`;
+}
+
+describe('Revenue actions e2e', () => {
+  let app: INestApplication;
+  let server: Server;
+  let adminClient: E2EClient;
+  let tenantBAdminClient: E2EClient;
+  let prisma: PrismaService;
+
+  beforeAll(async () => {
+    const testApp: TestApp = await createE2eApp();
+    app = testApp.app;
+    server = testApp.server;
+
+    adminClient = new E2EClient(server);
+    tenantBAdminClient = new E2EClient(server);
+
+    await loginAsAdmin(adminClient);
+    await login(tenantBAdminClient, 'admin2@test.com');
+
+    prisma = app.get(PrismaService);
+  });
+
+  afterAll(async () => {
+    await app.close();
+  });
+
+  async function createCustomer(client: E2EClient): Promise<CustomerResponse> {
+    const suffix = uniqueSuffix();
+    const res = await client
+      .post('/customers', {
+        name: `Revenue Action Customer ${suffix}`,
+        email: `revenue_action_customer_${suffix}@example.com`,
+      })
+      .expect(201);
+
+    return res.body as CustomerResponse;
+  }
+
+  async function createProduct(client: E2EClient): Promise<ProductResponse> {
+    const suffix = uniqueSuffix();
+    const res = await client
+      .post('/products', {
+        name: `Revenue Action Product ${suffix}`,
+        description: `Revenue action product ${suffix}`,
+        isActive: true,
+      })
+      .expect(201);
+
+    return res.body as ProductResponse;
+  }
+
+  async function createPlan(
+    client: E2EClient,
+    productId: number,
+  ): Promise<PlanResponse> {
+    const suffix = uniqueSuffix();
+    const interval: BillingInterval = 'MONTH';
+    const res = await client
+      .post('/plans', {
+        code: `REVENUE_ACTION_PLAN_${suffix}`,
+        name: `Revenue Action Plan ${suffix}`,
+        description: 'Revenue action test plan',
+        amount: 4900,
+        currency: 'EUR',
+        interval,
+        intervalCount: 1,
+        trialDays: 0,
+        active: true,
+        productId,
+      })
+      .expect(201);
+
+    return res.body as PlanResponse;
+  }
+
+  async function createSubscription(
+    client: E2EClient,
+    customerId: number,
+    planId: number,
+  ): Promise<SubscriptionResponse> {
+    const res = await client
+      .post('/subscriptions', { customerId, planId })
+      .expect(201);
+
+    return res.body as SubscriptionResponse;
+  }
+
+  async function createInitialInvoice(client: E2EClient): Promise<Invoice> {
+    const customer = await createCustomer(client);
+    const product = await createProduct(client);
+    const plan = await createPlan(client, product.id);
+    const subscription = await createSubscription(client, customer.id, plan.id);
+
+    return prisma.invoice.findFirstOrThrow({
+      where: { subscriptionId: subscription.id },
+    });
+  }
+
+  it('creates one action for an overdue invoice with a remaining amount', async () => {
+    const invoice = await createInitialInvoice(adminClient);
+    const overdueInvoice = await prisma.invoice.update({
+      where: { id: invoice.id },
+      data: {
+        status: 'OVERDUE',
+        amountPaid: 900,
+        dueAt: new Date('2020-01-01T00:00:00.000Z'),
+      },
+    });
+
+    const res = await adminClient
+      .get('/revenue-actions')
+      .query({ type: 'OVERDUE_INVOICE' })
+      .expect(200);
+    const payload = res.body as PaginatedRevenueActions;
+    const action = payload.data.find(
+      (item) => item.entityId === overdueInvoice.id,
+    );
+
+    expect(action).toMatchObject({
+      key: `overdue-invoice:invoice:${overdueInvoice.id}`,
+      severity: 'HIGH',
+      type: 'OVERDUE_INVOICE',
+      entityType: 'invoice',
+      entityId: overdueInvoice.id,
+      amount: overdueInvoice.amountDue - overdueInvoice.amountPaid,
+      currency: overdueInvoice.currency,
+      suggestedAction: 'Review invoice and collect payment',
+      createdFromRule: 'overdue-invoice',
+    });
+    expect(
+      payload.data.filter((item) => item.entityId === overdueInvoice.id),
+    ).toHaveLength(1);
+  });
+
+  it('does not create an overdue invoice action for a paid invoice', async () => {
+    const invoice = await createInitialInvoice(adminClient);
+    const paidInvoice = await prisma.invoice.update({
+      where: { id: invoice.id },
+      data: {
+        status: 'PAID',
+        amountPaid: invoice.amountDue,
+        paidAt: new Date(),
+      },
+    });
+
+    const res = await adminClient
+      .get('/revenue-actions')
+      .query({ type: 'OVERDUE_INVOICE' })
+      .expect(200);
+    const payload = res.body as PaginatedRevenueActions;
+
+    expect(payload.data.some((item) => item.entityId === paidInvoice.id)).toBe(
+      false,
+    );
+  });
+
+  it('keeps overdue invoice actions tenant-scoped', async () => {
+    const tenantAInvoice = await createInitialInvoice(adminClient);
+    const tenantBInvoice = await createInitialInvoice(tenantBAdminClient);
+
+    await prisma.invoice.updateMany({
+      where: { id: { in: [tenantAInvoice.id, tenantBInvoice.id] } },
+      data: {
+        status: 'OVERDUE',
+        dueAt: new Date('2020-01-02T00:00:00.000Z'),
+      },
+    });
+
+    const tenantARes = await adminClient
+      .get('/revenue-actions')
+      .query({ type: 'OVERDUE_INVOICE' })
+      .expect(200);
+    const tenantAPayload = tenantARes.body as PaginatedRevenueActions;
+
+    expect(
+      tenantAPayload.data.some((item) => item.entityId === tenantAInvoice.id),
+    ).toBe(true);
+    expect(
+      tenantAPayload.data.some((item) => item.entityId === tenantBInvoice.id),
+    ).toBe(false);
+
+    const tenantBRes = await tenantBAdminClient
+      .get('/revenue-actions')
+      .query({ type: 'OVERDUE_INVOICE' })
+      .expect(200);
+    const tenantBPayload = tenantBRes.body as PaginatedRevenueActions;
+
+    expect(
+      tenantBPayload.data.some((item) => item.entityId === tenantBInvoice.id),
+    ).toBe(true);
+    expect(
+      tenantBPayload.data.some((item) => item.entityId === tenantAInvoice.id),
+    ).toBe(false);
+  });
+});
