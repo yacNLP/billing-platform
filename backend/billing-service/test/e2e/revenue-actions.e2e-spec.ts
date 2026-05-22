@@ -156,13 +156,13 @@ describe('Revenue actions e2e', () => {
       data: {
         status: 'OVERDUE',
         amountPaid: 900,
-        dueAt: new Date('2020-01-01T00:00:00.000Z'),
+        dueAt: new Date('1900-01-01T00:00:00.000Z'),
       },
     });
 
     const res = await adminClient
       .get('/revenue-actions')
-      .query({ type: 'OVERDUE_INVOICE' })
+      .query({ type: 'OVERDUE_INVOICE', pageSize: 100 })
       .expect(200);
     const payload = res.body as PaginatedRevenueActions;
     const action = payload.data.find(
@@ -198,7 +198,7 @@ describe('Revenue actions e2e', () => {
 
     const res = await adminClient
       .get('/revenue-actions')
-      .query({ type: 'OVERDUE_INVOICE' })
+      .query({ type: 'OVERDUE_INVOICE', pageSize: 100 })
       .expect(200);
     const payload = res.body as PaginatedRevenueActions;
 
@@ -215,13 +215,13 @@ describe('Revenue actions e2e', () => {
       where: { id: { in: [tenantAInvoice.id, tenantBInvoice.id] } },
       data: {
         status: 'OVERDUE',
-        dueAt: new Date('2020-01-02T00:00:00.000Z'),
+        dueAt: new Date('1900-01-02T00:00:00.000Z'),
       },
     });
 
     const tenantARes = await adminClient
       .get('/revenue-actions')
-      .query({ type: 'OVERDUE_INVOICE' })
+      .query({ type: 'OVERDUE_INVOICE', pageSize: 100 })
       .expect(200);
     const tenantAPayload = tenantARes.body as PaginatedRevenueActions;
 
@@ -234,7 +234,7 @@ describe('Revenue actions e2e', () => {
 
     const tenantBRes = await tenantBAdminClient
       .get('/revenue-actions')
-      .query({ type: 'OVERDUE_INVOICE' })
+      .query({ type: 'OVERDUE_INVOICE', pageSize: 100 })
       .expect(200);
     const tenantBPayload = tenantBRes.body as PaginatedRevenueActions;
 
@@ -243,6 +243,111 @@ describe('Revenue actions e2e', () => {
     ).toBe(true);
     expect(
       tenantBPayload.data.some((item) => item.entityId === tenantAInvoice.id),
+    ).toBe(false);
+  });
+
+  it('creates one action for a past due subscription', async () => {
+    const customer = await createCustomer(adminClient);
+    const product = await createProduct(adminClient);
+    const plan = await createPlan(adminClient, product.id);
+    const subscription = await createSubscription(
+      adminClient,
+      customer.id,
+      plan.id,
+    );
+
+    await prisma.subscription.update({
+      where: { id: subscription.id },
+      data: {
+        status: 'PAST_DUE',
+        currentPeriodEnd: new Date('1900-01-01T00:00:00.000Z'),
+      },
+    });
+
+    const res = await adminClient
+      .get('/revenue-actions')
+      .query({ type: 'PAST_DUE_SUBSCRIPTION', pageSize: 100 })
+      .expect(200);
+    const payload = res.body as PaginatedRevenueActions;
+    const action = payload.data.find(
+      (item) => item.entityId === subscription.id,
+    );
+
+    expect(action).toMatchObject({
+      key: `past-due-subscription:subscription:${subscription.id}`,
+      severity: 'HIGH',
+      type: 'PAST_DUE_SUBSCRIPTION',
+      entityType: 'subscription',
+      entityId: subscription.id,
+      suggestedAction: 'Review subscription billing status',
+      createdFromRule: 'past-due-subscription',
+    });
+    expect(
+      payload.data.filter((item) => item.entityId === subscription.id),
+    ).toHaveLength(1);
+  });
+
+  it('keeps past due subscription actions tenant-scoped', async () => {
+    const tenantACustomer = await createCustomer(adminClient);
+    const tenantAProduct = await createProduct(adminClient);
+    const tenantAPlan = await createPlan(adminClient, tenantAProduct.id);
+    const tenantASubscription = await createSubscription(
+      adminClient,
+      tenantACustomer.id,
+      tenantAPlan.id,
+    );
+
+    const tenantBCustomer = await createCustomer(tenantBAdminClient);
+    const tenantBProduct = await createProduct(tenantBAdminClient);
+    const tenantBPlan = await createPlan(tenantBAdminClient, tenantBProduct.id);
+    const tenantBSubscription = await createSubscription(
+      tenantBAdminClient,
+      tenantBCustomer.id,
+      tenantBPlan.id,
+    );
+
+    await prisma.subscription.updateMany({
+      where: {
+        id: { in: [tenantASubscription.id, tenantBSubscription.id] },
+      },
+      data: {
+        status: 'PAST_DUE',
+        currentPeriodEnd: new Date('1900-01-02T00:00:00.000Z'),
+      },
+    });
+
+    const tenantARes = await adminClient
+      .get('/revenue-actions')
+      .query({ type: 'PAST_DUE_SUBSCRIPTION', pageSize: 100 })
+      .expect(200);
+    const tenantAPayload = tenantARes.body as PaginatedRevenueActions;
+
+    expect(
+      tenantAPayload.data.some(
+        (item) => item.entityId === tenantASubscription.id,
+      ),
+    ).toBe(true);
+    expect(
+      tenantAPayload.data.some(
+        (item) => item.entityId === tenantBSubscription.id,
+      ),
+    ).toBe(false);
+
+    const tenantBRes = await tenantBAdminClient
+      .get('/revenue-actions')
+      .query({ type: 'PAST_DUE_SUBSCRIPTION', pageSize: 100 })
+      .expect(200);
+    const tenantBPayload = tenantBRes.body as PaginatedRevenueActions;
+
+    expect(
+      tenantBPayload.data.some(
+        (item) => item.entityId === tenantBSubscription.id,
+      ),
+    ).toBe(true);
+    expect(
+      tenantBPayload.data.some(
+        (item) => item.entityId === tenantASubscription.id,
+      ),
     ).toBe(false);
   });
 });
