@@ -13,6 +13,7 @@ export const adminNavigation: AdminNavigationItem[] = [
   { id: "subscriptions", label: "Subscriptions", path: "/subscriptions" },
   { id: "invoices", label: "Invoices", path: "/invoices" },
   { id: "payments", label: "Payments", path: "/payments" },
+  { id: "revenue-actions", label: "Action Center", path: "/revenue-actions" },
   { id: "admin-jobs", label: "Admin Jobs", path: "/admin-jobs" },
 ];
 

@@ -20,7 +20,7 @@ const navigationGroups = [
   },
   {
     label: "Automation",
-    itemIds: ["admin-jobs"],
+    itemIds: ["revenue-actions", "admin-jobs"],
   },
 ];
 
@@ -32,6 +32,7 @@ const navigationIconMap: Record<string, string> = {
   payments: "PA",
   plans: "PL",
   products: "PR",
+  "revenue-actions": "AC",
   subscriptions: "SU",
 };
 
