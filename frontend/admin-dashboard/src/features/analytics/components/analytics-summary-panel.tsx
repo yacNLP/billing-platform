@@ -1,10 +1,18 @@
 "use client";
 
+import Link from "next/link";
+
 import { useGetAnalyticsSummaryQuery } from "@/features/analytics/analytics-api";
 import type {
   AnalyticsSummary,
   SubscriptionsByPlan,
 } from "@/features/analytics/types";
+import { useGetRevenueActionsQuery } from "@/features/revenue-actions/revenue-actions-api";
+import type {
+  RevenueAction,
+  RevenueActionSeverity,
+  RevenueActionType,
+} from "@/features/revenue-actions/types";
 import { formatMoney } from "@/lib/formatters";
 
 const numberFormatter = new Intl.NumberFormat("en-US");
@@ -138,6 +146,21 @@ const toneClassNames: Record<
   },
 };
 
+const actionSeverityClassNameMap: Record<RevenueActionSeverity, string> = {
+  HIGH:
+    "inline-flex rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-red-700",
+  MEDIUM:
+    "inline-flex rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-amber-700",
+  LOW:
+    "inline-flex rounded-full border border-slate-200 bg-slate-100 px-2.5 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-slate-600",
+};
+
+const actionTypeLabelMap: Record<RevenueActionType, string> = {
+  FAILED_PAYMENT: "Failed payment",
+  OVERDUE_INVOICE: "Overdue invoice",
+  PAST_DUE_SUBSCRIPTION: "Past due subscription",
+};
+
 export function AnalyticsSummaryPanel() {
   const { data, error, isLoading, isFetching } = useGetAnalyticsSummaryQuery();
 
@@ -199,6 +222,8 @@ export function AnalyticsSummaryPanel() {
           <FinancialPositionPanel data={data} />
           <OperatingSnapshot data={data} />
         </section>
+
+        <RecommendedActionsPanel />
 
         <section className="grid gap-6 xl:grid-cols-[1.45fr_1fr]">
           <CollectionRiskPanel data={data} />
@@ -329,6 +354,90 @@ function OperatingSnapshot({ data }: { data: AnalyticsSummary }) {
         />
       </dl>
     </aside>
+  );
+}
+
+
+function RecommendedActionsPanel() {
+  const { data, error, isLoading } = useGetRevenueActionsQuery({
+    page: 1,
+    pageSize: 3,
+  });
+
+  return (
+    <section className="rounded-[2rem] border border-[var(--color-border)] bg-white/90 p-6 shadow-[0_18px_50px_rgba(15,23,42,0.06)]">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <SectionHeader
+          eyebrow="Action Center"
+          title="Recommended actions"
+          description="The highest-priority revenue issues detected from billing activity."
+        />
+
+        <Link
+          className="inline-flex rounded-xl border border-[var(--color-border)] bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+          href="/revenue-actions"
+        >
+          View all actions
+        </Link>
+      </div>
+
+      {isLoading ? (
+        <p className="mt-6 rounded-[1.25rem] border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 text-sm text-slate-600">
+          Loading recommended actions...
+        </p>
+      ) : error ? (
+        <p className="mt-6 rounded-[1.25rem] border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          Unable to load recommended actions.
+        </p>
+      ) : !data || data.data.length === 0 ? (
+        <p className="mt-6 rounded-[1.25rem] border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 text-sm text-slate-600">
+          No recommended actions need attention right now.
+        </p>
+      ) : (
+        <ul className="mt-6 divide-y divide-[var(--color-border)] rounded-[1.25rem] border border-[var(--color-border)] bg-white">
+          {data.data.map((action) => (
+            <RecommendedActionItem action={action} key={action.key} />
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+function RecommendedActionItem({ action }: { action: RevenueAction }) {
+  const href =
+    action.entityType === "invoice"
+      ? "/invoices/" + action.entityId
+      : "/subscriptions/" + action.entityId;
+
+  return (
+    <li className="flex flex-col gap-4 px-4 py-4 lg:flex-row lg:items-center lg:justify-between">
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className={actionSeverityClassNameMap[action.severity]}>
+            {action.severity}
+          </span>
+          <span className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+            {actionTypeLabelMap[action.type]}
+          </span>
+        </div>
+        <p className="mt-2 text-sm font-semibold text-slate-950">
+          {action.title}
+        </p>
+        {action.amount !== undefined && action.currency ? (
+          <p className="mt-1 text-sm text-slate-600">
+            {formatMoney(action.amount, action.currency)}
+          </p>
+        ) : null}
+      </div>
+
+      <Link
+        className="inline-flex rounded-xl border border-[var(--color-border)] bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 lg:shrink-0"
+        href={href}
+      >
+        {action.entityType === "invoice" ? "View invoice" : "View subscription"}
+      </Link>
+    </li>
   );
 }
 
