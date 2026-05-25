@@ -5,7 +5,7 @@ import { Server } from 'http';
 import { PrismaService } from '../../src/prisma.service';
 import { createE2eApp, TestApp } from '../utils/e2e-app';
 import { E2EClient } from '../utils/e2e-client';
-import { login, loginAsAdmin } from '../utils/e2e-auth';
+import { login, loginAsAdmin, loginAsUser } from '../utils/e2e-auth';
 
 jest.setTimeout(20_000);
 
@@ -69,6 +69,7 @@ describe('Revenue actions e2e', () => {
   let app: INestApplication;
   let server: Server;
   let adminClient: E2EClient;
+  let userClient: E2EClient;
   let tenantBAdminClient: E2EClient;
   let prisma: PrismaService;
 
@@ -78,9 +79,11 @@ describe('Revenue actions e2e', () => {
     server = testApp.server;
 
     adminClient = new E2EClient(server);
+    userClient = new E2EClient(server);
     tenantBAdminClient = new E2EClient(server);
 
     await loginAsAdmin(adminClient);
+    await loginAsUser(userClient);
     await login(tenantBAdminClient, 'admin2@test.com');
 
     prisma = app.get(PrismaService);
@@ -180,6 +183,153 @@ describe('Revenue actions e2e', () => {
 
     return res.body as PaymentResponse;
   }
+
+  async function createRevenueActionContractFixtures(): Promise<void> {
+    const overdueInvoice = await createInitialInvoice(adminClient);
+    await prisma.invoice.update({
+      where: { id: overdueInvoice.id },
+      data: {
+        status: 'OVERDUE',
+        dueAt: new Date('1899-01-01T00:00:00.000Z'),
+      },
+    });
+
+    const customer = await createCustomer(adminClient);
+    const product = await createProduct(adminClient);
+    const plan = await createPlan(adminClient, product.id);
+    const pastDueSubscription = await createSubscription(
+      adminClient,
+      customer.id,
+      plan.id,
+    );
+
+    await prisma.subscription.update({
+      where: { id: pastDueSubscription.id },
+      data: {
+        status: 'PAST_DUE',
+        currentPeriodEnd: new Date('1899-01-01T00:00:00.000Z'),
+      },
+    });
+
+    const failedPaymentInvoice = await createInitialInvoice(adminClient);
+    await createFailedPayment(adminClient, failedPaymentInvoice);
+  }
+
+  describe('contract', () => {
+    it('USER can list revenue actions', async () => {
+      await createRevenueActionContractFixtures();
+
+      const res = await userClient.get('/revenue-actions').expect(200);
+      const payload = res.body as PaginatedRevenueActions;
+
+      expect(Array.isArray(payload.data)).toBe(true);
+      expect(payload.total).toBeGreaterThanOrEqual(1);
+      expect(payload.page).toBe(1);
+      expect(payload.pageSize).toBe(20);
+      expect(payload.totalPages).toBeGreaterThanOrEqual(1);
+    });
+
+    it('filter by severity HIGH returns only HIGH actions', async () => {
+      await createRevenueActionContractFixtures();
+
+      const res = await adminClient
+        .get('/revenue-actions')
+        .query({ severity: 'HIGH', pageSize: 100 })
+        .expect(200);
+      const payload = res.body as PaginatedRevenueActions;
+
+      expect(payload.data.length).toBeGreaterThan(0);
+      expect(payload.data.every((item) => item.severity === 'HIGH')).toBe(true);
+    });
+
+    it('filter by severity MEDIUM returns only MEDIUM actions', async () => {
+      await createRevenueActionContractFixtures();
+
+      const res = await adminClient
+        .get('/revenue-actions')
+        .query({ severity: 'MEDIUM', pageSize: 100 })
+        .expect(200);
+      const payload = res.body as PaginatedRevenueActions;
+
+      expect(payload.data.length).toBeGreaterThan(0);
+      expect(payload.data.every((item) => item.severity === 'MEDIUM')).toBe(
+        true,
+      );
+    });
+
+    it('filter by type OVERDUE_INVOICE returns only overdue invoice actions', async () => {
+      await createRevenueActionContractFixtures();
+
+      const res = await adminClient
+        .get('/revenue-actions')
+        .query({ type: 'OVERDUE_INVOICE', pageSize: 100 })
+        .expect(200);
+      const payload = res.body as PaginatedRevenueActions;
+
+      expect(payload.data.length).toBeGreaterThan(0);
+      expect(
+        payload.data.every((item) => item.type === 'OVERDUE_INVOICE'),
+      ).toBe(true);
+    });
+
+    it('filter by type PAST_DUE_SUBSCRIPTION returns only past due subscription actions', async () => {
+      await createRevenueActionContractFixtures();
+
+      const res = await adminClient
+        .get('/revenue-actions')
+        .query({ type: 'PAST_DUE_SUBSCRIPTION', pageSize: 100 })
+        .expect(200);
+      const payload = res.body as PaginatedRevenueActions;
+
+      expect(payload.data.length).toBeGreaterThan(0);
+      expect(
+        payload.data.every((item) => item.type === 'PAST_DUE_SUBSCRIPTION'),
+      ).toBe(true);
+    });
+
+    it('filter by type FAILED_PAYMENT returns only failed payment actions', async () => {
+      await createRevenueActionContractFixtures();
+
+      const res = await adminClient
+        .get('/revenue-actions')
+        .query({ type: 'FAILED_PAYMENT', pageSize: 100 })
+        .expect(200);
+      const payload = res.body as PaginatedRevenueActions;
+
+      expect(payload.data.length).toBeGreaterThan(0);
+      expect(payload.data.every((item) => item.type === 'FAILED_PAYMENT')).toBe(
+        true,
+      );
+    });
+
+    it('pagination works on combined actions', async () => {
+      await createRevenueActionContractFixtures();
+
+      const firstPage = await adminClient
+        .get('/revenue-actions')
+        .query({ page: 1, pageSize: 2 })
+        .expect(200);
+      const firstPayload = firstPage.body as PaginatedRevenueActions;
+
+      expect(firstPayload.page).toBe(1);
+      expect(firstPayload.pageSize).toBe(2);
+      expect(firstPayload.data).toHaveLength(2);
+      expect(firstPayload.total).toBeGreaterThanOrEqual(3);
+      expect(firstPayload.totalPages).toBe(Math.ceil(firstPayload.total / 2));
+
+      const secondPage = await adminClient
+        .get('/revenue-actions')
+        .query({ page: 2, pageSize: 2 })
+        .expect(200);
+      const secondPayload = secondPage.body as PaginatedRevenueActions;
+
+      expect(secondPayload.page).toBe(2);
+      expect(secondPayload.pageSize).toBe(2);
+      expect(secondPayload.data.length).toBeGreaterThan(0);
+      expect(secondPayload.total).toBe(firstPayload.total);
+      expect(secondPayload.totalPages).toBe(firstPayload.totalPages);
+    });
+  });
 
   it('creates one action for an overdue invoice with a remaining amount', async () => {
     const invoice = await createInitialInvoice(adminClient);
