@@ -12,6 +12,8 @@ import {
   useMarkInvoicePaidMutation,
   useMarkInvoiceVoidMutation,
 } from "@/features/invoices/invoices-api";
+import { useGetPaymentsQuery } from "@/features/payments/payments-api";
+import type { PaymentStatus } from "@/features/payments/types";
 import { useGetSubscriptionsQuery } from "@/features/subscriptions/subscriptions-api";
 import type { BillingInterval } from "@/features/subscriptions/types";
 
@@ -39,6 +41,21 @@ const intervalLabelMap: Record<BillingInterval, string> = {
   YEAR: "year",
 };
 
+const paymentStatusClassNameMap: Record<PaymentStatus, string> = {
+  SUCCESS:
+    "inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-emerald-700",
+  FAILED:
+    "inline-flex rounded-full border border-red-200 bg-red-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-red-700",
+};
+
+function formatProviderLabel(provider: string | null): string {
+  if (!provider) {
+    return "Manual";
+  }
+
+  return provider.charAt(0).toUpperCase() + provider.slice(1);
+}
+
 function formatMoney(cents: number, currency: string): string {
   return `${(cents / 100).toFixed(2)} ${currency}`;
 }
@@ -55,6 +72,18 @@ export function InvoiceDetails({ id }: InvoiceDetailsProps) {
     page: 1,
     pageSize: 100,
   });
+  const {
+    data: payments,
+    error: paymentsError,
+    isLoading: isLoadingPayments,
+  } = useGetPaymentsQuery(
+    {
+      invoiceId: id,
+      page: 1,
+      pageSize: 10,
+    },
+    { skip: !data },
+  );
   const [actionMode, setActionMode] = useState<"paid" | "void" | "overdue" | null>(
     null,
   );
@@ -130,6 +159,7 @@ export function InvoiceDetails({ id }: InvoiceDetailsProps) {
   const periodEndLabel = dateFormatter.format(new Date(data.periodEnd));
   const billingPeriodLabel = `${periodStartLabel} → ${periodEndLabel}`;
   const dueDateLabel = dateFormatter.format(new Date(data.dueAt));
+  const paymentAttempts = payments?.data ?? [];
 
   return (
     <main className="pb-8 pt-2">
@@ -158,6 +188,11 @@ export function InvoiceDetails({ id }: InvoiceDetailsProps) {
               <DetailItem label="Invoice number" value={data.invoiceNumber} />
               <DetailItem label="Customer" value={customerLabel} />
               <DetailItem label="Subscription" value={subscriptionLabel} />
+              <DetailItem label="Billing period" value={billingPeriodLabel} />
+              <DetailItem
+                label="Issued"
+                value={dateFormatter.format(new Date(data.issuedAt))}
+              />
             </DetailSection>
 
             <DetailSection
@@ -170,16 +205,68 @@ export function InvoiceDetails({ id }: InvoiceDetailsProps) {
               <DetailItem label="Due date" value={dueDateLabel} />
             </DetailSection>
 
-            <DetailSection
-              description="Billing period covered by this invoice."
-              title="Billing period"
-            >
-              <DetailItem label="Period" value={billingPeriodLabel} />
-              <DetailItem
-                label="Issued"
-                value={dateFormatter.format(new Date(data.issuedAt))}
-              />
-            </DetailSection>
+            <section className="rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
+              <div className="space-y-2">
+                <h3 className="text-xl font-semibold tracking-tight text-slate-950">
+                  Payment attempts
+                </h3>
+                <p className="text-sm leading-6 text-slate-600">
+                  Payment attempts recorded against this invoice, including
+                  failed collection attempts.
+                </p>
+              </div>
+
+              {isLoadingPayments ? (
+                <p className="mt-5 rounded-[1.25rem] border border-[var(--color-border)] bg-white px-4 py-3 text-sm text-slate-600">
+                  Loading payment attempts...
+                </p>
+              ) : paymentsError ? (
+                <p className="mt-5 rounded-[1.25rem] border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                  Unable to load payment attempts.
+                </p>
+              ) : paymentAttempts.length === 0 ? (
+                <p className="mt-5 rounded-[1.25rem] border border-[var(--color-border)] bg-white px-4 py-3 text-sm text-slate-600">
+                  No payment attempts recorded yet.
+                </p>
+              ) : (
+                <ul className="mt-5 divide-y divide-[var(--color-border)] rounded-[1.25rem] border border-[var(--color-border)] bg-white">
+                  {paymentAttempts.map((payment) => (
+                    <li
+                      className="flex flex-col gap-3 px-4 py-3 lg:flex-row lg:items-center lg:justify-between"
+                      key={payment.id}
+                    >
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span
+                            className={paymentStatusClassNameMap[payment.status]}
+                          >
+                            {payment.status}
+                          </span>
+                          <p className="text-sm font-semibold text-slate-950">
+                            {formatMoney(payment.amount, payment.currency)}
+                          </p>
+                        </div>
+                        <p className="mt-2 text-sm text-slate-600">
+                          {formatProviderLabel(payment.provider)} · {
+                            payment.providerReference ?? "No provider reference"
+                          }
+                        </p>
+                        {payment.failureReason ? (
+                          <p className="mt-1 text-sm text-red-700">
+                            {payment.failureReason}
+                          </p>
+                        ) : null}
+                      </div>
+                      <p className="text-sm font-medium text-slate-500 lg:text-right">
+                        {payment.paidAt
+                          ? dateFormatter.format(new Date(payment.paidAt))
+                          : dateFormatter.format(new Date(payment.createdAt))}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
           </div>
 
           <aside className="space-y-6">

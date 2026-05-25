@@ -118,6 +118,7 @@ export function PaymentDetails({ id }: PaymentDetailsProps) {
               description="Invoice context used to understand how this payment affects collection."
               title="Related invoice"
             >
+              <DetailItem label="Invoice number" value={invoiceNumberLabel} />
               <DetailItem
                 label="Invoice status"
                 value={invoice?.status ?? "Loading invoice..."}
