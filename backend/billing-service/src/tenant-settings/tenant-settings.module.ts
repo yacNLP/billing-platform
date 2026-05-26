@@ -7,5 +7,6 @@ import { TenantSettingsService } from './tenant-settings.service';
   imports: [TenantModule],
   controllers: [TenantSettingsController],
   providers: [TenantSettingsService],
+  exports: [TenantSettingsService],
 })
 export class TenantSettingsModule {}

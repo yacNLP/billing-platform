@@ -1,8 +1,9 @@
 import { INestApplication } from '@nestjs/common';
 import { ContextIdFactory, ModuleRef } from '@nestjs/core';
-import { Server } from 'http';
+import { IncomingMessage, Server } from 'http';
 import type { BillingInterval } from '@prisma/client';
 
+import { InvoicePdfService } from '../../src/invoices/invoice-pdf.service';
 import { InvoicesService } from '../../src/invoices/invoices.service';
 import { PrismaService } from '../../src/prisma.service';
 import { createE2eApp, TestApp } from '../utils/e2e-app';
@@ -80,6 +81,19 @@ function uniqueSuffix(): string {
 
 function isoDaysFromNow(daysOffset: number): string {
   return new Date(Date.now() + daysOffset * 24 * 60 * 60 * 1000).toISOString();
+}
+
+function parsePdfResponse(
+  response: IncomingMessage,
+  callback: (error: Error | null, body?: Buffer) => void,
+) {
+  const chunks: Buffer[] = [];
+
+  response.on('data', (chunk: Buffer | string) => {
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+  });
+  response.on('end', () => callback(null, Buffer.concat(chunks)));
+  response.on('error', (error: Error) => callback(error));
 }
 
 async function createTestCustomer(
@@ -188,6 +202,7 @@ describe('Invoices e2e', () => {
   let adminClient: E2EClient;
   let userClient: E2EClient;
   let tenantBAdminClient: E2EClient;
+  let invoicePdfService: InvoicePdfService;
   let invoicesService: InvoicesService;
   let prisma: PrismaService;
 
@@ -207,6 +222,9 @@ describe('Invoices e2e', () => {
     const moduleRef = app.get(ModuleRef);
     const contextId = ContextIdFactory.create();
     moduleRef.registerRequestByContextId({ tenantId: 1 }, contextId);
+    invoicePdfService = await moduleRef.resolve(InvoicePdfService, contextId, {
+      strict: false,
+    });
     invoicesService = await moduleRef.resolve(InvoicesService, contextId, {
       strict: false,
     });
@@ -968,5 +986,90 @@ describe('Invoices e2e', () => {
 
     await adminClient.get(`/invoices/${invoice.id}`).expect(200);
     await tenantBAdminClient.get(`/invoices/${invoice.id}`).expect(404);
+  });
+
+  describe('invoice pdf', () => {
+    it('formats invoice PDF amounts from minor units', () => {
+      const service = invoicePdfService as unknown as {
+        formatMoney(cents: number, currency: string): string;
+      };
+
+      expect(service.formatMoney(4900, 'EUR')).toBe('49.00 EUR');
+    });
+
+    it('ADMIN can download invoice PDF', async () => {
+      const customer = await createTestCustomer(adminClient);
+      const product = await createTestProduct(adminClient);
+      const plan = await createTestPlan(adminClient, product.id);
+      const subscription = await createTestSubscription(
+        adminClient,
+        customer.id,
+        plan.id,
+      );
+      const invoice = await createTestInvoice(
+        adminClient,
+        customer.id,
+        subscription.id,
+      );
+
+      const response = await adminClient
+        .get(`/invoices/${invoice.id}/pdf`)
+        .buffer(true)
+        .parse(parsePdfResponse)
+        .expect(200);
+
+      expect(response.headers['content-type']).toContain('application/pdf');
+      expect(response.headers['content-disposition']).toContain(
+        `${invoice.invoiceNumber}.pdf`,
+      );
+      expect((response.body as Buffer).subarray(0, 4).toString()).toBe('%PDF');
+    });
+
+    it('USER can download invoice PDF', async () => {
+      const customer = await createTestCustomer(adminClient);
+      const product = await createTestProduct(adminClient);
+      const plan = await createTestPlan(adminClient, product.id);
+      const subscription = await createTestSubscription(
+        adminClient,
+        customer.id,
+        plan.id,
+      );
+      const invoice = await createTestInvoice(
+        adminClient,
+        customer.id,
+        subscription.id,
+      );
+
+      const response = await userClient
+        .get(`/invoices/${invoice.id}/pdf`)
+        .buffer(true)
+        .parse(parsePdfResponse)
+        .expect(200);
+
+      expect(response.headers['content-type']).toContain('application/pdf');
+      expect((response.body as Buffer).subarray(0, 4).toString()).toBe('%PDF');
+    });
+
+    it('tenant B cannot download tenant A invoice PDF', async () => {
+      const customer = await createTestCustomer(adminClient);
+      const product = await createTestProduct(adminClient);
+      const plan = await createTestPlan(adminClient, product.id);
+      const subscription = await createTestSubscription(
+        adminClient,
+        customer.id,
+        plan.id,
+      );
+      const invoice = await createTestInvoice(
+        adminClient,
+        customer.id,
+        subscription.id,
+      );
+
+      await tenantBAdminClient.get(`/invoices/${invoice.id}/pdf`).expect(404);
+    });
+
+    it('returns 404 for a non-existing invoice PDF', async () => {
+      await adminClient.get('/invoices/999999999/pdf').expect(404);
+    });
   });
 });

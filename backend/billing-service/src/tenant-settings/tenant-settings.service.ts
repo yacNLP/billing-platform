@@ -17,10 +17,15 @@ export class TenantSettingsService {
   ) {}
 
   async findCurrentTenantSettings(): Promise<TenantSettingsResponseDto> {
-    const tenantId = this.tenantContext.getTenantId();
-    const settings = await this.getOrCreateDefaultSettings(tenantId);
+    const settings = await this.getCurrentTenantSettingsEntity();
 
     return this.toResponse(settings);
+  }
+
+  async getCurrentTenantSettingsEntity(): Promise<TenantSettings> {
+    const tenantId = this.tenantContext.getTenantId();
+
+    return this.getOrCreateDefaultSettings(tenantId);
   }
 
   async upsertCurrentTenantSettings(
