@@ -22,6 +22,10 @@ const navigationGroups = [
     label: "Automation",
     itemIds: ["revenue-actions", "admin-jobs"],
   },
+  {
+    label: "Workspace",
+    itemIds: ["settings"],
+  },
 ];
 
 const navigationIconMap: Record<string, string> = {
@@ -33,6 +37,7 @@ const navigationIconMap: Record<string, string> = {
   plans: "PL",
   products: "PR",
   "revenue-actions": "AC",
+  settings: "SE",
   subscriptions: "SU",
 };
 
