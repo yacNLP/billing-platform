@@ -105,6 +105,32 @@ async function main() {
 
   console.log('Seeded tenant');
 
+  await syncSequence('TenantSettings');
+  await prisma.tenantSettings.upsert({
+    where: {
+      tenantId: tenant.id,
+    },
+    update: {},
+    create: {
+      tenantId: tenant.id,
+      companyName: 'ACME Revenue Operations',
+      billingEmail: 'billing@acme.com',
+      phone: '+33 1 23 45 67 89',
+      addressLine1: '10 Rue de la Paix',
+      addressLine2: null,
+      city: 'Paris',
+      postalCode: '75002',
+      country: 'France',
+      taxId: 'SIRET 123 456 789 00010',
+      vatNumber: 'FR12345678901',
+      defaultCurrency: 'EUR',
+      paymentTerms: 30,
+      invoiceFooter:
+        'Thank you for trusting ACME Revenue Operations. Please include the invoice number with your payment.',
+    },
+  });
+  console.log('Seeded tenant settings');
+
   // seed admin user
   await syncSequence('User');
 
