@@ -16,6 +16,7 @@ export const AuditLogAction = {
   InvoiceMarkedOverdue: 'invoice.marked_overdue',
   PaymentCreated: 'payment.created',
   AdminJobRun: 'admin_job.run',
+  TenantSettingsUpdated: 'tenant_settings.updated',
 } as const;
 
 export type AuditLogAction =

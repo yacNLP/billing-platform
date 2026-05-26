@@ -6,6 +6,7 @@ export const AuditLogEntityType = {
   Invoice: 'invoice',
   Payment: 'payment',
   AdminJob: 'admin_job',
+  TenantSettings: 'tenant_settings',
 } as const;
 
 export type AuditLogEntityType =

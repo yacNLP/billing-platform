@@ -53,6 +53,12 @@ export class E2EClient {
     return req;
   }
 
+  put(url: string, body?: unknown) {
+    const req = this.withAuth(this.client.put(url));
+    if (body) req.send(body);
+    return req;
+  }
+
   delete(url: string) {
     return this.withAuth(this.client.delete(url));
   }
