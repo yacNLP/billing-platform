@@ -4,6 +4,8 @@ import type { ReactNode } from "react";
 import { useState } from "react";
 
 import { useToast } from "@/components/admin/toast-provider";
+import { getStoredAccessToken } from "@/features/auth/auth-storage";
+import { selectAuthSession } from "@/features/auth/selectors";
 import { useGetCustomersQuery } from "@/features/customers/customers-api";
 import type { InvoiceStatus } from "@/features/invoices/types";
 import {
@@ -13,6 +15,8 @@ import {
   useMarkInvoiceVoidMutation,
 } from "@/features/invoices/invoices-api";
 import { useGetPaymentsQuery } from "@/features/payments/payments-api";
+import { env } from "@/lib/env";
+import { useAppSelector } from "@/store/hooks";
 import type { PaymentStatus } from "@/features/payments/types";
 import { useGetSubscriptionsQuery } from "@/features/subscriptions/subscriptions-api";
 import type { BillingInterval } from "@/features/subscriptions/types";
@@ -26,10 +30,8 @@ const dateFormatter = new Intl.DateTimeFormat("en-US", {
 const statusClassNameMap: Record<InvoiceStatus, string> = {
   ISSUED:
     "inline-flex rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-sm font-medium text-sky-700",
-  PAID:
-    "inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-sm font-medium text-emerald-700",
-  VOID:
-    "inline-flex rounded-full border border-slate-200 bg-slate-100 px-3 py-1 text-sm font-medium text-slate-600",
+  PAID: "inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-sm font-medium text-emerald-700",
+  VOID: "inline-flex rounded-full border border-slate-200 bg-slate-100 px-3 py-1 text-sm font-medium text-slate-600",
   OVERDUE:
     "inline-flex rounded-full border border-red-200 bg-red-50 px-3 py-1 text-sm font-medium text-red-700",
 };
@@ -60,11 +62,25 @@ function formatMoney(cents: number, currency: string): string {
   return `${(cents / 100).toFixed(2)} ${currency}`;
 }
 
+function buildInvoicePdfUrl(invoiceId: number): string {
+  return `${env.apiBaseUrl.replace(/\/$/, "")}/invoices/${invoiceId}/pdf`;
+}
+
+function getFilenameFromContentDisposition(
+  contentDisposition: string | null,
+  fallbackFilename: string,
+): string {
+  const match = contentDisposition?.match(/filename="?([^";]+)"?/i);
+
+  return match?.[1] ?? fallbackFilename;
+}
+
 type InvoiceDetailsProps = {
   id: number;
 };
 
 export function InvoiceDetails({ id }: InvoiceDetailsProps) {
+  const session = useAppSelector(selectAuthSession);
   const { showToast } = useToast();
   const { data, error, isLoading } = useGetInvoiceByIdQuery(id);
   const { data: customers } = useGetCustomersQuery({ page: 1, pageSize: 100 });
@@ -84,10 +100,11 @@ export function InvoiceDetails({ id }: InvoiceDetailsProps) {
     },
     { skip: !data },
   );
-  const [actionMode, setActionMode] = useState<"paid" | "void" | "overdue" | null>(
-    null,
-  );
+  const [actionMode, setActionMode] = useState<
+    "paid" | "void" | "overdue" | null
+  >(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
   const [markInvoicePaid, { isLoading: isMarkingPaid }] =
     useMarkInvoicePaidMutation();
   const [markInvoiceVoid, { isLoading: isVoiding }] =
@@ -96,6 +113,46 @@ export function InvoiceDetails({ id }: InvoiceDetailsProps) {
     useMarkInvoiceOverdueMutation();
 
   const isSubmittingAction = isMarkingPaid || isVoiding || isMarkingOverdue;
+
+  async function handleDownloadPdf() {
+    const accessToken = session?.accessToken ?? getStoredAccessToken();
+
+    if (!accessToken) {
+      showToast("Unable to download invoice PDF.", "error");
+      return;
+    }
+
+    setIsDownloadingPdf(true);
+
+    try {
+      const response = await fetch(buildInvoicePdfUrl(id), {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error("Unable to download invoice PDF.");
+      }
+
+      const blob = await response.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = objectUrl;
+      link.download = getFilenameFromContentDisposition(
+        response.headers.get("content-disposition"),
+        `${data?.invoiceNumber ?? `invoice-${id}`}.pdf`,
+      );
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(objectUrl);
+    } catch {
+      showToast("Unable to download invoice PDF.", "error");
+    } finally {
+      setIsDownloadingPdf(false);
+    }
+  }
 
   async function handleInvoiceAction() {
     if (!actionMode) {
@@ -127,7 +184,9 @@ export function InvoiceDetails({ id }: InvoiceDetailsProps) {
   }
 
   if (error) {
-    return <StatePanel title="Invoice details" message="Unable to load invoice." />;
+    return (
+      <StatePanel title="Invoice details" message="Unable to load invoice." />
+    );
   }
 
   if (!data) {
@@ -172,7 +231,9 @@ export function InvoiceDetails({ id }: InvoiceDetailsProps) {
             <h2 className="text-4xl font-semibold tracking-tight text-slate-950">
               {data.invoiceNumber}
             </h2>
-            <span className={statusClassNameMap[data.status]}>{data.status}</span>
+            <span className={statusClassNameMap[data.status]}>
+              {data.status}
+            </span>
           </div>
           <p className="text-base leading-7 text-slate-600">
             {customerLabel} · {subscriptionLabel} · {amountDueLabel}
@@ -201,7 +262,10 @@ export function InvoiceDetails({ id }: InvoiceDetailsProps) {
             >
               <DetailItem label="Amount due" value={amountDueLabel} />
               <DetailItem label="Amount paid" value={amountPaidLabel} />
-              <DetailItem label="Remaining amount" value={remainingAmountLabel} />
+              <DetailItem
+                label="Remaining amount"
+                value={remainingAmountLabel}
+              />
               <DetailItem label="Due date" value={dueDateLabel} />
             </DetailSection>
 
@@ -238,7 +302,9 @@ export function InvoiceDetails({ id }: InvoiceDetailsProps) {
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
                           <span
-                            className={paymentStatusClassNameMap[payment.status]}
+                            className={
+                              paymentStatusClassNameMap[payment.status]
+                            }
                           >
                             {payment.status}
                           </span>
@@ -247,9 +313,8 @@ export function InvoiceDetails({ id }: InvoiceDetailsProps) {
                           </p>
                         </div>
                         <p className="mt-2 text-sm text-slate-600">
-                          {formatProviderLabel(payment.provider)} · {
-                            payment.providerReference ?? "No provider reference"
-                          }
+                          {formatProviderLabel(payment.provider)} ·{" "}
+                          {payment.providerReference ?? "No provider reference"}
                         </p>
                         {payment.failureReason ? (
                           <p className="mt-1 text-sm text-red-700">
@@ -303,6 +368,27 @@ export function InvoiceDetails({ id }: InvoiceDetailsProps) {
                 value={dateFormatter.format(new Date(data.updatedAt))}
               />
             </DetailSection>
+
+            <section className="rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
+              <div className="space-y-2">
+                <h3 className="text-xl font-semibold tracking-tight text-slate-950">
+                  Invoice document
+                </h3>
+                <p className="text-sm leading-6 text-slate-600">
+                  Download the tenant-branded PDF generated from the current
+                  invoice data.
+                </p>
+              </div>
+
+              <button
+                className="mt-5 rounded-xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm font-medium text-slate-800 transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={isDownloadingPdf}
+                onClick={handleDownloadPdf}
+                type="button"
+              >
+                {isDownloadingPdf ? "Downloading..." : "Download PDF"}
+              </button>
+            </section>
 
             <section className="rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
               <div className="space-y-2">
