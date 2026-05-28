@@ -14,6 +14,7 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { Role } from 'src/auth/role.enum';
 import { Roles } from 'src/auth/roles.decorator';
 import { CreateInvoiceDto } from './dto/create-invoice.dto';
+import { InvoiceEmailService } from './invoice-email.service';
 import { InvoicesQueryDto } from './dto/invoices-query.dto';
 import { InvoicePdfService } from './invoice-pdf.service';
 import { InvoicesService } from './invoices.service';
@@ -25,6 +26,7 @@ export class InvoicesController {
   constructor(
     private readonly invoicesService: InvoicesService,
     private readonly invoicePdfService: InvoicePdfService,
+    private readonly invoiceEmailService: InvoiceEmailService,
   ) {}
 
   @Roles(Role.ADMIN)
@@ -52,6 +54,12 @@ export class InvoicesController {
       `inline; filename="${pdf.filename}"`,
     );
     response.send(pdf.buffer);
+  }
+
+  @Roles(Role.ADMIN)
+  @Post(':id/send-email')
+  sendEmail(@Param('id', ParseIntPipe) id: number) {
+    return this.invoiceEmailService.sendInvoiceEmail(id);
   }
 
   @Get(':id')

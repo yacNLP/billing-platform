@@ -14,6 +14,7 @@ export const AuditLogAction = {
   InvoiceMarkedPaid: 'invoice.marked_paid',
   InvoiceVoided: 'invoice.voided',
   InvoiceMarkedOverdue: 'invoice.marked_overdue',
+  InvoiceEmailSent: 'invoice.email_sent',
   PaymentCreated: 'payment.created',
   AdminJobRun: 'admin_job.run',
   TenantSettingsUpdated: 'tenant_settings.updated',

@@ -1,6 +1,7 @@
 import { INestApplication } from '@nestjs/common';
 import { ContextIdFactory, ModuleRef } from '@nestjs/core';
-import { IncomingMessage, Server } from 'http';
+import { Server } from 'http';
+import type { Response } from 'supertest';
 import type { BillingInterval } from '@prisma/client';
 
 import { InvoicePdfService } from '../../src/invoices/invoice-pdf.service';
@@ -84,8 +85,8 @@ function isoDaysFromNow(daysOffset: number): string {
 }
 
 function parsePdfResponse(
-  response: IncomingMessage,
-  callback: (error: Error | null, body?: Buffer) => void,
+  response: Response,
+  callback: (error: Error | null, body: Buffer) => void,
 ) {
   const chunks: Buffer[] = [];
 
@@ -93,7 +94,7 @@ function parsePdfResponse(
     chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
   });
   response.on('end', () => callback(null, Buffer.concat(chunks)));
-  response.on('error', (error: Error) => callback(error));
+  response.on('error', (error: Error) => callback(error, Buffer.alloc(0)));
 }
 
 async function createTestCustomer(
@@ -1070,6 +1071,111 @@ describe('Invoices e2e', () => {
 
     it('returns 404 for a non-existing invoice PDF', async () => {
       await adminClient.get('/invoices/999999999/pdf').expect(404);
+    });
+  });
+
+  describe('invoice email', () => {
+    it('ADMIN can send invoice email', async () => {
+      const customer = await createTestCustomer(adminClient);
+      const product = await createTestProduct(adminClient);
+      const plan = await createTestPlan(adminClient, product.id);
+      const subscription = await createTestSubscription(
+        adminClient,
+        customer.id,
+        plan.id,
+      );
+      const invoice = await createTestInvoice(
+        adminClient,
+        customer.id,
+        subscription.id,
+      );
+
+      const response = await adminClient
+        .post(`/invoices/${invoice.id}/send-email`)
+        .expect(201);
+
+      expect(response.body).toEqual({
+        sent: true,
+        provider: 'noop',
+        recipient: customer.email,
+      });
+    });
+
+    it('USER cannot send invoice email', async () => {
+      const customer = await createTestCustomer(adminClient);
+      const product = await createTestProduct(adminClient);
+      const plan = await createTestPlan(adminClient, product.id);
+      const subscription = await createTestSubscription(
+        adminClient,
+        customer.id,
+        plan.id,
+      );
+      const invoice = await createTestInvoice(
+        adminClient,
+        customer.id,
+        subscription.id,
+      );
+
+      await userClient.post(`/invoices/${invoice.id}/send-email`).expect(403);
+    });
+
+    it('tenant B cannot send tenant A invoice email', async () => {
+      const customer = await createTestCustomer(adminClient);
+      const product = await createTestProduct(adminClient);
+      const plan = await createTestPlan(adminClient, product.id);
+      const subscription = await createTestSubscription(
+        adminClient,
+        customer.id,
+        plan.id,
+      );
+      const invoice = await createTestInvoice(
+        adminClient,
+        customer.id,
+        subscription.id,
+      );
+
+      await tenantBAdminClient
+        .post(`/invoices/${invoice.id}/send-email`)
+        .expect(404);
+    });
+
+    it('returns 404 when sending a non-existing invoice email', async () => {
+      await adminClient.post('/invoices/999999999/send-email').expect(404);
+    });
+
+    it('creates an audit log when invoice email is sent', async () => {
+      const customer = await createTestCustomer(adminClient);
+      const product = await createTestProduct(adminClient);
+      const plan = await createTestPlan(adminClient, product.id);
+      const subscription = await createTestSubscription(
+        adminClient,
+        customer.id,
+        plan.id,
+      );
+      const invoice = await createTestInvoice(
+        adminClient,
+        customer.id,
+        subscription.id,
+      );
+
+      await adminClient.post(`/invoices/${invoice.id}/send-email`).expect(201);
+
+      const auditLog = await prisma.auditLog.findFirst({
+        where: {
+          tenantId: invoice.tenantId,
+          action: 'invoice.email_sent',
+          entityType: 'invoice',
+          entityId: invoice.id,
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      expect(auditLog).toBeDefined();
+      expect(auditLog?.metadata).toMatchObject({
+        invoiceNumber: invoice.invoiceNumber,
+        recipient: customer.email,
+        provider: 'noop',
+      });
     });
   });
 });
