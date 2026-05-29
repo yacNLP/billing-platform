@@ -24,7 +24,7 @@ const navigationGroups = [
   },
   {
     label: "Workspace",
-    itemIds: ["settings"],
+    itemIds: ["team", "settings"],
   },
 ];
 
@@ -39,6 +39,7 @@ const navigationIconMap: Record<string, string> = {
   "revenue-actions": "AC",
   settings: "SE",
   subscriptions: "SU",
+  team: "TE",
 };
 
 export function Sidebar() {
