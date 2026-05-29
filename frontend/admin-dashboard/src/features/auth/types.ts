@@ -25,4 +25,12 @@ export type LoginResponse = {
   accessToken: string;
 };
 
+export type SignupRequest = {
+  billingEmail?: string;
+  companyName: string;
+  defaultCurrency?: string;
+  email: string;
+  password: string;
+};
+
 export type AuthStatus = "loading" | "authenticated" | "anonymous";

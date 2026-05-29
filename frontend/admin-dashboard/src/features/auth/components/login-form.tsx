@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { applyAuthenticatedSession } from "@/features/auth/auth-actions";
@@ -98,6 +99,13 @@ export function LoginForm({ nextPath }: LoginFormProps) {
           {isLoading ? "Signing in..." : "Sign in"}
         </button>
       </form>
+
+      <p className="mt-6 text-center text-sm text-slate-600">
+        New to RevenueOps?{" "}
+        <Link className="font-medium text-[var(--color-accent)] hover:underline" href="/signup">
+          Create a workspace
+        </Link>
+      </p>
     </div>
   );
 }
