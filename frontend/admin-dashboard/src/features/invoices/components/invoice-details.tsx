@@ -13,6 +13,7 @@ import {
   useMarkInvoiceOverdueMutation,
   useMarkInvoicePaidMutation,
   useMarkInvoiceVoidMutation,
+  useSendInvoiceEmailMutation,
 } from "@/features/invoices/invoices-api";
 import { useGetPaymentsQuery } from "@/features/payments/payments-api";
 import { env } from "@/lib/env";
@@ -111,6 +112,8 @@ export function InvoiceDetails({ id }: InvoiceDetailsProps) {
     useMarkInvoiceVoidMutation();
   const [markInvoiceOverdue, { isLoading: isMarkingOverdue }] =
     useMarkInvoiceOverdueMutation();
+  const [sendInvoiceEmail, { isLoading: isSendingEmail }] =
+    useSendInvoiceEmailMutation();
 
   const isSubmittingAction = isMarkingPaid || isVoiding || isMarkingOverdue;
 
@@ -151,6 +154,15 @@ export function InvoiceDetails({ id }: InvoiceDetailsProps) {
       showToast("Unable to download invoice PDF.", "error");
     } finally {
       setIsDownloadingPdf(false);
+    }
+  }
+
+  async function handleSendInvoiceEmail() {
+    try {
+      const result = await sendInvoiceEmail(id).unwrap();
+      showToast(`Invoice email sent to ${result.recipient}.`);
+    } catch {
+      showToast("Unable to send invoice email.", "error");
     }
   }
 
@@ -380,14 +392,24 @@ export function InvoiceDetails({ id }: InvoiceDetailsProps) {
                 </p>
               </div>
 
-              <button
-                className="mt-5 rounded-xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm font-medium text-slate-800 transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
-                disabled={isDownloadingPdf}
-                onClick={handleDownloadPdf}
-                type="button"
-              >
-                {isDownloadingPdf ? "Downloading..." : "Download PDF"}
-              </button>
+              <div className="mt-5 flex flex-col gap-3">
+                <button
+                  className="rounded-xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm font-medium text-slate-800 transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                  disabled={isDownloadingPdf}
+                  onClick={handleDownloadPdf}
+                  type="button"
+                >
+                  {isDownloadingPdf ? "Downloading..." : "Download PDF"}
+                </button>
+                <button
+                  className="rounded-xl bg-slate-950 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                  disabled={isSendingEmail}
+                  onClick={handleSendInvoiceEmail}
+                  type="button"
+                >
+                  {isSendingEmail ? "Sending..." : "Send invoice email"}
+                </button>
+              </div>
             </section>
 
             <section className="rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] p-6">

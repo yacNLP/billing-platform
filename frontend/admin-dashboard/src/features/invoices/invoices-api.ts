@@ -12,7 +12,10 @@ export const invoicesApi = baseApi
   })
   .injectEndpoints({
     endpoints: (build) => ({
-      getInvoices: build.query<InvoicesListResponse, InvoicesQueryParams | void>({
+      getInvoices: build.query<
+        InvoicesListResponse,
+        InvoicesQueryParams | void
+      >({
         query: (params) => ({
           url: "/invoices",
           ...(params ? { params } : {}),
@@ -81,6 +84,15 @@ export const invoicesApi = baseApi
           { type: "Invoices", id },
         ],
       }),
+      sendInvoiceEmail: build.mutation<
+        { sent: boolean; provider: "noop"; recipient: string },
+        number
+      >({
+        query: (id) => ({
+          url: `/invoices/${id}/send-email`,
+          method: "POST",
+        }),
+      }),
     }),
   });
 
@@ -91,4 +103,5 @@ export const {
   useMarkInvoiceOverdueMutation,
   useMarkInvoicePaidMutation,
   useMarkInvoiceVoidMutation,
+  useSendInvoiceEmailMutation,
 } = invoicesApi;
