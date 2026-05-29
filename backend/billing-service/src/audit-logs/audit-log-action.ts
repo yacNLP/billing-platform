@@ -18,6 +18,9 @@ export const AuditLogAction = {
   PaymentCreated: 'payment.created',
   AdminJobRun: 'admin_job.run',
   TenantSettingsUpdated: 'tenant_settings.updated',
+  TeamMemberCreated: 'team.member_created',
+  TeamMemberRoleUpdated: 'team.member_role_updated',
+  TeamMemberDeleted: 'team.member_deleted',
 } as const;
 
 export type AuditLogAction =

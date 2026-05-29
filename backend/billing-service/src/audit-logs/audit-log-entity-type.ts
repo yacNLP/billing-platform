@@ -7,6 +7,7 @@ export const AuditLogEntityType = {
   Payment: 'payment',
   AdminJob: 'admin_job',
   TenantSettings: 'tenant_settings',
+  TeamMember: 'team_member',
 } as const;
 
 export type AuditLogEntityType =

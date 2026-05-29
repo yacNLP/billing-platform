@@ -17,6 +17,7 @@ import { AuditLogsModule } from './audit-logs/audit-logs.module';
 import { RevenueActionsModule } from './revenue-actions/revenue-actions.module';
 import { TenantSettingsModule } from './tenant-settings/tenant-settings.module';
 import { OnboardingModule } from './onboarding/onboarding.module';
+import { TeamModule } from './team/team.module';
 
 import { JwtAuthGuard } from './auth/jwt.guard';
 import { TenantGuard } from './common/tenant/tenant.guard';
@@ -39,6 +40,7 @@ import { RolesGuard } from './auth/roles.guard';
     RevenueActionsModule,
     TenantSettingsModule,
     OnboardingModule,
+    TeamModule,
   ],
   controllers: [AppController],
   providers: [
