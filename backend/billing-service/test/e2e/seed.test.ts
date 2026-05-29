@@ -10,6 +10,16 @@ async function hashPassword() {
   return bcrypt.hash('password123', 10);
 }
 
+async function syncSequence(modelName: string) {
+  await prisma.$executeRawUnsafe(`
+    SELECT setval(
+      pg_get_serial_sequence('"${modelName}"', 'id'),
+      COALESCE((SELECT MAX(id) FROM "${modelName}"), 1),
+      true
+    )
+  `);
+}
+
 /**
  * Minimal, idempotent fixtures for e2e tests.
  * Multi-tenant aware.
@@ -36,6 +46,8 @@ export async function seedTestData() {
       name: 'Test Tenant 2',
     },
   });
+
+  await syncSequence('Tenant');
 
   // =============================
   // TENANT 1 DATA
