@@ -3,6 +3,7 @@
 import Link from "next/link";
 
 import { useGetAnalyticsSummaryQuery } from "@/features/analytics/analytics-api";
+import { OnboardingChecklist } from "@/features/onboarding/components/onboarding-checklist";
 import type {
   AnalyticsSummary,
   SubscriptionsByPlan,
@@ -217,6 +218,8 @@ export function AnalyticsSummaryPanel() {
             ) : null}
           </div>
         </header>
+
+        <OnboardingChecklist />
 
         <section className="grid gap-6 xl:grid-cols-[1.6fr_0.8fr]">
           <FinancialPositionPanel data={data} />
