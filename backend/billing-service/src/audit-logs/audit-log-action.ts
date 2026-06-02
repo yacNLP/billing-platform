@@ -21,6 +21,7 @@ export const AuditLogAction = {
   TeamMemberCreated: 'team.member_created',
   TeamMemberRoleUpdated: 'team.member_role_updated',
   TeamMemberDeleted: 'team.member_deleted',
+  DemoSampleDataLoaded: 'demo.sample_data_loaded',
 } as const;
 
 export type AuditLogAction =
