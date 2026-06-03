@@ -321,7 +321,7 @@ describe('Auth signup e2e', () => {
 
   it('reset password rejects expired tokens', async () => {
     const user = await createResetUser(server);
-    const rawToken = 'a'.repeat(64);
+    const rawToken = uniqueSuffix().padEnd(64, 'a').slice(0, 64);
 
     await prisma.passwordResetToken.create({
       data: {

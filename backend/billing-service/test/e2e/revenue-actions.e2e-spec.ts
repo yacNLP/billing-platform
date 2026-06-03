@@ -93,6 +93,29 @@ describe('Revenue actions e2e', () => {
     await app.close();
   });
 
+  async function listAllActionsByType(
+    client: E2EClient,
+    type: RevenueActionResponse['type'],
+  ): Promise<RevenueActionResponse[]> {
+    const actions: RevenueActionResponse[] = [];
+    let page = 1;
+    let totalPages = 1;
+
+    do {
+      const res = await client
+        .get('/revenue-actions')
+        .query({ type, page, pageSize: 100 })
+        .expect(200);
+      const payload = res.body as PaginatedRevenueActions;
+
+      actions.push(...payload.data);
+      totalPages = payload.totalPages;
+      page += 1;
+    } while (page <= totalPages);
+
+    return actions;
+  }
+
   async function createCustomer(client: E2EClient): Promise<CustomerResponse> {
     const suffix = uniqueSuffix();
     const res = await client
@@ -342,14 +365,8 @@ describe('Revenue actions e2e', () => {
       },
     });
 
-    const res = await adminClient
-      .get('/revenue-actions')
-      .query({ type: 'OVERDUE_INVOICE', pageSize: 100 })
-      .expect(200);
-    const payload = res.body as PaginatedRevenueActions;
-    const action = payload.data.find(
-      (item) => item.entityId === overdueInvoice.id,
-    );
+    const actions = await listAllActionsByType(adminClient, 'OVERDUE_INVOICE');
+    const action = actions.find((item) => item.entityId === overdueInvoice.id);
 
     expect(action).toMatchObject({
       key: `overdue-invoice:invoice:${overdueInvoice.id}`,
@@ -363,7 +380,7 @@ describe('Revenue actions e2e', () => {
       createdFromRule: 'overdue-invoice',
     });
     expect(
-      payload.data.filter((item) => item.entityId === overdueInvoice.id),
+      actions.filter((item) => item.entityId === overdueInvoice.id),
     ).toHaveLength(1);
   });
 
@@ -401,30 +418,28 @@ describe('Revenue actions e2e', () => {
       },
     });
 
-    const tenantARes = await adminClient
-      .get('/revenue-actions')
-      .query({ type: 'OVERDUE_INVOICE', pageSize: 100 })
-      .expect(200);
-    const tenantAPayload = tenantARes.body as PaginatedRevenueActions;
+    const tenantAActions = await listAllActionsByType(
+      adminClient,
+      'OVERDUE_INVOICE',
+    );
 
     expect(
-      tenantAPayload.data.some((item) => item.entityId === tenantAInvoice.id),
+      tenantAActions.some((item) => item.entityId === tenantAInvoice.id),
     ).toBe(true);
     expect(
-      tenantAPayload.data.some((item) => item.entityId === tenantBInvoice.id),
+      tenantAActions.some((item) => item.entityId === tenantBInvoice.id),
     ).toBe(false);
 
-    const tenantBRes = await tenantBAdminClient
-      .get('/revenue-actions')
-      .query({ type: 'OVERDUE_INVOICE', pageSize: 100 })
-      .expect(200);
-    const tenantBPayload = tenantBRes.body as PaginatedRevenueActions;
+    const tenantBActions = await listAllActionsByType(
+      tenantBAdminClient,
+      'OVERDUE_INVOICE',
+    );
 
     expect(
-      tenantBPayload.data.some((item) => item.entityId === tenantBInvoice.id),
+      tenantBActions.some((item) => item.entityId === tenantBInvoice.id),
     ).toBe(true);
     expect(
-      tenantBPayload.data.some((item) => item.entityId === tenantAInvoice.id),
+      tenantBActions.some((item) => item.entityId === tenantAInvoice.id),
     ).toBe(false);
   });
 
@@ -446,14 +461,11 @@ describe('Revenue actions e2e', () => {
       },
     });
 
-    const res = await adminClient
-      .get('/revenue-actions')
-      .query({ type: 'PAST_DUE_SUBSCRIPTION', pageSize: 100 })
-      .expect(200);
-    const payload = res.body as PaginatedRevenueActions;
-    const action = payload.data.find(
-      (item) => item.entityId === subscription.id,
+    const actions = await listAllActionsByType(
+      adminClient,
+      'PAST_DUE_SUBSCRIPTION',
     );
+    const action = actions.find((item) => item.entityId === subscription.id);
 
     expect(action).toMatchObject({
       key: `past-due-subscription:subscription:${subscription.id}`,
@@ -465,7 +477,7 @@ describe('Revenue actions e2e', () => {
       createdFromRule: 'past-due-subscription',
     });
     expect(
-      payload.data.filter((item) => item.entityId === subscription.id),
+      actions.filter((item) => item.entityId === subscription.id),
     ).toHaveLength(1);
   });
 
@@ -498,38 +510,28 @@ describe('Revenue actions e2e', () => {
       },
     });
 
-    const tenantARes = await adminClient
-      .get('/revenue-actions')
-      .query({ type: 'PAST_DUE_SUBSCRIPTION', pageSize: 100 })
-      .expect(200);
-    const tenantAPayload = tenantARes.body as PaginatedRevenueActions;
+    const tenantAActions = await listAllActionsByType(
+      adminClient,
+      'PAST_DUE_SUBSCRIPTION',
+    );
 
     expect(
-      tenantAPayload.data.some(
-        (item) => item.entityId === tenantASubscription.id,
-      ),
+      tenantAActions.some((item) => item.entityId === tenantASubscription.id),
     ).toBe(true);
     expect(
-      tenantAPayload.data.some(
-        (item) => item.entityId === tenantBSubscription.id,
-      ),
+      tenantAActions.some((item) => item.entityId === tenantBSubscription.id),
     ).toBe(false);
 
-    const tenantBRes = await tenantBAdminClient
-      .get('/revenue-actions')
-      .query({ type: 'PAST_DUE_SUBSCRIPTION', pageSize: 100 })
-      .expect(200);
-    const tenantBPayload = tenantBRes.body as PaginatedRevenueActions;
+    const tenantBActions = await listAllActionsByType(
+      tenantBAdminClient,
+      'PAST_DUE_SUBSCRIPTION',
+    );
 
     expect(
-      tenantBPayload.data.some(
-        (item) => item.entityId === tenantBSubscription.id,
-      ),
+      tenantBActions.some((item) => item.entityId === tenantBSubscription.id),
     ).toBe(true);
     expect(
-      tenantBPayload.data.some(
-        (item) => item.entityId === tenantASubscription.id,
-      ),
+      tenantBActions.some((item) => item.entityId === tenantASubscription.id),
     ).toBe(false);
   });
 
@@ -664,30 +666,28 @@ describe('Revenue actions e2e', () => {
     await createFailedPayment(adminClient, tenantAInvoice);
     await createFailedPayment(tenantBAdminClient, tenantBInvoice);
 
-    const tenantARes = await adminClient
-      .get('/revenue-actions')
-      .query({ type: 'FAILED_PAYMENT', pageSize: 100 })
-      .expect(200);
-    const tenantAPayload = tenantARes.body as PaginatedRevenueActions;
+    const tenantAActions = await listAllActionsByType(
+      adminClient,
+      'FAILED_PAYMENT',
+    );
 
     expect(
-      tenantAPayload.data.some((item) => item.entityId === tenantAInvoice.id),
+      tenantAActions.some((item) => item.entityId === tenantAInvoice.id),
     ).toBe(true);
     expect(
-      tenantAPayload.data.some((item) => item.entityId === tenantBInvoice.id),
+      tenantAActions.some((item) => item.entityId === tenantBInvoice.id),
     ).toBe(false);
 
-    const tenantBRes = await tenantBAdminClient
-      .get('/revenue-actions')
-      .query({ type: 'FAILED_PAYMENT', pageSize: 100 })
-      .expect(200);
-    const tenantBPayload = tenantBRes.body as PaginatedRevenueActions;
+    const tenantBActions = await listAllActionsByType(
+      tenantBAdminClient,
+      'FAILED_PAYMENT',
+    );
 
     expect(
-      tenantBPayload.data.some((item) => item.entityId === tenantBInvoice.id),
+      tenantBActions.some((item) => item.entityId === tenantBInvoice.id),
     ).toBe(true);
     expect(
-      tenantBPayload.data.some((item) => item.entityId === tenantAInvoice.id),
+      tenantBActions.some((item) => item.entityId === tenantAInvoice.id),
     ).toBe(false);
   });
 });
