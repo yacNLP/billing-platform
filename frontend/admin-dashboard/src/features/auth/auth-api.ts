@@ -1,7 +1,10 @@
 import { baseApi } from "@/store/api/base-api";
 import type {
+  ForgotPasswordRequest,
   LoginRequest,
   LoginResponse,
+  OkResponse,
+  ResetPasswordRequest,
   SignupRequest,
 } from "@/features/auth/types";
 
@@ -21,7 +24,26 @@ export const authApi = baseApi.injectEndpoints({
         body,
       }),
     }),
+    forgotPassword: build.mutation<OkResponse, ForgotPasswordRequest>({
+      query: (body) => ({
+        url: "/auth/forgot-password",
+        method: "POST",
+        body,
+      }),
+    }),
+    resetPassword: build.mutation<OkResponse, ResetPasswordRequest>({
+      query: (body) => ({
+        url: "/auth/reset-password",
+        method: "POST",
+        body,
+      }),
+    }),
   }),
 });
 
-export const { useLoginMutation, useSignupMutation } = authApi;
+export const {
+  useForgotPasswordMutation,
+  useLoginMutation,
+  useResetPasswordMutation,
+  useSignupMutation,
+} = authApi;

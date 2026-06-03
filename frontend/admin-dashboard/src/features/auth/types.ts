@@ -25,6 +25,19 @@ export type LoginResponse = {
   accessToken: string;
 };
 
+export type OkResponse = {
+  ok: true;
+};
+
+export type ForgotPasswordRequest = {
+  email: string;
+};
+
+export type ResetPasswordRequest = {
+  token: string;
+  password: string;
+};
+
 export type SignupRequest = {
   billingEmail?: string;
   companyName: string;

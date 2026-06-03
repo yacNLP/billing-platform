@@ -85,6 +85,15 @@ export function LoginForm({ nextPath }: LoginFormProps) {
           />
         </label>
 
+        <div className="text-right">
+          <Link
+            className="text-sm font-medium text-[var(--color-accent)] hover:underline"
+            href="/forgot-password"
+          >
+            Forgot password?
+          </Link>
+        </div>
+
         {errorMessage ? (
           <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             {errorMessage}
