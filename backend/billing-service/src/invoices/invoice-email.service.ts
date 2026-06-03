@@ -4,13 +4,14 @@ import { AuditLogEntityType } from '../audit-logs/audit-log-entity-type';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
 import { TenantContext } from '../common/tenant/tenant.context';
 import { EmailService } from '../email/email.service';
+import { EmailProvider } from '../email/email.types';
 import { PrismaService } from '../prisma.service';
 import { TenantSettingsService } from '../tenant-settings/tenant-settings.service';
 import { InvoicePdfService } from './invoice-pdf.service';
 
 export type SendInvoiceEmailResult = {
   sent: boolean;
-  provider: 'noop';
+  provider: EmailProvider;
   recipient: string;
 };
 

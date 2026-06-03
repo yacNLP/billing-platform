@@ -4,6 +4,8 @@ export type EmailAttachment = {
   filename: string;
 };
 
+export type EmailProvider = 'noop' | 'resend';
+
 export type SendEmailInput = {
   attachments?: EmailAttachment[];
   from?: string;
@@ -15,6 +17,6 @@ export type SendEmailInput = {
 
 export type SendEmailResult = {
   messageId: string | null;
-  provider: 'noop';
+  provider: EmailProvider;
   sent: boolean;
 };
