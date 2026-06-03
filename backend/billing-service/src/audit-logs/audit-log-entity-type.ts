@@ -9,6 +9,7 @@ export const AuditLogEntityType = {
   TenantSettings: 'tenant_settings',
   TeamMember: 'team_member',
   Demo: 'demo',
+  Auth: 'auth',
 } as const;
 
 export type AuditLogEntityType =

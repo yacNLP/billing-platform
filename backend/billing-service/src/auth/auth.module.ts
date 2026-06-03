@@ -4,6 +4,7 @@ import { PassportModule } from '@nestjs/passport';
 
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
+import { EmailModule } from '../email/email.module';
 import { JwtStrategy } from './jwt.strategy';
 
 // JWT secret used to sign and verify tokens
@@ -19,6 +20,8 @@ const jwtSecret: string =
     PassportModule.register({ defaultStrategy: 'jwt' }),
 
     // Configure JWT module (signing + expiration)
+    EmailModule,
+
     JwtModule.register({
       secret: jwtSecret,
       signOptions: {

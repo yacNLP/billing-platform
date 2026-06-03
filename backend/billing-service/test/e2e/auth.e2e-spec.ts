@@ -1,7 +1,10 @@
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
+import { createHash } from 'crypto';
 import { Server } from 'http';
 
+import { EmailService } from '../../src/email/email.service';
+import { SendEmailInput } from '../../src/email/email.types';
 import { PrismaService } from '../../src/prisma.service';
 import { createE2eApp, TestApp } from '../utils/e2e-app';
 import { E2EClient } from '../utils/e2e-client';
@@ -17,10 +20,26 @@ type PaginatedResponse = {
 };
 
 let uniqueCounter = 0;
+let prisma: PrismaService;
 
 function uniqueSuffix(): string {
   uniqueCounter += 1;
   return `${Date.now()}_${uniqueCounter}`;
+}
+
+function hashResetToken(token: string): string {
+  return createHash('sha256').update(token).digest('hex');
+}
+
+function extractResetToken(input: SendEmailInput): string {
+  const content = `${input.text ?? ''} ${input.html ?? ''}`;
+  const match = content.match(/reset-password\?token=([a-f0-9]{64})/);
+
+  if (!match) {
+    throw new Error('Reset token not found in email content');
+  }
+
+  return match[1];
 }
 
 function signupPayload(overrides: Record<string, unknown> = {}) {
@@ -36,17 +55,48 @@ function signupPayload(overrides: Record<string, unknown> = {}) {
   };
 }
 
+async function createResetUser(server: Server): Promise<{
+  email: string;
+  userId: number;
+  tenantId: number;
+}> {
+  const payload = signupPayload();
+
+  await request(server).post('/auth/signup').send(payload).expect(201);
+
+  const user = await prisma.user.findUniqueOrThrow({
+    where: { email: payload.email },
+  });
+
+  return {
+    email: payload.email,
+    userId: user.id,
+    tenantId: user.tenantId,
+  };
+}
+
 describe('Auth signup e2e', () => {
   let app: INestApplication;
   let server: Server;
-  let prisma: PrismaService;
   let adminClient: E2EClient;
+  let sentEmails: SendEmailInput[];
 
   beforeAll(async () => {
     const testApp: TestApp = await createE2eApp();
     app = testApp.app;
     server = testApp.server;
     prisma = app.get(PrismaService);
+    sentEmails = [];
+    jest
+      .spyOn(app.get(EmailService), 'sendEmail')
+      .mockImplementation((input: SendEmailInput) => {
+        sentEmails.push(input);
+        return Promise.resolve({
+          messageId: null,
+          provider: 'noop',
+          sent: true,
+        });
+      });
 
     adminClient = new E2EClient(server);
     await loginAsAdmin(adminClient);
@@ -165,6 +215,174 @@ describe('Auth signup e2e', () => {
       .post('/auth/signup')
       .send(signupPayload({ defaultCurrency: '123' }))
       .expect(400);
+  });
+
+  it('forgot password always returns ok', async () => {
+    const existingUser = await createResetUser(server);
+    const missingEmail = `missing_${uniqueSuffix()}@example.com`;
+
+    const existingRes = await request(server)
+      .post('/auth/forgot-password')
+      .send({ email: existingUser.email })
+      .expect(201);
+    const missingRes = await request(server)
+      .post('/auth/forgot-password')
+      .send({ email: missingEmail })
+      .expect(201);
+
+    expect(existingRes.body).toEqual({ ok: true });
+    expect(missingRes.body).toEqual({ ok: true });
+  });
+
+  it('unknown forgot password email does not reveal anything or create a token', async () => {
+    const missingEmail = `missing_${uniqueSuffix()}@example.com`;
+    const beforeCount = await prisma.passwordResetToken.count();
+
+    const res = await request(server)
+      .post('/auth/forgot-password')
+      .send({ email: missingEmail })
+      .expect(201);
+
+    const afterCount = await prisma.passwordResetToken.count();
+
+    expect(res.body).toEqual({ ok: true });
+    expect(afterCount).toBe(beforeCount);
+  });
+
+  it('existing forgot password email creates a hashed token that expires in the future', async () => {
+    const user = await createResetUser(server);
+
+    await request(server)
+      .post('/auth/forgot-password')
+      .send({ email: user.email.toUpperCase() })
+      .expect(201);
+
+    const token = await prisma.passwordResetToken.findFirstOrThrow({
+      where: { userId: user.userId },
+      orderBy: { createdAt: 'desc' },
+    });
+    const rawToken = extractResetToken(sentEmails.at(-1)!);
+
+    expect(token.tokenHash).toMatch(/^[a-f0-9]{64}$/);
+    expect(token.tokenHash).toBe(hashResetToken(rawToken));
+    expect(token.tokenHash).not.toBe(rawToken);
+    expect(token.expiresAt.getTime()).toBeGreaterThan(Date.now());
+  });
+
+  it('reset password with a valid token changes the password and consumes the token', async () => {
+    const user = await createResetUser(server);
+
+    await request(server)
+      .post('/auth/forgot-password')
+      .send({ email: user.email })
+      .expect(201);
+
+    const rawToken = extractResetToken(sentEmails.at(-1)!);
+    const res = await request(server)
+      .post('/auth/reset-password')
+      .send({ token: rawToken, password: 'newPassword123' })
+      .expect(201);
+
+    const token = await prisma.passwordResetToken.findFirstOrThrow({
+      where: { tokenHash: hashResetToken(rawToken) },
+    });
+
+    expect(res.body).toEqual({ ok: true });
+    expect(token.usedAt).not.toBeNull();
+    await request(server)
+      .post('/auth/login')
+      .send({ email: user.email, password: 'password123' })
+      .expect(401);
+    await request(server)
+      .post('/auth/login')
+      .send({ email: user.email, password: 'newPassword123' })
+      .expect(201);
+  });
+
+  it('reset password rejects reused tokens', async () => {
+    const user = await createResetUser(server);
+
+    await request(server)
+      .post('/auth/forgot-password')
+      .send({ email: user.email })
+      .expect(201);
+
+    const rawToken = extractResetToken(sentEmails.at(-1)!);
+
+    await request(server)
+      .post('/auth/reset-password')
+      .send({ token: rawToken, password: 'newPassword123' })
+      .expect(201);
+    await request(server)
+      .post('/auth/reset-password')
+      .send({ token: rawToken, password: 'anotherPassword123' })
+      .expect(400);
+  });
+
+  it('reset password rejects expired tokens', async () => {
+    const user = await createResetUser(server);
+    const rawToken = 'a'.repeat(64);
+
+    await prisma.passwordResetToken.create({
+      data: {
+        userId: user.userId,
+        tokenHash: hashResetToken(rawToken),
+        expiresAt: new Date(Date.now() - 60_000),
+      },
+    });
+
+    await request(server)
+      .post('/auth/reset-password')
+      .send({ token: rawToken, password: 'newPassword123' })
+      .expect(400);
+  });
+
+  it('reset password rejects short passwords', async () => {
+    await request(server)
+      .post('/auth/reset-password')
+      .send({ token: 'a'.repeat(64), password: 'short' })
+      .expect(400);
+  });
+
+  it('creates password reset audit logs without exposing tokens', async () => {
+    const user = await createResetUser(server);
+
+    const forgotRes = await request(server)
+      .post('/auth/forgot-password')
+      .send({ email: user.email })
+      .expect(201);
+    const rawToken = extractResetToken(sentEmails.at(-1)!);
+    const resetRes = await request(server)
+      .post('/auth/reset-password')
+      .send({ token: rawToken, password: 'newPassword123' })
+      .expect(201);
+
+    const auditLogs = await prisma.auditLog.findMany({
+      where: {
+        tenantId: user.tenantId,
+        entityType: 'auth',
+        entityId: user.userId,
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+    const requested = auditLogs.find(
+      (log) => log.action === 'auth.password_reset_requested',
+    );
+    const completed = auditLogs.find(
+      (log) => log.action === 'auth.password_reset_completed',
+    );
+    const serializedAuditMetadata = JSON.stringify(
+      auditLogs.map((log) => log.metadata),
+    );
+
+    expect(forgotRes.body).toEqual({ ok: true });
+    expect(resetRes.body).toEqual({ ok: true });
+    expect(JSON.stringify(forgotRes.body)).not.toContain(rawToken);
+    expect(JSON.stringify(resetRes.body)).not.toContain(rawToken);
+    expect(requested).toBeDefined();
+    expect(completed).toBeDefined();
+    expect(serializedAuditMetadata).not.toContain(rawToken);
+    expect(serializedAuditMetadata).not.toContain(hashResetToken(rawToken));
   });
 
   it('new tenant is isolated from existing tenant data', async () => {

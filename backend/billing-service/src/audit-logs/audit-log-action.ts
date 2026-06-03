@@ -22,6 +22,8 @@ export const AuditLogAction = {
   TeamMemberRoleUpdated: 'team.member_role_updated',
   TeamMemberDeleted: 'team.member_deleted',
   DemoSampleDataLoaded: 'demo.sample_data_loaded',
+  AuthPasswordResetRequested: 'auth.password_reset_requested',
+  AuthPasswordResetCompleted: 'auth.password_reset_completed',
 } as const;
 
 export type AuditLogAction =

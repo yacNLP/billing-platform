@@ -268,8 +268,25 @@ model User {
   tenant    Tenant   @relation(fields: [tenantId], references: [id])
 
   auditLogs AuditLog[]
+  passwordResetTokens PasswordResetToken[]
 
   createdAt DateTime @default(now())
+}
+
+model PasswordResetToken {
+  id        Int      @id @default(autoincrement())
+
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  tokenHash String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
 }
 
 model AuditLog {
