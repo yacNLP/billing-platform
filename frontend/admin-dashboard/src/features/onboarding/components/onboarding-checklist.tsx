@@ -1,7 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 
+import { useToast } from "@/components/admin/toast-provider";
+import { useLoadSampleDataMutation } from "@/features/demo/demo-api";
+import type { LoadSampleDataResponse } from "@/features/demo/types";
 import { useGetOnboardingStatusQuery } from "@/features/onboarding/onboarding-api";
 import type { OnboardingStep } from "@/features/onboarding/types";
 
@@ -23,8 +27,42 @@ const stateClassNameMap = {
   Pending: "border-slate-200 bg-slate-50 text-slate-500",
 };
 
+function formatSampleDataSummary(summary: LoadSampleDataResponse): string {
+  return `Sample data loaded: ${summary.customers} customers, ${summary.products} products, ${summary.plans} plans, ${summary.subscriptions} subscriptions, ${summary.invoices} invoices, ${summary.payments} payments.`;
+}
+
+function getLoadSampleDataErrorMessage(error: unknown): string {
+  if (typeof error === "object" && error !== null && "status" in error) {
+    const status = (error as { status?: number | string }).status;
+
+    if (status === 409) {
+      return "Sample data can only be loaded into an empty workspace.";
+    }
+  }
+
+  return "Unable to load sample data.";
+}
+
 export function OnboardingChecklist() {
+  const [isConfirmingSampleData, setIsConfirmingSampleData] = useState(false);
+  const [sampleDataError, setSampleDataError] = useState<string | null>(null);
+  const { showToast } = useToast();
   const { data, error, isLoading } = useGetOnboardingStatusQuery();
+  const [loadSampleData, { isLoading: isLoadingSampleData }] =
+    useLoadSampleDataMutation();
+
+  async function handleLoadSampleData() {
+    setSampleDataError(null);
+
+    try {
+      const summary = await loadSampleData().unwrap();
+      setIsConfirmingSampleData(false);
+      showToast(formatSampleDataSummary(summary));
+    } catch (loadError) {
+      setSampleDataError(getLoadSampleDataErrorMessage(loadError));
+      showToast(getLoadSampleDataErrorMessage(loadError), "error");
+    }
+  }
 
   if (isLoading) {
     return (
@@ -66,10 +104,63 @@ export function OnboardingChecklist() {
           </p>
         </div>
 
-        <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 text-sm font-medium text-slate-700">
-          {data.completedCount} / {data.totalCount} completed
+        <div className="flex flex-col gap-3 sm:flex-row lg:flex-col lg:items-end">
+          <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 text-sm font-medium text-slate-700">
+            {data.completedCount} / {data.totalCount} completed
+          </div>
+          <button
+            className="rounded-xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={isLoadingSampleData}
+            onClick={() => {
+              setSampleDataError(null);
+              setIsConfirmingSampleData(true);
+            }}
+            type="button"
+          >
+            Load sample data
+          </button>
         </div>
       </div>
+
+      {isConfirmingSampleData ? (
+        <div className="mt-6 rounded-[1.5rem] border border-amber-200 bg-amber-50 p-4">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="space-y-1">
+              <p className="text-sm font-semibold text-amber-950">
+                Load sample data?
+              </p>
+              <p className="max-w-3xl text-sm leading-6 text-amber-900">
+                This will add sample customers, products, plans, subscriptions,
+                invoices and payments to this workspace.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button
+                className="rounded-xl bg-slate-950 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={isLoadingSampleData}
+                onClick={handleLoadSampleData}
+                type="button"
+              >
+                {isLoadingSampleData ? "Loading..." : "Confirm"}
+              </button>
+              <button
+                className="rounded-xl border border-amber-200 bg-white px-4 py-2 text-sm font-medium text-amber-800 transition hover:bg-amber-100"
+                disabled={isLoadingSampleData}
+                onClick={() => setIsConfirmingSampleData(false)}
+                type="button"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {sampleDataError ? (
+        <p className="mt-4 text-sm text-red-600" role="alert">
+          {sampleDataError}
+        </p>
+      ) : null}
 
       <ol className="mt-6 divide-y divide-[var(--color-border)] overflow-hidden rounded-[1.5rem] border border-[var(--color-border)] bg-white">
         {data.steps.map((step, index) => {
