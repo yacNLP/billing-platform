@@ -34,11 +34,6 @@ export function LoginForm({ nextPath }: LoginFormProps) {
         return;
       }
 
-      if (session.role !== "ADMIN") {
-        setErrorMessage("This admin dashboard is restricted to admin users.");
-        return;
-      }
-
       applyAuthenticatedSession(dispatch, session);
       router.replace(nextPath?.startsWith("/") ? nextPath : "/dashboard");
     } catch {
@@ -53,10 +48,10 @@ export function LoginForm({ nextPath }: LoginFormProps) {
           RevenueOps Platform
         </p>
         <h1 className="text-3xl font-semibold tracking-tight text-slate-950">
-          Admin sign in
+          Workspace sign in
         </h1>
         <p className="text-sm leading-6 text-slate-600">
-          Sign in to manage your revenue operations workspace.
+          Sign in to access your RevenueOps workspace.
         </p>
       </div>
 

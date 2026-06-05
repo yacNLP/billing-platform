@@ -18,25 +18,25 @@ export function ProtectedRoute({ children }: PropsWithChildren) {
   const pathname = usePathname();
   const status = useAppSelector(selectAuthStatus);
   const session = useAppSelector(selectAuthSession);
-  const hasValidAdminSession = isSessionValid(session) && session?.role === "ADMIN";
+  const hasValidSession = isSessionValid(session);
 
   useEffect(() => {
     if (status === "loading") {
       return;
     }
 
-    if (!hasValidAdminSession) {
+    if (!hasValidSession) {
       logout(dispatch);
       const searchParams = new URLSearchParams({ next: pathname });
       router.replace(`/login?${searchParams.toString()}`);
     }
-  }, [dispatch, hasValidAdminSession, pathname, router, status]);
+  }, [dispatch, hasValidSession, pathname, router, status]);
 
   if (status === "loading") {
     return <FullScreenMessage message="Checking session..." />;
   }
 
-  if (!hasValidAdminSession) {
+  if (!hasValidSession) {
     return <FullScreenMessage message="Redirecting to login..." />;
   }
 

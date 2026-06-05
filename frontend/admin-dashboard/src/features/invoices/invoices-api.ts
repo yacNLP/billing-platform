@@ -85,7 +85,7 @@ export const invoicesApi = baseApi
         ],
       }),
       sendInvoiceEmail: build.mutation<
-        { sent: boolean; provider: "noop"; recipient: string },
+        { sent: boolean; provider: "noop" | "resend"; recipient: string },
         number
       >({
         query: (id) => ({

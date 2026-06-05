@@ -28,7 +28,7 @@ export function PublicOnlyRoute({ children }: PropsWithChildren) {
       return;
     }
 
-    if (session && session.role === "ADMIN" && isSessionValid(session)) {
+    if (session && isSessionValid(session)) {
       router.replace("/dashboard");
     }
   }, [dispatch, router, session, status]);

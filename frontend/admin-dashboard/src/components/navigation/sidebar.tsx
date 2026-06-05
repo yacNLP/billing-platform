@@ -3,7 +3,10 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-import { adminNavigation, isNavigationItemActive } from "@/lib/navigation";
+import { selectAuthSession } from "@/features/auth/selectors";
+import { useAppSelector } from "@/store/hooks";
+
+import { getNavigationForRole, isNavigationItemActive } from "@/lib/navigation";
 
 const navigationGroups = [
   {
@@ -44,6 +47,8 @@ const navigationIconMap: Record<string, string> = {
 
 export function Sidebar() {
   const pathname = usePathname();
+  const session = useAppSelector(selectAuthSession);
+  const navigationItems = getNavigationForRole(session?.role);
 
   return (
     <aside className="w-full rounded-[2rem] border border-slate-800/80 bg-[var(--color-sidebar)] p-5 shadow-[0_24px_80px_rgba(15,23,42,0.18)] lg:sticky lg:top-6 lg:w-72 lg:self-start">
@@ -66,7 +71,7 @@ export function Sidebar() {
       <nav aria-label="Admin navigation" className="mt-5 space-y-5">
         {navigationGroups.map((group) => {
           const items = group.itemIds
-            .map((itemId) => adminNavigation.find((item) => item.id === itemId))
+            .map((itemId) => navigationItems.find((item) => item.id === itemId))
             .filter((item) => item !== undefined);
 
           return (
