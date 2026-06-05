@@ -6,12 +6,14 @@ import { useRouter } from "next/navigation";
 
 import { AdminDrawer } from "@/components/admin/admin-drawer";
 import { useToast } from "@/components/admin/toast-provider";
+import { selectCanMutateBilling } from "@/features/auth/selectors";
 import { useGetPlansQuery } from "@/features/plans/plans-api";
 import { EditProductForm } from "@/features/products/components/edit-product-form";
 import {
   useDeleteProductMutation,
   useGetProductByIdQuery,
 } from "@/features/products/products-api";
+import { useAppSelector } from "@/store/hooks";
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", {
   year: "numeric",
@@ -29,12 +31,14 @@ type ProductDetailsProps = {
 
 export function ProductDetails({ id }: ProductDetailsProps) {
   const router = useRouter();
+  const canMutateBilling = useAppSelector(selectCanMutateBilling);
   const { showToast } = useToast();
   const { data, error, isLoading } = useGetProductByIdQuery(id);
   const { data: plans } = useGetPlansQuery({ page: 1, pageSize: 100 });
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isEditDrawerOpen, setIsEditDrawerOpen] = useState(false);
-  const [isDeleteConfirmationOpen, setIsDeleteConfirmationOpen] = useState(false);
+  const [isDeleteConfirmationOpen, setIsDeleteConfirmationOpen] =
+    useState(false);
   const [deleteProduct, { isLoading: isDeleting }] = useDeleteProductMutation();
 
   async function handleDeleteProduct() {
@@ -54,7 +58,9 @@ export function ProductDetails({ id }: ProductDetailsProps) {
   }
 
   if (error) {
-    return <StatePanel title="Product details" message="Unable to load product." />;
+    return (
+      <StatePanel title="Product details" message="Unable to load product." />
+    );
   }
 
   if (!data) {
@@ -86,7 +92,9 @@ export function ProductDetails({ id }: ProductDetailsProps) {
                 Product ID #{data.id}
               </p>
               <span className={statusClassName}>
-                {data.isActive ? "Active catalog item" : "Inactive catalog item"}
+                {data.isActive
+                  ? "Active catalog item"
+                  : "Inactive catalog item"}
               </span>
             </div>
           </div>
@@ -207,96 +215,100 @@ export function ProductDetails({ id }: ProductDetailsProps) {
               />
             </DetailSection>
 
-            <section className="rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
-              <div className="space-y-2">
-                <h3 className="text-xl font-semibold tracking-tight text-slate-950">
-                  Product actions
-                </h3>
-                <p className="text-sm leading-6 text-slate-600">
-                  Manage this product catalog entry and destructive actions.
-                </p>
-              </div>
+            {canMutateBilling ? (
+              <section className="rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
+                <div className="space-y-2">
+                  <h3 className="text-xl font-semibold tracking-tight text-slate-950">
+                    Product actions
+                  </h3>
+                  <p className="text-sm leading-6 text-slate-600">
+                    Manage this product catalog entry and destructive actions.
+                  </p>
+                </div>
 
-              {errorMessage ? (
-                <p className="mt-5 text-sm text-red-600" role="alert">
-                  {errorMessage}
-                </p>
-              ) : null}
+                {errorMessage ? (
+                  <p className="mt-5 text-sm text-red-600" role="alert">
+                    {errorMessage}
+                  </p>
+                ) : null}
 
-              <div className="mt-5 flex flex-wrap gap-3">
-                <button
-                  className="rounded-xl bg-slate-950 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800"
-                  onClick={() => setIsEditDrawerOpen(true)}
-                  type="button"
-                >
-                  Edit product
-                </button>
-
-                {!isDeleteConfirmationOpen ? (
+                <div className="mt-5 flex flex-wrap gap-3">
                   <button
-                    className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
-                    disabled={isDeleting}
-                    onClick={() => setIsDeleteConfirmationOpen(true)}
+                    className="rounded-xl bg-slate-950 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800"
+                    onClick={() => setIsEditDrawerOpen(true)}
                     type="button"
                   >
-                    Delete product
+                    Edit product
                   </button>
-                ) : null}
-              </div>
 
-              {isDeleteConfirmationOpen ? (
-                <div className="mt-5 rounded-[1.25rem] border border-red-200 bg-red-50 p-4">
-                  <div className="space-y-2">
-                    <h4 className="text-base font-semibold tracking-tight text-red-900">
+                  {!isDeleteConfirmationOpen ? (
+                    <button
+                      className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+                      disabled={isDeleting}
+                      onClick={() => setIsDeleteConfirmationOpen(true)}
+                      type="button"
+                    >
                       Delete product
-                    </h4>
-                    <p className="text-sm leading-6 text-red-800">
-                      This action will permanently delete this product. This
-                      cannot be undone.
-                    </p>
-                  </div>
-
-                  <div className="mt-4 flex flex-wrap gap-3">
-                    <button
-                      className="rounded-xl bg-red-700 px-4 py-3 text-sm font-medium text-white transition hover:bg-red-800 disabled:cursor-not-allowed disabled:opacity-60"
-                      disabled={isDeleting}
-                      onClick={handleDeleteProduct}
-                      type="button"
-                    >
-                      {isDeleting ? "Deleting..." : "Confirm delete"}
                     </button>
-
-                    <button
-                      className="rounded-xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
-                      disabled={isDeleting}
-                      onClick={() => setIsDeleteConfirmationOpen(false)}
-                      type="button"
-                    >
-                      Cancel
-                    </button>
-                  </div>
+                  ) : null}
                 </div>
-              ) : null}
-            </section>
+
+                {isDeleteConfirmationOpen ? (
+                  <div className="mt-5 rounded-[1.25rem] border border-red-200 bg-red-50 p-4">
+                    <div className="space-y-2">
+                      <h4 className="text-base font-semibold tracking-tight text-red-900">
+                        Delete product
+                      </h4>
+                      <p className="text-sm leading-6 text-red-800">
+                        This action will permanently delete this product. This
+                        cannot be undone.
+                      </p>
+                    </div>
+
+                    <div className="mt-4 flex flex-wrap gap-3">
+                      <button
+                        className="rounded-xl bg-red-700 px-4 py-3 text-sm font-medium text-white transition hover:bg-red-800 disabled:cursor-not-allowed disabled:opacity-60"
+                        disabled={isDeleting}
+                        onClick={handleDeleteProduct}
+                        type="button"
+                      >
+                        {isDeleting ? "Deleting..." : "Confirm delete"}
+                      </button>
+
+                      <button
+                        className="rounded-xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                        disabled={isDeleting}
+                        onClick={() => setIsDeleteConfirmationOpen(false)}
+                        type="button"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
+              </section>
+            ) : null}
           </aside>
         </div>
       </section>
 
-      <AdminDrawer
-        description="Update the current product name, description, and active status."
-        isOpen={isEditDrawerOpen}
-        onClose={() => setIsEditDrawerOpen(false)}
-        title="Edit product"
-      >
-        <EditProductForm
-          isEmbedded
-          onUpdated={() => {
-            setIsEditDrawerOpen(false);
-            showToast("Product updated.");
-          }}
-          product={data}
-        />
-      </AdminDrawer>
+      {canMutateBilling ? (
+        <AdminDrawer
+          description="Update the current product name, description, and active status."
+          isOpen={isEditDrawerOpen}
+          onClose={() => setIsEditDrawerOpen(false)}
+          title="Edit product"
+        >
+          <EditProductForm
+            isEmbedded
+            onUpdated={() => {
+              setIsEditDrawerOpen(false);
+              showToast("Product updated.");
+            }}
+            product={data}
+          />
+        </AdminDrawer>
+      ) : null}
     </main>
   );
 }

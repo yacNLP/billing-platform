@@ -12,3 +12,5 @@ export const selectIsUser = (state: RootState) =>
   state.auth.status === "authenticated" && state.auth.session?.role === "USER";
 
 export const selectIsReadOnlyUser = selectIsUser;
+export const selectCanManageWorkspace = selectIsAdmin;
+export const selectCanMutateBilling = selectIsAdmin;

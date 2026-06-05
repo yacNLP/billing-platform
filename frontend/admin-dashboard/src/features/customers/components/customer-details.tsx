@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 
 import { AdminDrawer } from "@/components/admin/admin-drawer";
 import { useToast } from "@/components/admin/toast-provider";
+import { selectCanMutateBilling } from "@/features/auth/selectors";
 import { EditCustomerForm } from "@/features/customers/components/edit-customer-form";
 import {
   useDeleteCustomerMutation,
@@ -15,6 +16,7 @@ import { useGetInvoicesQuery } from "@/features/invoices/invoices-api";
 import { useGetPlansQuery } from "@/features/plans/plans-api";
 import { useGetSubscriptionsQuery } from "@/features/subscriptions/subscriptions-api";
 import type { BillingInterval } from "@/features/subscriptions/types";
+import { useAppSelector } from "@/store/hooks";
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", {
   year: "numeric",
@@ -39,6 +41,7 @@ type CustomerDetailsProps = {
 
 export function CustomerDetails({ id }: CustomerDetailsProps) {
   const router = useRouter();
+  const canMutateBilling = useAppSelector(selectCanMutateBilling);
   const { showToast } = useToast();
   const { data, error, isLoading } = useGetCustomerByIdQuery(id);
   const { data: subscriptions } = useGetSubscriptionsQuery({
@@ -72,8 +75,10 @@ export function CustomerDetails({ id }: CustomerDetailsProps) {
   const { data: plans } = useGetPlansQuery({ page: 1, pageSize: 100 });
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isEditDrawerOpen, setIsEditDrawerOpen] = useState(false);
-  const [isDeleteConfirmationOpen, setIsDeleteConfirmationOpen] = useState(false);
-  const [deleteCustomer, { isLoading: isDeleting }] = useDeleteCustomerMutation();
+  const [isDeleteConfirmationOpen, setIsDeleteConfirmationOpen] =
+    useState(false);
+  const [deleteCustomer, { isLoading: isDeleting }] =
+    useDeleteCustomerMutation();
 
   async function handleDeleteCustomer() {
     setErrorMessage(null);
@@ -88,7 +93,9 @@ export function CustomerDetails({ id }: CustomerDetailsProps) {
   }
 
   if (isLoading) {
-    return <StatePanel title="Customer details" message="Loading customer..." />;
+    return (
+      <StatePanel title="Customer details" message="Loading customer..." />
+    );
   }
 
   if (error) {
@@ -98,7 +105,9 @@ export function CustomerDetails({ id }: CustomerDetailsProps) {
   }
 
   if (!data) {
-    return <StatePanel title="Customer details" message="Customer not found." />;
+    return (
+      <StatePanel title="Customer details" message="Customer not found." />
+    );
   }
 
   const createdAtLabel = dateFormatter.format(new Date(data.createdAt));
@@ -225,96 +234,101 @@ export function CustomerDetails({ id }: CustomerDetailsProps) {
               <DetailItem label="Renewal behavior" value={renewalBehavior} />
             </DetailSection>
 
-            <section className="rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
-              <div className="space-y-2">
-                <h3 className="text-xl font-semibold tracking-tight text-slate-950">
-                  Customer actions
-                </h3>
-                <p className="text-sm leading-6 text-slate-600">
-                  Manage this customer profile and destructive account actions.
-                </p>
-              </div>
+            {canMutateBilling ? (
+              <section className="rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
+                <div className="space-y-2">
+                  <h3 className="text-xl font-semibold tracking-tight text-slate-950">
+                    Customer actions
+                  </h3>
+                  <p className="text-sm leading-6 text-slate-600">
+                    Manage this customer profile and destructive account
+                    actions.
+                  </p>
+                </div>
 
-              {errorMessage ? (
-                <p className="mt-5 text-sm text-red-600" role="alert">
-                  {errorMessage}
-                </p>
-              ) : null}
+                {errorMessage ? (
+                  <p className="mt-5 text-sm text-red-600" role="alert">
+                    {errorMessage}
+                  </p>
+                ) : null}
 
-              <div className="mt-5 flex flex-wrap gap-3">
-                <button
-                  className="rounded-xl bg-slate-950 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800"
-                  onClick={() => setIsEditDrawerOpen(true)}
-                  type="button"
-                >
-                  Edit customer
-                </button>
-
-                {!isDeleteConfirmationOpen ? (
+                <div className="mt-5 flex flex-wrap gap-3">
                   <button
-                    className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
-                    disabled={isDeleting}
-                    onClick={() => setIsDeleteConfirmationOpen(true)}
+                    className="rounded-xl bg-slate-950 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800"
+                    onClick={() => setIsEditDrawerOpen(true)}
                     type="button"
                   >
-                    Delete customer
+                    Edit customer
                   </button>
-                ) : null}
-              </div>
 
-              {isDeleteConfirmationOpen ? (
-                <div className="mt-5 rounded-[1.25rem] border border-red-200 bg-red-50 p-4">
-                  <div className="space-y-2">
-                    <h4 className="text-base font-semibold tracking-tight text-red-900">
+                  {!isDeleteConfirmationOpen ? (
+                    <button
+                      className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+                      disabled={isDeleting}
+                      onClick={() => setIsDeleteConfirmationOpen(true)}
+                      type="button"
+                    >
                       Delete customer
-                    </h4>
-                    <p className="text-sm leading-6 text-red-800">
-                      This action will permanently delete this customer. This
-                      cannot be undone.
-                    </p>
-                  </div>
-
-                  <div className="mt-4 flex flex-wrap gap-3">
-                    <button
-                      className="rounded-xl bg-red-700 px-4 py-3 text-sm font-medium text-white transition hover:bg-red-800 disabled:cursor-not-allowed disabled:opacity-60"
-                      disabled={isDeleting}
-                      onClick={handleDeleteCustomer}
-                      type="button"
-                    >
-                      {isDeleting ? "Deleting..." : "Confirm delete"}
                     </button>
-
-                    <button
-                      className="rounded-xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
-                      disabled={isDeleting}
-                      onClick={() => setIsDeleteConfirmationOpen(false)}
-                      type="button"
-                    >
-                      Cancel
-                    </button>
-                  </div>
+                  ) : null}
                 </div>
-              ) : null}
-            </section>
+
+                {isDeleteConfirmationOpen ? (
+                  <div className="mt-5 rounded-[1.25rem] border border-red-200 bg-red-50 p-4">
+                    <div className="space-y-2">
+                      <h4 className="text-base font-semibold tracking-tight text-red-900">
+                        Delete customer
+                      </h4>
+                      <p className="text-sm leading-6 text-red-800">
+                        This action will permanently delete this customer. This
+                        cannot be undone.
+                      </p>
+                    </div>
+
+                    <div className="mt-4 flex flex-wrap gap-3">
+                      <button
+                        className="rounded-xl bg-red-700 px-4 py-3 text-sm font-medium text-white transition hover:bg-red-800 disabled:cursor-not-allowed disabled:opacity-60"
+                        disabled={isDeleting}
+                        onClick={handleDeleteCustomer}
+                        type="button"
+                      >
+                        {isDeleting ? "Deleting..." : "Confirm delete"}
+                      </button>
+
+                      <button
+                        className="rounded-xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                        disabled={isDeleting}
+                        onClick={() => setIsDeleteConfirmationOpen(false)}
+                        type="button"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
+              </section>
+            ) : null}
           </aside>
         </div>
       </section>
 
-      <AdminDrawer
-        description="Update the current customer name and email."
-        isOpen={isEditDrawerOpen}
-        onClose={() => setIsEditDrawerOpen(false)}
-        title="Edit customer"
-      >
-        <EditCustomerForm
-          customer={data}
-          isEmbedded
-          onUpdated={() => {
-            setIsEditDrawerOpen(false);
-            showToast("Customer updated.");
-          }}
-        />
-      </AdminDrawer>
+      {canMutateBilling ? (
+        <AdminDrawer
+          description="Update the current customer name and email."
+          isOpen={isEditDrawerOpen}
+          onClose={() => setIsEditDrawerOpen(false)}
+          title="Edit customer"
+        >
+          <EditCustomerForm
+            customer={data}
+            isEmbedded
+            onUpdated={() => {
+              setIsEditDrawerOpen(false);
+              showToast("Customer updated.");
+            }}
+          />
+        </AdminDrawer>
+      ) : null}
     </main>
   );
 }

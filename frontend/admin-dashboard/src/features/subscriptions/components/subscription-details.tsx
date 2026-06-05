@@ -5,6 +5,7 @@ import { useState } from "react";
 
 import { ConfirmActionPanel } from "@/components/admin/confirm-action-panel";
 import { useToast } from "@/components/admin/toast-provider";
+import { selectCanMutateBilling } from "@/features/auth/selectors";
 import { useGetCustomersQuery } from "@/features/customers/customers-api";
 import { useGetPlansQuery } from "@/features/plans/plans-api";
 import type {
@@ -15,6 +16,7 @@ import {
   useCancelSubscriptionMutation,
   useGetSubscriptionByIdQuery,
 } from "@/features/subscriptions/subscriptions-api";
+import { useAppSelector } from "@/store/hooks";
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", {
   year: "numeric",
@@ -59,13 +61,14 @@ type SubscriptionDetailsProps = {
 };
 
 export function SubscriptionDetails({ id }: SubscriptionDetailsProps) {
+  const canMutateBilling = useAppSelector(selectCanMutateBilling);
   const { showToast } = useToast();
   const { data, error, isLoading } = useGetSubscriptionByIdQuery(id);
   const { data: customers } = useGetCustomersQuery({ page: 1, pageSize: 100 });
   const { data: plans } = useGetPlansQuery({ page: 1, pageSize: 100 });
-  const [cancelMode, setCancelMode] = useState<"period_end" | "immediate" | null>(
-    null,
-  );
+  const [cancelMode, setCancelMode] = useState<
+    "period_end" | "immediate" | null
+  >(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [cancelSubscription, { isLoading: isCanceling }] =
     useCancelSubscriptionMutation();
@@ -90,7 +93,12 @@ export function SubscriptionDetails({ id }: SubscriptionDetailsProps) {
   }
 
   if (isLoading) {
-    return <StatePanel title="Subscription details" message="Loading subscription..." />;
+    return (
+      <StatePanel
+        title="Subscription details"
+        message="Loading subscription..."
+      />
+    );
   }
 
   if (error) {
@@ -104,14 +112,18 @@ export function SubscriptionDetails({ id }: SubscriptionDetailsProps) {
 
   if (!data) {
     return (
-      <StatePanel title="Subscription details" message="Subscription not found." />
+      <StatePanel
+        title="Subscription details"
+        message="Subscription not found."
+      />
     );
   }
 
   const canScheduleCancellation =
     data.status === "ACTIVE" && !data.cancelAtPeriodEnd;
   const canImmediatelyCancel = data.status === "ACTIVE";
-  const showCancelActions = canScheduleCancellation || canImmediatelyCancel;
+  const showCancelActions =
+    canMutateBilling && (canScheduleCancellation || canImmediatelyCancel);
   const customer = customers?.data.find((item) => item.id === data.customerId);
   const plan = plans?.data.find((item) => item.id === data.planId);
   const customerLabel = customer
@@ -153,7 +165,9 @@ export function SubscriptionDetails({ id }: SubscriptionDetailsProps) {
             <h2 className="text-4xl font-semibold tracking-tight text-slate-950">
               Subscription #{data.id}
             </h2>
-            <span className={statusClassNameMap[data.status]}>{data.status}</span>
+            <span className={statusClassNameMap[data.status]}>
+              {data.status}
+            </span>
             {data.cancelAtPeriodEnd ? (
               <span className="inline-flex rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-sm font-medium text-amber-700">
                 Scheduled cancellation
@@ -221,76 +235,79 @@ export function SubscriptionDetails({ id }: SubscriptionDetailsProps) {
               />
             </DetailSection>
 
-            <section className="rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
-              <div className="space-y-2">
-                <h3 className="text-xl font-semibold tracking-tight text-slate-950">
-                  Subscription actions
-                </h3>
-                <p className="text-sm leading-6 text-slate-600">
-                  Cancel at period end keeps access until{" "}
-                  {currentPeriodEndLabel}. Cancel immediately ends the
-                  subscription now.
-                </p>
-              </div>
-
-              {errorMessage ? (
-                <p className="mt-5 text-sm text-red-600" role="alert">
-                  {errorMessage}
-                </p>
-              ) : null}
-
-              {cancelMode ? (
-                <div className="mt-5">
-                  <ConfirmActionPanel
-                    confirmLabel="Confirm"
-                    isLoading={isCanceling}
-                    message={
-                      cancelMode === "period_end"
-                        ? `Cancel at period end keeps access until ${currentPeriodEndLabel}.`
-                        : "Cancel immediately ends the subscription now."
-                    }
-                    onCancel={() => setCancelMode(null)}
-                    onConfirm={() =>
-                      handleCancelSubscription(cancelMode === "period_end")
-                    }
-                    title={
-                      cancelMode === "period_end"
-                        ? "Cancel at period end"
-                        : "Cancel subscription immediately"
-                    }
-                    variant="danger"
-                  />
+            {canMutateBilling ? (
+              <section className="rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
+                <div className="space-y-2">
+                  <h3 className="text-xl font-semibold tracking-tight text-slate-950">
+                    Subscription actions
+                  </h3>
+                  <p className="text-sm leading-6 text-slate-600">
+                    Cancel at period end keeps access until{" "}
+                    {currentPeriodEndLabel}. Cancel immediately ends the
+                    subscription now.
+                  </p>
                 </div>
-              ) : showCancelActions ? (
-                <div className="mt-5 flex flex-col gap-3 sm:flex-row">
-                  {canScheduleCancellation ? (
-                    <button
-                      className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60"
-                      disabled={isCanceling}
-                      onClick={() => setCancelMode("period_end")}
-                      type="button"
-                    >
-                      Cancel at period end
-                    </button>
-                  ) : null}
 
-                  {canImmediatelyCancel ? (
-                    <button
-                      className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
-                      disabled={isCanceling}
-                      onClick={() => setCancelMode("immediate")}
-                      type="button"
-                    >
-                      Cancel immediately
-                    </button>
-                  ) : null}
-                </div>
-              ) : (
-                <p className="mt-5 text-sm leading-6 text-slate-600">
-                  No subscription actions are currently available for this status.
-                </p>
-              )}
-            </section>
+                {errorMessage ? (
+                  <p className="mt-5 text-sm text-red-600" role="alert">
+                    {errorMessage}
+                  </p>
+                ) : null}
+
+                {canMutateBilling && cancelMode ? (
+                  <div className="mt-5">
+                    <ConfirmActionPanel
+                      confirmLabel="Confirm"
+                      isLoading={isCanceling}
+                      message={
+                        cancelMode === "period_end"
+                          ? `Cancel at period end keeps access until ${currentPeriodEndLabel}.`
+                          : "Cancel immediately ends the subscription now."
+                      }
+                      onCancel={() => setCancelMode(null)}
+                      onConfirm={() =>
+                        handleCancelSubscription(cancelMode === "period_end")
+                      }
+                      title={
+                        cancelMode === "period_end"
+                          ? "Cancel at period end"
+                          : "Cancel subscription immediately"
+                      }
+                      variant="danger"
+                    />
+                  </div>
+                ) : showCancelActions ? (
+                  <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+                    {canScheduleCancellation ? (
+                      <button
+                        className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60"
+                        disabled={isCanceling}
+                        onClick={() => setCancelMode("period_end")}
+                        type="button"
+                      >
+                        Cancel at period end
+                      </button>
+                    ) : null}
+
+                    {canImmediatelyCancel ? (
+                      <button
+                        className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+                        disabled={isCanceling}
+                        onClick={() => setCancelMode("immediate")}
+                        type="button"
+                      >
+                        Cancel immediately
+                      </button>
+                    ) : null}
+                  </div>
+                ) : (
+                  <p className="mt-5 text-sm leading-6 text-slate-600">
+                    No subscription actions are currently available for this
+                    status.
+                  </p>
+                )}
+              </section>
+            ) : null}
           </aside>
         </div>
       </section>

@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 
 import { AdminDrawer } from "@/components/admin/admin-drawer";
 import { useToast } from "@/components/admin/toast-provider";
+import { selectCanMutateBilling } from "@/features/auth/selectors";
 import { EditPlanForm } from "@/features/plans/components/edit-plan-form";
 import {
   useDeletePlanMutation,
@@ -14,6 +15,7 @@ import {
 import { useGetProductsQuery } from "@/features/products/products-api";
 import { useGetSubscriptionsQuery } from "@/features/subscriptions/subscriptions-api";
 import type { BillingInterval } from "@/features/plans/types";
+import { useAppSelector } from "@/store/hooks";
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", {
   year: "numeric",
@@ -28,7 +30,11 @@ const intervalLabelMap: Record<BillingInterval, string> = {
   YEAR: "year",
 };
 
-function formatPricing(amount: number, currency: string, interval: BillingInterval) {
+function formatPricing(
+  amount: number,
+  currency: string,
+  interval: BillingInterval,
+) {
   return `${(amount / 100).toFixed(2)} ${currency} / ${intervalLabelMap[interval]}`;
 }
 
@@ -46,6 +52,7 @@ type PlanDetailsProps = {
 
 export function PlanDetails({ id }: PlanDetailsProps) {
   const router = useRouter();
+  const canMutateBilling = useAppSelector(selectCanMutateBilling);
   const { showToast } = useToast();
   const { data, error, isLoading } = useGetPlanByIdQuery(id);
   const { data: products } = useGetProductsQuery({ page: 1, pageSize: 100 });
@@ -57,7 +64,8 @@ export function PlanDetails({ id }: PlanDetailsProps) {
   });
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isEditDrawerOpen, setIsEditDrawerOpen] = useState(false);
-  const [isDeleteConfirmationOpen, setIsDeleteConfirmationOpen] = useState(false);
+  const [isDeleteConfirmationOpen, setIsDeleteConfirmationOpen] =
+    useState(false);
   const [deletePlan, { isLoading: isDeleting }] = useDeletePlanMutation();
 
   async function handleDeletePlan() {
@@ -92,9 +100,7 @@ export function PlanDetails({ id }: PlanDetailsProps) {
       ? `${data.trialDays} day${data.trialDays === 1 ? "" : "s"}`
       : "No trial";
   const product = products?.data.find((item) => item.id === data.productId);
-  const productLabel = product
-    ? product.name
-    : `Product ID #${data.productId}`;
+  const productLabel = product ? product.name : `Product ID #${data.productId}`;
   const statusClassName = data.active
     ? "inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-sm font-medium text-emerald-700"
     : "inline-flex rounded-full border border-slate-200 bg-slate-100 px-3 py-1 text-sm font-medium text-slate-600";
@@ -181,96 +187,100 @@ export function PlanDetails({ id }: PlanDetailsProps) {
               />
             </DetailSection>
 
-            <section className="rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
-              <div className="space-y-2">
-                <h3 className="text-xl font-semibold tracking-tight text-slate-950">
-                  Plan actions
-                </h3>
-                <p className="text-sm leading-6 text-slate-600">
-                  Manage this plan catalog entry and destructive actions.
-                </p>
-              </div>
+            {canMutateBilling ? (
+              <section className="rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
+                <div className="space-y-2">
+                  <h3 className="text-xl font-semibold tracking-tight text-slate-950">
+                    Plan actions
+                  </h3>
+                  <p className="text-sm leading-6 text-slate-600">
+                    Manage this plan catalog entry and destructive actions.
+                  </p>
+                </div>
 
-              {errorMessage ? (
-                <p className="mt-5 text-sm text-red-600" role="alert">
-                  {errorMessage}
-                </p>
-              ) : null}
+                {errorMessage ? (
+                  <p className="mt-5 text-sm text-red-600" role="alert">
+                    {errorMessage}
+                  </p>
+                ) : null}
 
-              <div className="mt-5 flex flex-wrap gap-3">
-                <button
-                  className="rounded-xl bg-slate-950 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800"
-                  onClick={() => setIsEditDrawerOpen(true)}
-                  type="button"
-                >
-                  Edit plan
-                </button>
-
-                {!isDeleteConfirmationOpen ? (
+                <div className="mt-5 flex flex-wrap gap-3">
                   <button
-                    className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
-                    disabled={isDeleting}
-                    onClick={() => setIsDeleteConfirmationOpen(true)}
+                    className="rounded-xl bg-slate-950 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800"
+                    onClick={() => setIsEditDrawerOpen(true)}
                     type="button"
                   >
-                    Delete plan
+                    Edit plan
                   </button>
-                ) : null}
-              </div>
 
-              {isDeleteConfirmationOpen ? (
-                <div className="mt-5 rounded-[1.25rem] border border-red-200 bg-red-50 p-4">
-                  <div className="space-y-2">
-                    <h4 className="text-base font-semibold tracking-tight text-red-900">
+                  {!isDeleteConfirmationOpen ? (
+                    <button
+                      className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+                      disabled={isDeleting}
+                      onClick={() => setIsDeleteConfirmationOpen(true)}
+                      type="button"
+                    >
                       Delete plan
-                    </h4>
-                    <p className="text-sm leading-6 text-red-800">
-                      This action will deactivate and remove this plan from
-                      active listings. This cannot be undone from the UI.
-                    </p>
-                  </div>
-
-                  <div className="mt-4 flex flex-wrap gap-3">
-                    <button
-                      className="rounded-xl bg-red-700 px-4 py-3 text-sm font-medium text-white transition hover:bg-red-800 disabled:cursor-not-allowed disabled:opacity-60"
-                      disabled={isDeleting}
-                      onClick={handleDeletePlan}
-                      type="button"
-                    >
-                      {isDeleting ? "Deleting..." : "Confirm delete"}
                     </button>
-
-                    <button
-                      className="rounded-xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
-                      disabled={isDeleting}
-                      onClick={() => setIsDeleteConfirmationOpen(false)}
-                      type="button"
-                    >
-                      Cancel
-                    </button>
-                  </div>
+                  ) : null}
                 </div>
-              ) : null}
-            </section>
+
+                {isDeleteConfirmationOpen ? (
+                  <div className="mt-5 rounded-[1.25rem] border border-red-200 bg-red-50 p-4">
+                    <div className="space-y-2">
+                      <h4 className="text-base font-semibold tracking-tight text-red-900">
+                        Delete plan
+                      </h4>
+                      <p className="text-sm leading-6 text-red-800">
+                        This action will deactivate and remove this plan from
+                        active listings. This cannot be undone from the UI.
+                      </p>
+                    </div>
+
+                    <div className="mt-4 flex flex-wrap gap-3">
+                      <button
+                        className="rounded-xl bg-red-700 px-4 py-3 text-sm font-medium text-white transition hover:bg-red-800 disabled:cursor-not-allowed disabled:opacity-60"
+                        disabled={isDeleting}
+                        onClick={handleDeletePlan}
+                        type="button"
+                      >
+                        {isDeleting ? "Deleting..." : "Confirm delete"}
+                      </button>
+
+                      <button
+                        className="rounded-xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                        disabled={isDeleting}
+                        onClick={() => setIsDeleteConfirmationOpen(false)}
+                        type="button"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
+              </section>
+            ) : null}
           </aside>
         </div>
       </section>
 
-      <AdminDrawer
-        description="Update the current plan pricing, billing interval, and metadata."
-        isOpen={isEditDrawerOpen}
-        onClose={() => setIsEditDrawerOpen(false)}
-        title="Edit plan"
-      >
-        <EditPlanForm
-          isEmbedded
-          onUpdated={() => {
-            setIsEditDrawerOpen(false);
-            showToast("Plan updated.");
-          }}
-          plan={data}
-        />
-      </AdminDrawer>
+      {canMutateBilling ? (
+        <AdminDrawer
+          description="Update the current plan pricing, billing interval, and metadata."
+          isOpen={isEditDrawerOpen}
+          onClose={() => setIsEditDrawerOpen(false)}
+          title="Edit plan"
+        >
+          <EditPlanForm
+            isEmbedded
+            onUpdated={() => {
+              setIsEditDrawerOpen(false);
+              showToast("Plan updated.");
+            }}
+            plan={data}
+          />
+        </AdminDrawer>
+      ) : null}
     </main>
   );
 }

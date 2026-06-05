@@ -4,10 +4,12 @@ import Link from "next/link";
 import { useState } from "react";
 
 import { useToast } from "@/components/admin/toast-provider";
+import { selectCanMutateBilling } from "@/features/auth/selectors";
 import { useLoadSampleDataMutation } from "@/features/demo/demo-api";
 import type { LoadSampleDataResponse } from "@/features/demo/types";
 import { useGetOnboardingStatusQuery } from "@/features/onboarding/onboarding-api";
 import type { OnboardingStep } from "@/features/onboarding/types";
+import { useAppSelector } from "@/store/hooks";
 
 function getStepState(
   step: OnboardingStep,
@@ -46,6 +48,7 @@ function getLoadSampleDataErrorMessage(error: unknown): string {
 export function OnboardingChecklist() {
   const [isConfirmingSampleData, setIsConfirmingSampleData] = useState(false);
   const [sampleDataError, setSampleDataError] = useState<string | null>(null);
+  const canMutateBilling = useAppSelector(selectCanMutateBilling);
   const { showToast } = useToast();
   const { data, error, isLoading } = useGetOnboardingStatusQuery();
   const [loadSampleData, { isLoading: isLoadingSampleData }] =
@@ -67,7 +70,9 @@ export function OnboardingChecklist() {
   if (isLoading) {
     return (
       <section className="rounded-[2rem] border border-[var(--color-border)] bg-white/90 p-6 shadow-[0_18px_50px_rgba(15,23,42,0.06)]">
-        <p className="text-sm text-slate-600">Loading onboarding checklist...</p>
+        <p className="text-sm text-slate-600">
+          Loading onboarding checklist...
+        </p>
       </section>
     );
   }
@@ -108,21 +113,23 @@ export function OnboardingChecklist() {
           <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 text-sm font-medium text-slate-700">
             {data.completedCount} / {data.totalCount} completed
           </div>
-          <button
-            className="rounded-xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
-            disabled={isLoadingSampleData}
-            onClick={() => {
-              setSampleDataError(null);
-              setIsConfirmingSampleData(true);
-            }}
-            type="button"
-          >
-            Load sample data
-          </button>
+          {canMutateBilling ? (
+            <button
+              className="rounded-xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={isLoadingSampleData}
+              onClick={() => {
+                setSampleDataError(null);
+                setIsConfirmingSampleData(true);
+              }}
+              type="button"
+            >
+              Load sample data
+            </button>
+          ) : null}
         </div>
       </div>
 
-      {isConfirmingSampleData ? (
+      {canMutateBilling && isConfirmingSampleData ? (
         <div className="mt-6 rounded-[1.5rem] border border-amber-200 bg-amber-50 p-4">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="space-y-1">
@@ -200,7 +207,11 @@ export function OnboardingChecklist() {
                 className="inline-flex justify-center rounded-xl border border-[var(--color-border)] bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
                 href={step.href}
               >
-                {step.completed ? "Review" : state === "Next" ? "Start" : "Open"}
+                {step.completed
+                  ? "Review"
+                  : state === "Next"
+                    ? "Start"
+                    : "Open"}
               </Link>
             </li>
           );
