@@ -3,6 +3,17 @@ import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
+import helmet from 'helmet';
+
+function isSwaggerEnabled(): boolean {
+  const configuredValue = process.env.ENABLE_SWAGGER?.trim().toLowerCase();
+
+  if (configuredValue) {
+    return ['1', 'true', 'yes', 'on'].includes(configuredValue);
+  }
+
+  return process.env.NODE_ENV !== 'production';
+}
 
 function getCorsOrigins(): string[] {
   const configuredOrigins = process.env.CORS_ORIGIN;
@@ -19,6 +30,13 @@ function getCorsOrigins(): string[] {
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  const swaggerEnabled = isSwaggerEnabled();
+
+  app.use(
+    helmet({
+      contentSecurityPolicy: swaggerEnabled ? false : undefined,
+    }),
+  );
 
   app.enableCors({
     origin: getCorsOrigins(),
@@ -33,16 +51,18 @@ async function bootstrap() {
     }),
   );
 
-  // swagger configuration
-  const config = new DocumentBuilder()
-    .setTitle('RevenueOps Platform API')
-    .setDescription('API documentation for RevenueOps Platform backend')
-    .setVersion('1.0.0')
-    .addBearerAuth()
-    .build();
+  if (swaggerEnabled) {
+    // swagger configuration
+    const config = new DocumentBuilder()
+      .setTitle('RevenueOps Platform API')
+      .setDescription('API documentation for RevenueOps Platform backend')
+      .setVersion('1.0.0')
+      .addBearerAuth()
+      .build();
 
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('docs', app, document);
+    const document = SwaggerModule.createDocument(app, config);
+    SwaggerModule.setup('docs', app, document);
+  }
 
   // global logging interceptor
   app.useGlobalInterceptors(new LoggingInterceptor());

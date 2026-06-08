@@ -4,13 +4,14 @@ import { ExtractJwt, Strategy } from 'passport-jwt';
 import { JwtPayloadSchema } from './types/jwt-payload.schema';
 import { AuthenticatedUser } from './types/authenticated-user.type';
 import { Role } from './role.enum';
+import { getJwtSecret } from './jwt-secret';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor() {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
-      secretOrKey: process.env.JWT_SECRET ?? 'dev-secret',
+      secretOrKey: getJwtSecret(),
     });
   }
 

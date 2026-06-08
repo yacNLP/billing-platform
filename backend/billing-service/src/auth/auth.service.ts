@@ -73,6 +73,8 @@ export class AuthService {
     const expiresAt = addMinutes(new Date(), PASSWORD_RESET_TOKEN_TTL_MINUTES);
 
     await this.prisma.$transaction(async (tx) => {
+      await this.cleanupExpiredOrUsedPasswordResetTokens(tx);
+
       await tx.passwordResetToken.create({
         data: {
           userId: user.id,
@@ -172,6 +174,16 @@ export class AuthService {
     });
 
     return { ok: true };
+  }
+
+  private async cleanupExpiredOrUsedPasswordResetTokens(
+    tx: Prisma.TransactionClient,
+  ): Promise<void> {
+    await tx.passwordResetToken.deleteMany({
+      where: {
+        OR: [{ expiresAt: { lt: new Date() } }, { usedAt: { not: null } }],
+      },
+    });
   }
 
   private async createTenantWorkspace(input: {

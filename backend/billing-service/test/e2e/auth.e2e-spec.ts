@@ -337,6 +337,37 @@ describe('Auth signup e2e', () => {
       .expect(400);
   });
 
+  it('forgot password cleans expired and used reset tokens opportunistically', async () => {
+    const user = await createResetUser(server);
+
+    const expiredToken = await prisma.passwordResetToken.create({
+      data: {
+        userId: user.userId,
+        tokenHash: hashResetToken(`${uniqueSuffix()}expired`),
+        expiresAt: new Date(Date.now() - 60_000),
+      },
+    });
+    const usedToken = await prisma.passwordResetToken.create({
+      data: {
+        userId: user.userId,
+        tokenHash: hashResetToken(`${uniqueSuffix()}used`),
+        expiresAt: new Date(Date.now() + 60_000),
+        usedAt: new Date(),
+      },
+    });
+
+    await request(server)
+      .post('/auth/forgot-password')
+      .send({ email: user.email })
+      .expect(201);
+
+    const staleTokens = await prisma.passwordResetToken.findMany({
+      where: { id: { in: [expiredToken.id, usedToken.id] } },
+    });
+
+    expect(staleTokens).toEqual([]);
+  });
+
   it('reset password rejects short passwords', async () => {
     await request(server)
       .post('/auth/reset-password')
@@ -410,5 +441,55 @@ describe('Auth signup e2e', () => {
 
     expect(customersBody.total).toBe(0);
     expect(customersBody.data).toEqual([]);
+  });
+});
+
+describe('Auth rate limiting e2e', () => {
+  const originalThrottleDisabled = process.env.AUTH_THROTTLE_DISABLED;
+  const originalLoginLimit = process.env.AUTH_LOGIN_LIMIT;
+  const originalLoginTtl = process.env.AUTH_LOGIN_TTL_SECONDS;
+  let app: INestApplication;
+  let server: Server;
+
+  beforeAll(async () => {
+    process.env.AUTH_THROTTLE_DISABLED = 'false';
+    process.env.AUTH_LOGIN_LIMIT = '1';
+    process.env.AUTH_LOGIN_TTL_SECONDS = '60';
+
+    const testApp: TestApp = await createE2eApp();
+    app = testApp.app;
+    server = testApp.server;
+  });
+
+  afterAll(async () => {
+    await app.close();
+
+    if (originalThrottleDisabled === undefined) {
+      delete process.env.AUTH_THROTTLE_DISABLED;
+    } else {
+      process.env.AUTH_THROTTLE_DISABLED = originalThrottleDisabled;
+    }
+
+    if (originalLoginLimit === undefined) {
+      delete process.env.AUTH_LOGIN_LIMIT;
+    } else {
+      process.env.AUTH_LOGIN_LIMIT = originalLoginLimit;
+    }
+
+    if (originalLoginTtl === undefined) {
+      delete process.env.AUTH_LOGIN_TTL_SECONDS;
+    } else {
+      process.env.AUTH_LOGIN_TTL_SECONDS = originalLoginTtl;
+    }
+  });
+
+  it('returns 429 after too many login attempts', async () => {
+    const payload = {
+      email: `rate_${uniqueSuffix()}@example.com`,
+      password: 'wrongPassword123',
+    };
+
+    await request(server).post('/auth/login').send(payload).expect(401);
+    await request(server).post('/auth/login').send(payload).expect(429);
   });
 });
