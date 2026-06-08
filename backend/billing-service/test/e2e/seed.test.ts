@@ -49,6 +49,38 @@ export async function seedTestData() {
 
   await syncSequence('Tenant');
 
+  await prisma.tenantSettings.upsert({
+    where: { tenantId: tenant1.id },
+    update: {},
+    create: {
+      tenantId: tenant1.id,
+      companyName: tenant1.name,
+      billingEmail: 'billing@test-tenant-1.example',
+      addressLine1: '1 Test Billing Street',
+      city: 'Paris',
+      postalCode: '75001',
+      country: 'France',
+      defaultCurrency: 'EUR',
+      paymentTerms: 30,
+    },
+  });
+
+  await prisma.tenantSettings.upsert({
+    where: { tenantId: tenant2.id },
+    update: {},
+    create: {
+      tenantId: tenant2.id,
+      companyName: tenant2.name,
+      billingEmail: 'billing@test-tenant-2.example',
+      addressLine1: '2 Test Billing Street',
+      city: 'Lyon',
+      postalCode: '69001',
+      country: 'France',
+      defaultCurrency: 'EUR',
+      paymentTerms: 30,
+    },
+  });
+
   // =============================
   // TENANT 1 DATA
   // =============================
