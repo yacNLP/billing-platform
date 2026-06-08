@@ -36,11 +36,13 @@ Implemented backend domains:
 
 ## API Documentation
 
-Swagger / OpenAPI is available when the API is running:
+Swagger / OpenAPI is available in development when the API is running:
 
 ```text
 http://localhost:3000/docs
 ```
+
+In production, Swagger is disabled by default unless `ENABLE_SWAGGER=true` is explicitly configured.
 
 The API is JSON-based and uses:
 
@@ -155,6 +157,17 @@ NODE_ENV=production
 DATABASE_URL=postgresql://...
 JWT_SECRET=<long-random-secret>
 CORS_ORIGIN=https://<frontend-domain>
+FRONTEND_URL=https://<frontend-domain>
+EMAIL_MODE=noop|resend
+ENABLE_SWAGGER=false
+```
+
+When `EMAIL_MODE=resend`, also configure:
+
+```env
+RESEND_API_KEY=<resend-api-key>
+EMAIL_FROM=RevenueOps <billing@your-domain.com>
+EMAIL_REPLY_TO=support@your-domain.com
 ```
 
 `JWT_SECRET` must be a private random value. Do not use `dev-secret` in production.
@@ -167,9 +180,11 @@ After deployment, verify:
 
 ```text
 GET /healthz
-GET /docs
+GET /readyz
 POST /auth/login with the production admin
 ```
+
+Operational runbook: [`docs/operations.md`](docs/operations.md).
 
 ## Testing
 

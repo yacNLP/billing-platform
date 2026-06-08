@@ -3,6 +3,7 @@ import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
+import { validateRuntimeEnv } from './config/env';
 import helmet from 'helmet';
 
 function isSwaggerEnabled(): boolean {
@@ -29,6 +30,8 @@ function getCorsOrigins(): string[] {
 }
 
 async function bootstrap() {
+  validateRuntimeEnv();
+
   const app = await NestFactory.create(AppModule);
   const swaggerEnabled = isSwaggerEnabled();
 
