@@ -17,8 +17,19 @@ export const adminNavigation: AdminNavigationItem[] = [
   { id: "invoices", label: "Invoices", path: "/invoices" },
   { id: "payments", label: "Payments", path: "/payments" },
   { id: "revenue-actions", label: "Action Center", path: "/revenue-actions" },
-  { id: "admin-jobs", label: "Admin Jobs", path: "/admin-jobs", roles: ["ADMIN"] },
+  {
+    id: "admin-jobs",
+    label: "Admin Jobs",
+    path: "/admin-jobs",
+    roles: ["ADMIN"],
+  },
   { id: "team", label: "Team", path: "/team", roles: ["ADMIN"] },
+  {
+    id: "audit-logs",
+    label: "Audit Logs",
+    path: "/audit-logs",
+    roles: ["ADMIN"],
+  },
   { id: "settings", label: "Settings", path: "/settings" },
 ];
 
@@ -31,13 +42,14 @@ export function isNavigationItemActive(
   }
 
   return (
-    currentPathname === itemPath ||
-    currentPathname.startsWith(`${itemPath}/`)
+    currentPathname === itemPath || currentPathname.startsWith(`${itemPath}/`)
   );
 }
 
 export function getNavigationItemByPath(pathname: string) {
-  return adminNavigation.find((item) => isNavigationItemActive(pathname, item.path));
+  return adminNavigation.find((item) =>
+    isNavigationItemActive(pathname, item.path),
+  );
 }
 
 export function canAccessNavigationItem(

@@ -27,12 +27,13 @@ const navigationGroups = [
   },
   {
     label: "Workspace",
-    itemIds: ["team", "settings"],
+    itemIds: ["team", "audit-logs", "settings"],
   },
 ];
 
 const navigationIconMap: Record<string, string> = {
   "admin-jobs": "AJ",
+  "audit-logs": "AL",
   customers: "CU",
   dashboard: "DB",
   invoices: "IN",
