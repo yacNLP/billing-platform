@@ -138,6 +138,19 @@ describe('Customers e2e', () => {
       ]);
       expect(logs.every((log) => log.tenantId === 1)).toBe(true);
       expect(logs.every((log) => log.actorUserId != null)).toBe(true);
+      expect(logs[0].metadata).toMatchObject({
+        customerName: created.name,
+        customerEmail: created.email,
+      });
+      expect(logs[1].metadata).toMatchObject({
+        customerName: `${created.name} updated`,
+        customerEmail: created.email,
+        changedFields: ['name'],
+      });
+      expect(logs[2].metadata).toMatchObject({
+        customerName: `${created.name} updated`,
+        customerEmail: created.email,
+      });
     });
 
     it('GET /customers should return paginated list', async () => {

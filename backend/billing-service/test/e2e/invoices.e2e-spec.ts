@@ -792,9 +792,13 @@ describe('Invoices e2e', () => {
     expect(auditLog).toBeDefined();
     expect(auditLog?.actorUserId).toBeDefined();
     expect(metadata).toMatchObject({
+      invoiceNumber: invoice.invoiceNumber,
       statusBefore: 'ISSUED',
       statusAfter: 'OVERDUE',
       dueAt: invoice.dueAt,
+      amountDue: invoice.amountDue,
+      amountPaid: invoice.amountPaid,
+      currency: invoice.currency,
     });
   });
 

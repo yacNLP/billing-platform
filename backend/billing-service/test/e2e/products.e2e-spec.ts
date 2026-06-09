@@ -3,6 +3,7 @@ import { createE2eApp, TestApp } from '../utils/e2e-app';
 import { Server } from 'http';
 import { E2EClient } from '../utils/e2e-client';
 import { loginAsAdmin, loginAsUser } from '../utils/e2e-auth';
+import { PrismaService } from '../../src/prisma.service';
 
 interface ProductResponse {
   id: number;
@@ -50,6 +51,7 @@ describe('Products e2e', () => {
   let server: Server;
   let adminClient: E2EClient;
   let userClient: E2EClient;
+  let prisma: PrismaService;
 
   beforeAll(async () => {
     const testApp: TestApp = await createE2eApp();
@@ -61,6 +63,8 @@ describe('Products e2e', () => {
 
     await loginAsAdmin(adminClient);
     await loginAsUser(userClient);
+
+    prisma = app.get(PrismaService);
   });
 
   afterAll(async () => {
@@ -155,6 +159,20 @@ describe('Products e2e', () => {
       expect(created.id).toBeDefined();
       expect(created.name).toContain('Test Product');
       expect(created.isActive).toBe(true);
+
+      const auditLog = await prisma.auditLog.findFirst({
+        where: {
+          tenantId: 1,
+          action: 'product.created',
+          entityType: 'product',
+          entityId: created.id,
+        },
+      });
+
+      expect(auditLog?.metadata).toMatchObject({
+        productName: created.name,
+        isActive: created.isActive,
+      });
     });
 
     it('get /products/:id should return one product', async () => {
@@ -184,6 +202,21 @@ describe('Products e2e', () => {
 
       expect(updated.id).toBe(created.id);
       expect(updated.name).toBe(`Updated Name ${suffix}`);
+
+      const auditLog = await prisma.auditLog.findFirst({
+        where: {
+          tenantId: 1,
+          action: 'product.updated',
+          entityType: 'product',
+          entityId: created.id,
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      expect(auditLog?.metadata).toMatchObject({
+        productName: updated.name,
+        changedFields: ['name'],
+      });
     });
 
     it('delete /products/:id should delete product', async () => {
@@ -191,6 +224,19 @@ describe('Products e2e', () => {
 
       await adminClient.delete(`/products/${created.id}`).expect(204);
       await adminClient.get(`/products/${created.id}`).expect(404);
+
+      const auditLog = await prisma.auditLog.findFirst({
+        where: {
+          tenantId: 1,
+          action: 'product.deleted',
+          entityType: 'product',
+          entityId: created.id,
+        },
+      });
+
+      expect(auditLog?.metadata).toMatchObject({
+        productName: created.name,
+      });
     });
 
     it('delete /products/:id should return 404 on unknown id', async () => {

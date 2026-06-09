@@ -40,6 +40,10 @@ export class ProductsService {
         action: AuditLogAction.ProductCreated,
         entityType: AuditLogEntityType.Product,
         entityId: created.id,
+        metadata: {
+          productName: created.name,
+          isActive: created.isActive,
+        },
       });
       return created;
     } catch (err: unknown) {
@@ -132,6 +136,10 @@ export class ProductsService {
         action: AuditLogAction.ProductUpdated,
         entityType: AuditLogEntityType.Product,
         entityId: updated.id,
+        metadata: {
+          productName: updated.name,
+          changedFields: Object.keys(dto),
+        },
       });
       return updated;
     } catch (err: unknown) {
@@ -150,7 +158,7 @@ export class ProductsService {
     const tenantId = this.tenantContext.getTenantId();
     this.logger.log(`delete product id=${id}`);
     try {
-      await this.prisma.product.delete({
+      const deleted = await this.prisma.product.delete({
         where: { id, tenantId },
       });
       this.logger.debug(`deleted product id=${id}`);
@@ -158,6 +166,9 @@ export class ProductsService {
         action: AuditLogAction.ProductDeleted,
         entityType: AuditLogEntityType.Product,
         entityId: id,
+        metadata: {
+          productName: deleted.name,
+        },
       });
     } catch (err: unknown) {
       this.logger.error(`delete failed id=${id}: ${errorMessage(err)}`);

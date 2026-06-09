@@ -220,6 +220,14 @@ export class PlansService {
       action: AuditLogAction.PlanDeleted,
       entityType: AuditLogEntityType.Plan,
       entityId: existing.id,
+      metadata: {
+        planName: existing.name,
+        planCode: existing.code,
+        productId: existing.productId,
+        amount: existing.amount,
+        currency: existing.currency,
+        interval: existing.interval,
+      },
     });
   }
 

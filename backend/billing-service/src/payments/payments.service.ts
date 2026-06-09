@@ -103,6 +103,7 @@ export class PaymentsService {
         entityId: payment.id,
         metadata: {
           invoiceId: payment.invoiceId,
+          invoiceNumber: invoice.invoiceNumber,
           status: payment.status,
           amount: payment.amount,
           currency: payment.currency,

@@ -82,6 +82,10 @@ export class CustomersService {
         action: AuditLogAction.CustomerCreated,
         entityType: AuditLogEntityType.Customer,
         entityId: customer.id,
+        metadata: {
+          customerName: customer.name,
+          customerEmail: customer.email,
+        },
       });
       return customer;
     } catch (e: unknown) {
@@ -113,6 +117,11 @@ export class CustomersService {
         action: AuditLogAction.CustomerUpdated,
         entityType: AuditLogEntityType.Customer,
         entityId: customer.id,
+        metadata: {
+          customerName: customer.name,
+          customerEmail: customer.email,
+          changedFields: Object.keys(data),
+        },
       });
       return customer;
     } catch (e: unknown) {
@@ -135,7 +144,7 @@ export class CustomersService {
   async delete(id: number): Promise<void> {
     const tenantId = this.tenantContext.getTenantId();
     try {
-      await this.prisma.customer.delete({
+      const customer = await this.prisma.customer.delete({
         where: {
           id,
           tenantId,
@@ -146,6 +155,10 @@ export class CustomersService {
         action: AuditLogAction.CustomerDeleted,
         entityType: AuditLogEntityType.Customer,
         entityId: id,
+        metadata: {
+          customerName: customer.name,
+          customerEmail: customer.email,
+        },
       });
     } catch (e: unknown) {
       if (

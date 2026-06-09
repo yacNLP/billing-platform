@@ -432,9 +432,13 @@ export class InvoicesService {
         entityType: AuditLogEntityType.Invoice,
         entityId: updated.id,
         metadata: {
+          invoiceNumber: updated.invoiceNumber,
           statusBefore: invoice.status,
           statusAfter: updated.status,
           dueAt: updated.dueAt.toISOString(),
+          amountDue: updated.amountDue,
+          amountPaid: updated.amountPaid,
+          currency: updated.currency,
         },
       });
 

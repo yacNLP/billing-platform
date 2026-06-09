@@ -370,6 +370,7 @@ describe('Payments e2e', () => {
       expect(auditLog?.actorUserId).toBeDefined();
       expect(metadata).toMatchObject({
         invoiceId: payment.invoiceId,
+        invoiceNumber: invoice.invoiceNumber,
         status: payment.status,
         amount: payment.amount,
         currency: payment.currency,

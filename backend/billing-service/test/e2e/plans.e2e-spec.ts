@@ -5,6 +5,7 @@ import { createE2eApp, TestApp } from '../utils/e2e-app';
 import { Server } from 'http';
 import { E2EClient } from '../utils/e2e-client';
 import { loginAsAdmin, loginAsUser } from '../utils/e2e-auth';
+import { PrismaService } from '../../src/prisma.service';
 
 type BillingInterval = 'MONTH' | 'YEAR' | 'WEEK' | 'DAY';
 type CurrencyCode = 'EUR' | 'USD' | 'DZD';
@@ -90,6 +91,7 @@ describe('Plans e2e', () => {
   let server: Server;
   let adminClient: E2EClient;
   let userClient: E2EClient;
+  let prisma: PrismaService;
 
   beforeAll(async () => {
     const testApp: TestApp = await createE2eApp();
@@ -101,6 +103,8 @@ describe('Plans e2e', () => {
 
     await loginAsAdmin(adminClient);
     await loginAsUser(userClient);
+
+    prisma = app.get(PrismaService);
   });
 
   afterAll(async () => {
@@ -212,6 +216,24 @@ describe('Plans e2e', () => {
 
       await adminClient.delete(`/plans/${created.id}`).expect(204);
       await adminClient.get(`/plans/${created.id}`).expect(404);
+
+      const auditLog = await prisma.auditLog.findFirst({
+        where: {
+          tenantId: 1,
+          action: 'plan.deleted',
+          entityType: 'plan',
+          entityId: created.id,
+        },
+      });
+
+      expect(auditLog?.metadata).toMatchObject({
+        planName: created.name,
+        planCode: created.code,
+        productId: created.productId,
+        amount: created.amount,
+        currency: created.currency,
+        interval: created.interval,
+      });
     });
   });
 });
